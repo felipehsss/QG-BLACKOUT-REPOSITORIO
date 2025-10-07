@@ -11,6 +11,22 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+
+
+
+
+import * as React from "react"
+import { Moon, Sun } from "lucide-react"
+import { useTheme } from "next-themes"
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
+
 export function NavMain({
   items
 }) {
@@ -48,3 +64,11 @@ export function NavMain({
     </SidebarGroup>
   );
 }
+
+
+
+
+
+
+
+
