@@ -1,22 +1,25 @@
 "use client"
 
 import * as React from "react"
+
 import {
-  IconCamera,
+  // Ícones que serão usados para a Sede
   IconChartBar,
   IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
-  IconFileWord,
   IconFolder,
-  IconHelp,
-  IconInnerShadowTop,
   IconListDetails,
   IconReport,
+  IconUsers,
+  IconBuilding, // Adicionando IconBuilding para Lojas
+  IconTruck, // Adicionando IconTruck para Fornecedores
+  IconPackage, // Adicionando IconPackage para Produtos
+  IconCurrencyDollar, // Adicionando IconCurrencyDollar para Financeiro
+  
+  // Ícones do seu layout original
+  IconHelp,
+  IconInnerShadowTop,
   IconSearch,
   IconSettings,
-  IconUsers,
 } from "@tabler/icons-react"
 
 import { NavDocuments } from "@/components/nav-documents"
@@ -33,119 +36,70 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+// --- DADOS ATUALIZADOS PARA A SEDE ---
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: "Admin",
+    email: "admin@qgblackout.com",
+    avatar: "/avatars/shadcn.jpg", // Mantenha ou troque o avatar
   },
+  // Menu Principal: Dashboard e Cadastros
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
-      title: "Lifecycle",
-      url: "#",
-      icon: IconListDetails,
+      title: "Lojas",
+      url: "/dashboard/cadastros/lojas",
+      icon: IconBuilding,
     },
     {
-      title: "Analytics",
-      url: "#",
+      title: "Usuários",
+      url: "/dashboard/cadastros/usuarios",
+      icon: IconUsers,
+    },
+    {
+      title: "Produtos",
+      url: "/dashboard/cadastros/produtos",
+      icon: IconPackage,
+    },
+    {
+      title: "Fornecedores",
+      url: "/dashboard/cadastros/fornecedores",
+      icon: IconTruck,
+    },
+  ],
+  // Menu de Documentos: Financeiro e Relatórios
+  documents: [
+    {
+      name: "Fluxo de Caixa",
+      url: "/dashboard/financeiro/fluxo-caixa",
       icon: IconChartBar,
     },
     {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder,
+      name: "Contas a Pagar",
+      url: "/dashboard/financeiro/contas-a-pagar",
+      icon: IconListDetails,
     },
     {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
+      name: "Relatório de Vendas",
+      url: "/dashboard/relatorios/vendas",
+      icon: IconReport,
     },
   ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
+  // Menu Secundário (Rodapé)
   navSecondary: [
     {
-      title: "Settings",
+      title: "Configurações",
       url: "#",
       icon: IconSettings,
     },
     {
-      title: "Get Help",
+      title: "Ajuda",
       url: "#",
       icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: IconDatabase,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: IconReport,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
     },
   ],
 }
@@ -161,13 +115,15 @@ export function AppSidebar({
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                {/* --- NOME DA EMPRESA ATUALIZADO --- */}
+                <span className="text-base font-semibold">QG Blackout</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        {/* --- OS COMPONENTES PERMANECEM OS MESMOS --- */}
         <NavMain items={data.navMain} />
         <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
