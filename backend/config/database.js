@@ -78,4 +78,4 @@ async function update(table, data, where) {
 }
 
 
-export { create, readAll, read, update };
+module.exports = { create, readAll, read, update };
