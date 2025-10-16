@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -5,40 +6,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
-import { MoreHorizontal } from "lucide-react"
-
-// Dados de exemplo - no futuro, isso virá do seu backend
-const produtos = [
-  { id: "PROD-001", nome: "Produto A", preco: "R$ 49,99", estoque: 120, status: "Ativo" },
-  { id: "PROD-002", nome: "Produto B", preco: "R$ 99,90", estoque: 75, status: "Ativo" },
-  { id: "PROD-003", nome: "Produto C", preco: "R$ 19,50", estoque: 200, status: "Arquivado" },
-];
-
+import { Package } from "lucide-react"
 
 export default function ProdutosPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Produtos</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Gestão de Produtos
+          </h1>
           <p className="text-muted-foreground">
-            Adicione, edite e gerencie os produtos do seu sistema.
+            Cadastre e organize os produtos vendidos em suas lojas.
           </p>
         </div>
         <Button>Adicionar Produto</Button>
@@ -46,52 +25,24 @@ export default function ProdutosPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Produtos</CardTitle>
+          <CardTitle>Produtos</CardTitle>
           <CardDescription>
-            A lista completa de todos os produtos cadastrados.
+            Em breve: uma tabela para visualizar e editar os produtos.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>SKU</TableHead>
-                <TableHead>Nome</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Preço</TableHead>
-                <TableHead>Estoque</TableHead>
-                <TableHead>
-                  <span className="sr-only">Ações</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {produtos.map((produto) => (
-                <TableRow key={produto.id}>
-                  <TableCell className="font-medium">{produto.id}</TableCell>
-                  <TableCell>{produto.nome}</TableCell>
-                  <TableCell>{produto.status}</TableCell>
-                  <TableCell>{produto.preco}</TableCell>
-                  <TableCell>{produto.estoque}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Excluir</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-muted-foreground/30 p-12 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <Package className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-bold tracking-tight">
+              Nenhum produto cadastrado
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Comece adicionando seu primeiro produto.
+            </p>
+            <Button className="mt-4">Adicionar Produto</Button>
+          </div>
         </CardContent>
       </Card>
     </div>

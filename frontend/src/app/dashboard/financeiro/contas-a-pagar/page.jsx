@@ -25,48 +25,46 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, DollarSign, ReceiptText, AlertCircle } from "lucide-react"
+import { format, parse, isValid } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-// --- DADOS DE EXEMPLO MELHORADOS ---
-// No futuro, isso virá do seu backend.
-// O valor agora é um número para permitir cálculos.
-const contas = [
-  {
-    id: "CTA-001",
-    descricao: "Aluguel da Loja - Mês de Julho",
-    valor: 2500.00,
-    vencimento: "10/07/2024",
-    categoria: "Aluguel",
-    status: "Pendente",
-    dataPagamento: null,
-  },
-  {
-    id: "CTA-002",
-    descricao: "Compra de matéria-prima - Fornecedor X",
-    valor: 1200.50,
-    vencimento: "05/07/2024",
-    categoria: "Fornecedores",
-    status: "Atrasada",
-    dataPagamento: null,
-  },
-  {
-    id: "CTA-003",
-    descricao: "Pagamento de Salários - Junho",
-    valor: 8750.00,
-    vencimento: "05/07/2024",
-    categoria: "Salários",
-    status: "Paga",
-    dataPagamento: "2024-07-05",
-  },
-  {
-    id: "CTA-004",
-    descricao: "Impostos Federais - SIMPLES Nacional",
-    valor: 680.00,
-    vencimento: "20/07/2024",
-    categoria: "Impostos",
-    status: "Pendente",
-    dataPagamento: null,
-  },
-];
+/**
+ * Simula a busca de contas a pagar de uma API.
+ */
+async function getContasAPagar() {
+  // Em um cenário real, você faria: `const res = await fetch('/api/contas-a-pagar');`
+  const contas = [
+    {
+      id: "CTA-001",
+      descricao: "Aluguel da Loja - Mês de Julho",
+      valor: 2500.00,
+      vencimento: "2024-07-10", // Usar formato ISO 8601 (YYYY-MM-DD) para datas
+      categoria: "Aluguel",
+      status: "Pendente",
+      dataPagamento: null,
+    },
+    {
+      id: "CTA-002",
+      descricao: "Compra de matéria-prima - Fornecedor X",
+      valor: 1200.50,
+      vencimento: "2024-07-05",
+      categoria: "Fornecedores",
+      status: "Atrasada",
+      dataPagamento: null,
+    },
+    {
+      id: "CTA-003",
+      descricao: "Pagamento de Salários - Junho",
+      valor: 8750.00,
+      vencimento: "2024-07-05",
+      categoria: "Salários",
+      status: "Paga",
+      dataPagamento: "2024-07-05",
+    },
+    // ...outras contas
+  ];
+  return contas;
+}
 
 // --- FUNÇÕES AUXILIARES ---
 
@@ -91,8 +89,18 @@ function getBadgeVariant(status) {
   }
 }
 
-export default function ContasAPagarPage() {
+// Formata uma string de data (YYYY-MM-DD) para DD/MM/YYYY
+function formatDate(dateString) {
+  if (!dateString || !isValid(parse(dateString, 'yyyy-MM-dd', new Date()))) {
+    return "N/A";
+  }
+  const date = parse(dateString, 'yyyy-MM-dd', new Date());
+  return format(date, "dd/MM/yyyy", { locale: ptBR });
+}
+
+export default async function ContasAPagarPage() {
   // --- CÁLCULOS PARA OS CARDS DE RESUMO ---
+  const contas = await getContasAPagar();
   const totalAPagar = contas
     .filter(c => c.status === 'Pendente' || c.status === 'Atrasada')
     .reduce((acc, conta) => acc + conta.valor, 0);
@@ -180,7 +188,7 @@ export default function ContasAPagarPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>{conta.categoria}</TableCell>
-                  <TableCell>{conta.vencimento}</TableCell>
+                  <TableCell>{formatDate(conta.vencimento)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(conta.valor)}</TableCell>
                   <TableCell>
                     <DropdownMenu>

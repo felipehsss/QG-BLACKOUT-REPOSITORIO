@@ -2,26 +2,6 @@
 
 import * as React from "react"
 
-import {
-  // Ícones que serão usados para a Sede
-  IconChartBar,
-  IconDashboard,
-  IconFolder,
-  IconListDetails,
-  IconReport,
-  IconUsers,
-  IconBuilding, // Adicionando IconBuilding para Lojas
-  IconTruck, // Adicionando IconTruck para Fornecedores
-  IconPackage, // Adicionando IconPackage para Produtos
-  IconCurrencyDollar, // Adicionando IconCurrencyDollar para Financeiro
-  
-  // Ícones do seu layout original
-  IconHelp,
-  IconInnerShadowTop,
-  IconSearch,
-  IconSettings,
-} from "@tabler/icons-react"
-
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -48,27 +28,27 @@ const data = {
     {
       title: "Dashboard",
       url: "/dashboard",
-      icon: IconDashboard,
     },
     {
-      title: "Lojas",
-      url: "/dashboard/cadastros/lojas",
-      icon: IconBuilding,
-    },
-    {
-      title: "Usuários",
-      url: "/dashboard/cadastros/usuarios",
-      icon: IconUsers,
-    },
-    {
-      title: "Produtos",
-      url: "/dashboard/cadastros/produtos",
-      icon: IconPackage,
-    },
-    {
-      title: "Fornecedores",
-      url: "/dashboard/cadastros/fornecedores",
-      icon: IconTruck,
+      title: "Cadastros",
+      sub: [
+        {
+          title: "Lojas",
+          url: "/dashboard/cadastros/lojas",
+        },
+        {
+          title: "Usuários",
+          url: "/dashboard/cadastros/usuarios",
+        },
+        {
+          title: "Produtos",
+          url: "/dashboard/cadastros/produtos",
+        },
+        {
+          title: "Fornecedores",
+          url: "/dashboard/cadastros/fornecedores",
+        },
+      ],
     },
   ],
   // Menu de Documentos: Financeiro e Relatórios
@@ -76,17 +56,14 @@ const data = {
     {
       name: "Fluxo de Caixa",
       url: "/dashboard/financeiro/fluxo-caixa",
-      icon: IconChartBar,
     },
     {
       name: "Contas a Pagar",
       url: "/dashboard/financeiro/contas-a-pagar",
-      icon: IconListDetails,
     },
     {
       name: "Relatório de Vendas",
       url: "/dashboard/relatorios/vendas",
-      icon: IconReport,
     },
   ],
   // Menu Secundário (Rodapé)
@@ -94,12 +71,10 @@ const data = {
     {
       title: "Configurações",
       url: "#",
-      icon: IconSettings,
     },
     {
       title: "Ajuda",
       url: "#",
-      icon: IconHelp,
     },
   ],
 }
@@ -113,8 +88,7 @@ export function AppSidebar({
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
+              <a href="/dashboard">
                 {/* --- NOME DA EMPRESA ATUALIZADO --- */}
                 <span className="text-base font-semibold">QG Blackout</span>
               </a>

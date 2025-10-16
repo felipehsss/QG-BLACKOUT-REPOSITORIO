@@ -1,5 +1,4 @@
-"use client";
-import * as React from "react"
+"use client"
 
 import {
   SidebarGroup,
@@ -9,26 +8,20 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-export function NavSecondary({
-  items,
-  ...props
-}) {
+export function NavSecondary({ items, ...props }) {
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <a href={item.url}>
-                  <item.icon />
-                  <span>{item.title}</span>
-                </a>
-              </SidebarMenuButton>
+            <SidebarMenuItem key={item.title} asChild>
+              <a href={item.url}>
+                <span>{item.title}</span>
+              </a>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
-  );
+  )
 }

@@ -654,6 +654,31 @@ function SidebarMenuSubButton({
   );
 }
 
+const SidebarNav = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    data-slot="sidebar-nav"
+    className={cn("flex flex-col gap-1", className)}
+    {...props}
+  />
+));
+SidebarNav.displayName = "SidebarNav";
+
+const SidebarNavLink = React.forwardRef(
+  ({ href, active, className, children, ...props }, ref) => (
+    <SidebarMenuItem ref={ref} className={cn(className)} {...props}>
+      <SidebarMenuButton
+        asChild
+        isActive={active}
+        className="group/nav-link flex w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-sm"
+      >
+        <a href={href}>{children}</a>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  )
+);
+SidebarNavLink.displayName = "SidebarNavLink";
+
 export {
   Sidebar,
   SidebarContent,
@@ -675,6 +700,8 @@ export {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarProvider,
+  SidebarNav,
+  SidebarNavLink,
   SidebarRail,
   SidebarSeparator,
   SidebarTrigger,

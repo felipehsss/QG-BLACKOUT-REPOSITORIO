@@ -16,59 +16,47 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { ArrowUpCircle, ArrowDownCircle, DollarSign, TrendingUp, TrendingDown } from "lucide-react"
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-// --- DADOS DE EXEMPLO ---
-// No futuro, isso virá do seu backend, combinando vendas, contas pagas, etc.
-const transacoes = [
-  {
-    id: "TRN-001",
-    data: "2024-07-01",
-    descricao: "Venda no PDV - Sessão #123",
-    valor: 1550.75,
-    tipo: "Entrada",
-    categoria: "Vendas",
-  },
-  {
-    id: "TRN-002",
-    data: "2024-07-01",
-    descricao: "Pagamento Aluguel da Loja - Mês de Julho",
-    valor: 2500.00,
-    tipo: "Saída",
-    categoria: "Aluguel",
-  },
-  {
-    id: "TRN-003",
-    data: "2024-07-02",
-    descricao: "Venda no PDV - Sessão #124",
-    valor: 2340.50,
-    tipo: "Entrada",
-    categoria: "Vendas",
-  },
-  {
-    id: "TRN-004",
-    data: "2024-07-03",
-    descricao: "Compra de matéria-prima - Fornecedor X",
-    valor: 1200.50,
-    tipo: "Saída",
-    categoria: "Fornecedores",
-  },
-  {
-    id: "TRN-005",
-    data: "2024-07-05",
-    descricao: "Pagamento de Salários - Junho",
-    valor: 8750.00,
-    tipo: "Saída",
-    categoria: "Salários",
-  },
-  {
-    id: "TRN-006",
-    data: "2024-07-05",
-    descricao: "Venda no PDV - Sessão #125",
-    valor: 3120.00,
-    tipo: "Entrada",
-    categoria: "Vendas",
-  },
-];
+/**
+ * Simula a busca de dados de fluxo de caixa de uma API.
+ * Em um cenário real, esta função faria uma chamada `fetch` para o seu backend.
+ */
+async function getFluxoCaixaData() {
+  // Simulação de chamada de API
+  const data = {
+    saldoInicial: 5000.00, // Exemplo, poderia vir do fechamento do mês anterior
+    transacoes: [
+      {
+        id: "TRN-001",
+        data: "2024-07-01",
+        descricao: "Venda no PDV - Sessão #123",
+        valor: 1550.75,
+        tipo: "Entrada",
+        categoria: "Vendas",
+      },
+      {
+        id: "TRN-002",
+        data: "2024-07-01",
+        descricao: "Pagamento Aluguel da Loja - Mês de Julho",
+        valor: 2500.00,
+        tipo: "Saída",
+        categoria: "Aluguel",
+      },
+      {
+        id: "TRN-003",
+        data: "2024-07-02",
+        descricao: "Venda no PDV - Sessão #124",
+        valor: 2340.50,
+        tipo: "Entrada",
+        categoria: "Vendas",
+      },
+      // ...outras transações
+    ],
+  };
+  return data;
+}
 
 // --- FUNÇÕES AUXILIARES ---
 
@@ -82,14 +70,14 @@ function formatCurrency(value) {
 
 // Formata uma string de data (YYYY-MM-DD) para DD/MM/YYYY
 function formatDate(dateString) {
-  const [year, month, day] = dateString.split('-');
-  return `${day}/${month}/${year}`;
+  // Usar date-fns para um tratamento de datas mais robusto
+  return format(parseISO(dateString), "dd/MM/yyyy", { locale: ptBR });
 }
 
-export default function FluxoCaixaPage() {
-  // --- CÁLCULOS PARA OS CARDS DE RESUMO ---
-  const saldoInicial = 5000.00; // Exemplo, poderia vir do fechamento do mês anterior
+export default async function FluxoCaixaPage() {
+  const { transacoes, saldoInicial } = await getFluxoCaixaData();
 
+  // --- CÁLCULOS PARA OS CARDS DE RESUMO ---
   const totalEntradas = transacoes
     .filter(t => t.tipo === 'Entrada')
     .reduce((acc, t) => acc + t.valor, 0);
