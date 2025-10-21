@@ -1,16 +1,28 @@
-const express = require('express');
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+
+import authRoutes from './routes/authRoutes.js';
+import funcionariosRoutes from './routes/funcionariosRoutes.js';
+import lojasRoutes from './routes/lojasRoutes.js';
+import produtosRoutes from './routes/produtosRoutes.js';
+
+dotenv.config();
 const app = express();
-const port = 3001; // Porta que o servidor vai rodar
 
-// Middleware para permitir que o Express entenda JSON no corpo das requisições
+app.use(cors());
+app.use(helmet());
 app.use(express.json());
+app.use(morgan('dev'));
 
-// Rota de teste
-app.get('/', (req, res) => {
-  res.send('Servidor rota teste funcionando!');
-});
+app.use('/api/auth', authRoutes);
+app.use('/api/funcionarios', funcionariosRoutes);
+app.use('/api/lojas', lojasRoutes);
+app.use('/api/produtos', produtosRoutes);
 
-// Inicia o servidor
-app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
-});
+app.get('/', (req, res) => res.json({ message: 'API QG funcionando 🚀' }));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT} 🚀`));

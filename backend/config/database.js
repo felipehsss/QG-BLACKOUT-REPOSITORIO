@@ -1,6 +1,6 @@
 const mysql = require('mysql2/promise');
 
-const pool = mysql2.createPool({
+const pool = mysql.createPool({
   host: 'localhost',
   user: 'root',
   password: '',
@@ -18,10 +18,7 @@ async function readAll(table, where = null) {
   const connection = await getConnection();
   try {
     let sql = `SELECT * FROM ${table}`;
-    if (where) {
-      sql += ` WHERE ${where}`;
-    }
-
+    if (where) sql += ` WHERE ${where}`;
     const [rows] = await connection.execute(sql);
     return rows;
   } finally {
@@ -33,10 +30,7 @@ async function read(table, where) {
   const connection = await getConnection();
   try {
     let sql = `SELECT * FROM ${table}`;
-    if (where) {
-      sql += ` WHERE ${where}`;
-    }
-
+    if (where) sql += ` WHERE ${where}`;
     const [rows] = await connection.execute(sql);
     return rows[0] || null;
   } finally {
@@ -45,7 +39,6 @@ async function read(table, where) {
 }
 
 async function create(table, data) {
-  // Obtém uma conexão com o banco de dados
   const connection = await getConnection();
   try {
     const columns = Object.keys(data).join(', ');
@@ -55,27 +48,34 @@ async function create(table, data) {
     const [result] = await connection.execute(sql, values);
     return result.insertId;
   } finally {
-
     connection.release();
   }
 }
 
 async function update(table, data, where) {
-    const connection = await getConnection();
-    try {
-        const set = Object.keys(data)
-            .map(column => `${column} = ?`)
-            .join(', ');
-
-        const sql = `UPDATE ${table} SET ${set} WHERE ${where}`;
-        const values = Object.values(data);
-
-        const [result] = await connection.execute(sql, [...values]);
-        return result.affectedRows;
-    } finally {
-        connection.release();
-    }
+  const connection = await getConnection();
+  try {
+    const set = Object.keys(data)
+      .map(column => `${column} = ?`)
+      .join(', ');
+    const sql = `UPDATE ${table} SET ${set} WHERE ${where}`;
+    const values = Object.values(data);
+    const [result] = await connection.execute(sql, values);
+    return result.affectedRows;
+  } finally {
+    connection.release();
+  }
 }
 
+async function deleteRecord(table, where) {
+  const connection = await getConnection();
+  try {
+    const sql = `DELETE FROM ${table} WHERE ${where}`;
+    const [result] = await connection.execute(sql);
+    return result.affectedRows;
+  } finally {
+    connection.release();
+  }
+}
 
-module.exports = { create, readAll, read, update };
+module.exports = { create, readAll, read, update, deleteRecord };
