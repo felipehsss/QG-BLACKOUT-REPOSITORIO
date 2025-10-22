@@ -1,49 +1,123 @@
-import bcrypt from 'bcryptjs';
-import { create, readAll, read, update, deleteRecord } from '../config/database.js';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import * as funcionarioModel from "../model/funcionarioModel.js";
 
-const table = 'funcionarios';
+const SECRET = process.env.JWT_SECRET || "chaveSecreta123";
 
-export const getFuncionarios = async (req, res) => {
-  const funcionarios = await readAll(table);
-  res.json(funcionarios);
-};
-
-export const getFuncionario = async (req, res) => {
-  const funcionario = await read(table, `funcionario_id = ${req.params.id}`);
-  if (!funcionario) return res.status(404).json({ error: 'Funcionário não encontrado' });
-  res.json(funcionario);
-};
-
-export const createFuncionario = async (req, res) => {
+export const listar = async (req, res, next) => {
   try {
-    const { loja_id, perfil_id, nome_completo, cpf, email, senha, telefone_contato } = req.body;
-
-    const senha_hash = await bcrypt.hash(senha, 10);
-    const novoId = await create(table, {
-      loja_id,
-      perfil_id,
-      nome_completo,
-      cpf,
-      email,
-      senha_hash,
-      telefone_contato
-    });
-
-    res.status(201).json({ message: 'Funcionário criado com sucesso!', funcionario_id: novoId });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const funcionarios = await funcionarioModel.getAll();
+    res.json(funcionarios);
+  } catch (err) {
+    next(err);
   }
 };
 
-export const updateFuncionario = async (req, res) => {
-  const id = req.params.id;
-  const dados = req.body;
-  const rows = await update(table, dados, `funcionario_id = ${id}`);
-  res.json({ message: 'Funcionário atualizado', rows });
+export const buscarPorId = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const funcionario = await funcionarioModel.getById(id);
+    if (!funcionario) {
+      return res.status(404).json({ message: "Funcionário não encontrado" });
+    }
+    res.json(funcionario);
+  } catch (err) {
+    next(err);
+  }
 };
 
-export const deleteFuncionario = async (req, res) => {
-  const id = req.params.id;
-  const rows = await deleteRecord(table, `funcionario_id = ${id}`);
-  res.json({ message: 'Funcionário excluído', rows });
+export const criar = async (req, res, next) => {
+  try {
+    const { nome_completo, email, cpf, senha, loja_id, perfil_id } = req.body;
+
+    if (!email || !senha) {
+      return res.status(400).json({ message: "E-mail e senha são obrigatórios" });
+    }
+
+    const jaExiste = await funcionarioModel.getByEmail(email);
+    if (jaExiste) {
+      return res.status(400).json({ message: "E-mail já cadastrado" });
+    }
+
+    const senha_hash = await bcrypt.hash(senha, 10);
+
+    const novoFuncionario = {
+      nome_completo,
+      email,
+      cpf,
+      loja_id,
+      perfil_id,
+      senha_hash,
+      is_ativo: true,
+    };
+
+    const id = await funcionarioModel.createFuncionario(novoFuncionario);
+    res.status(201).json({ message: "Funcionário criado com sucesso", id });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const atualizar = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const dados = req.body;
+
+    if (dados.senha) {
+      dados.senha_hash = await bcrypt.hash(dados.senha, 10);
+      delete dados.senha;
+    }
+
+    const linhas = await funcionarioModel.updateFuncionario(id, dados);
+    if (!linhas) {
+      return res.status(404).json({ message: "Funcionário não encontrado" });
+    }
+
+    res.json({ message: "Funcionário atualizado com sucesso" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deletar = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const deletado = await funcionarioModel.deleteFuncionario(id);
+    if (!deletado) {
+      return res.status(404).json({ message: "Funcionário não encontrado" });
+    }
+    res.json({ message: "Funcionário removido com sucesso" });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const login = async (req, res, next) => {
+  try {
+    const { email, senha } = req.body;
+
+    const funcionario = await funcionarioModel.getByEmail(email);
+    if (!funcionario) {
+      return res.status(401).json({ message: "Credenciais inválidas" });
+    }
+
+    const senhaValida = await bcrypt.compare(senha, funcionario.senha_hash);
+    if (!senhaValida) {
+      return res.status(401).json({ message: "Credenciais inválidas" });
+    }
+
+    const token = jwt.sign(
+      {
+        id: funcionario.funcionario_id,
+        email: funcionario.email,
+        perfil_id: funcionario.perfil_id,
+      },
+      SECRET,
+      { expiresIn: "8h" },
+    );
+
+    res.json({ message: "Login bem-sucedido", token });
+  } catch (err) {
+    next(err);
+  }
 };

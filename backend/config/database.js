@@ -1,10 +1,10 @@
-const mysql = require('mysql2/promise');
+import mysql from "mysql2/promise";
 
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'qg_db',
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "qg_db",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -41,8 +41,8 @@ async function read(table, where) {
 async function create(table, data) {
   const connection = await getConnection();
   try {
-    const columns = Object.keys(data).join(', ');
-    const placeholders = Array(Object.keys(data).length).fill('?').join(', ');
+    const columns = Object.keys(data).join(", ");
+    const placeholders = Array(Object.keys(data).length).fill("?").join(", ");
     const sql = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`;
     const values = Object.values(data);
     const [result] = await connection.execute(sql, values);
@@ -57,7 +57,7 @@ async function update(table, data, where) {
   try {
     const set = Object.keys(data)
       .map(column => `${column} = ?`)
-      .join(', ');
+      .join(", ");
     const sql = `UPDATE ${table} SET ${set} WHERE ${where}`;
     const values = Object.values(data);
     const [result] = await connection.execute(sql, values);

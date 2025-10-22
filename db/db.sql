@@ -114,6 +114,20 @@ CREATE TABLE contas_a_pagar (
     FOREIGN KEY (fornecedor_id) REFERENCES tbl_fornecedores(fornecedor_id)
 );
 
+// Tabela para registrar todas as movimentações financeiras
+CREATE TABLE financeiro (
+    financeiro_id INT PRIMARY KEY AUTO_INCREMENT,
+    loja_id INT NOT NULL,
+    tipo ENUM('Entrada', 'Saída') NOT NULL,
+    origem ENUM('Venda', 'Conta a Pagar', 'Outro') NOT NULL,
+    referencia_id INT,
+    descricao VARCHAR(255),
+    valor DECIMAL(10, 2) NOT NULL,
+    data_movimento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (loja_id) REFERENCES lojas(loja_id)
+);
+
+
 -- Populando dados iniciais essenciais
 INSERT INTO tbl_perfis (nome, descricao) VALUES 
 ('Administrador', 'Acesso total ao sistema, incluindo cadastro de lojas e relatórios consolidados.'),
