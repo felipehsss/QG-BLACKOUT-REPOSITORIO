@@ -5,6 +5,10 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 
+// Importação dos middlewares
+import errorHandler from "./middlewares/errorHandler.js";
+import authMiddleware from "./middlewares/authMiddleware.js";
+
 // Importação das rotas
 import authRoutes from "./routes/authRoutes.js";
 import funcionarioRoutes from "./routes/funcionarioRoutes.js";
@@ -48,6 +52,8 @@ app.use("/api/pagamentos_conta", pagamentoContaRoutes);
 app.use("/api/financeiro", financeiroRoutes);
 app.use("/api/perfis", perfilRoutes);
 
+// Middleware de tratamento de erros
+app.use(errorHandler);
 // Inicialização do servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT} 🚀`));

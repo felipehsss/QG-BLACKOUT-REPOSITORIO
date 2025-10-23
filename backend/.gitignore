@@ -1,1 +1,25 @@
+# 🧠 Ignorar variáveis de ambiente
+.env
+
+# 🗄️ Pastas de dependências
 node_modules/
+
+# 🧱 Logs e cache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+dist/
+build/
+
+# 🧩 Configs locais do editor
+.vscode/
+.idea/
+
+# 🧰 Arquivos temporários do sistema
+.DS_Store
+Thumbs.db
+
+# 🧪 Saídas de testes
+coverage/
