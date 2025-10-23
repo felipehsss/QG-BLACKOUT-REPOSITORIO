@@ -1,5 +1,5 @@
 // pagamentoContaController.js
-import * as pagamentoContaModel from "../model/pagamentoContaModel.js";
+import * as pagamentoContaModel from "../model/pagamentoModel.js";
 
 // Listar todos os pagamentos de contas
 export const listar = async (req, res, next) => {

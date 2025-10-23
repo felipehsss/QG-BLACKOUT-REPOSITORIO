@@ -1,6 +1,6 @@
 // pagamentoContaRoutes.js
 import express from "express";
-import * as pagamentoContaController from "../controller/pagamentoContaController.js";
+import * as pagamentoContaController from "../controller/pagamentoController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 
 const router = express.Router();

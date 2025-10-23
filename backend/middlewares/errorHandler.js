@@ -1,5 +1,5 @@
 // middlewares/errorHandler.js
-function errorHandler(err, req, res, next) {
+export default function errorHandler(err, req, res, next) {
   console.error(err);
 
   const status = err.status || 500;
@@ -11,4 +11,4 @@ function errorHandler(err, req, res, next) {
   });
 }
 
-module.exports = errorHandler;
+

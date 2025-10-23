@@ -84,4 +84,4 @@ async function deleteRecord(table, where) {
   }
 }
 
-module.exports = { create, readAll, read, update, deleteRecord };
+export default { create, readAll, read, update, deleteRecord };

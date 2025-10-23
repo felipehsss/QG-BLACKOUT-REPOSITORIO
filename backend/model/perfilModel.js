@@ -1,5 +1,6 @@
 // perfilModel.js
-import db from "../config/database.js";
+import * as db from "../config/database.js";
+
 
 const table = "perfis";
 
