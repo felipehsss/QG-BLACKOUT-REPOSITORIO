@@ -1,10 +1,18 @@
 "use client"
 
 import * as React from "react"
+import {
+  IconBuilding,
+  IconChartBar,
+  IconDashboard,
+  IconListDetails,
+  IconPackage,
+  IconReport,
+  IconTruck,
+  IconUsers,
+} from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
+import { NavGroup } from "@/components/nav-group"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -23,58 +31,47 @@ const data = {
     email: "admin@qgblackout.com",
     avatar: "/avatars/shadcn.jpg", // Mantenha ou troque o avatar
   },
-  // Menu Principal: Dashboard e Cadastros
-  navMain: [
+  // Itens de menu unificados
+  menuItems: [
     {
       title: "Dashboard",
       url: "/dashboard",
+      icon: IconDashboard,
     },
     {
-      title: "Cadastros",
-      sub: [
-        {
-          title: "Lojas",
-          url: "/dashboard/cadastros/lojas",
-        },
-        {
-          title: "Usuários",
-          url: "/dashboard/cadastros/usuarios",
-        },
-        {
-          title: "Produtos",
-          url: "/dashboard/cadastros/produtos",
-        },
-        {
-          title: "Fornecedores",
-          url: "/dashboard/cadastros/fornecedores",
-        },
-      ],
+      title: "Lojas",
+      url: "/dashboard/cadastros/lojas",
+      icon: IconBuilding,
     },
-  ],
-  // Menu de Documentos: Financeiro e Relatórios
-  documents: [
+    {
+      title: "Usuários",
+      url: "/dashboard/cadastros/usuarios",
+      icon: IconUsers,
+    },
+    {
+      title: "Produtos",
+      url: "/dashboard/cadastros/produtos",
+      icon: IconPackage,
+    },
+    {
+      title: "Fornecedores",
+      url: "/dashboard/cadastros/fornecedores",
+      icon: IconTruck,
+    },
     {
       name: "Fluxo de Caixa",
       url: "/dashboard/financeiro/fluxo-caixa",
+      icon: IconChartBar,
     },
     {
       name: "Contas a Pagar",
       url: "/dashboard/financeiro/contas-a-pagar",
+      icon: IconListDetails,
     },
     {
       name: "Relatório de Vendas",
       url: "/dashboard/relatorios/vendas",
-    },
-  ],
-  // Menu Secundário (Rodapé)
-  navSecondary: [
-    {
-      title: "Configurações",
-      url: "#",
-    },
-    {
-      title: "Ajuda",
-      url: "#",
+      icon: IconReport,
     },
   ],
 }
@@ -86,8 +83,8 @@ export function AppSidebar({
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
+          <SidebarMenuItem className="!p-0">
+            <SidebarMenuButton asChild className="!h-auto !p-2">
               <a href="/dashboard">
                 {/* --- NOME DA EMPRESA ATUALIZADO --- */}
                 <span className="text-base font-semibold">QG Blackout</span>
@@ -97,10 +94,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {/* --- OS COMPONENTES PERMANECEM OS MESMOS --- */}
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavGroup items={data.menuItems} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
