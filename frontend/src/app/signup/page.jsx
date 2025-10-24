@@ -1,8 +1,8 @@
 import { GalleryVerticalEnd } from "lucide-react"
 
-import { LoginForm } from "@/components/login-form"
+import { SignupForm } from "@/components/signup-form"
 
-export default function LoginPage() {
+export default function SignupPage() {
   return (
     <div
       className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
@@ -14,7 +14,7 @@ export default function LoginPage() {
           </div>
           QG-BLACKOUT
         </a>
-        <LoginForm />
+        <SignupForm />
       </div>
     </div>
   );
