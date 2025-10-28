@@ -1,7 +1,10 @@
 // authController.js
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import * as funcionarioModel from "../model/funcionarioModel.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+dotenv.config();
+
 
 const SECRET = process.env.JWT_SECRET || "chaveSecreta123";
 

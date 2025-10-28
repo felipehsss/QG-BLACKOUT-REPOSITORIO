@@ -1,6 +1,7 @@
 -- Criar banco de dados
 CREATE DATABASE qg_db;
 USE qg_db;
+-- drop database qg_db;
 
 -- Módulo 1: Cadastros e Controle de Acesso
 
@@ -131,9 +132,39 @@ CREATE TABLE financeiro (
     FOREIGN KEY (loja_id) REFERENCES lojas(loja_id)
 ) ENGINE=InnoDB;
 
+-- Tabela  Clientes
+CREATE TABLE clientes (
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL, -- Nome da pessoa física ou nome fantasia da empresa
+    telefone VARCHAR(20),
+    email VARCHAR(100) UNIQUE,
+    endereco VARCHAR(255),
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    tipo_cliente ENUM('PF', 'PJ') NOT NULL DEFAULT 'PF', -- Para diferenciar Pessoa Física e Jurídica
+    cpf VARCHAR(14) UNIQUE NULL, -- CPF para PF
+    cnpj VARCHAR(18) UNIQUE NULL, -- CNPJ para PJ
+    razao_social VARCHAR(100) NULL, -- Razão Social para PJ (nome legal)
+    nome_fantasia VARCHAR(100) NULL, -- Nome Fantasia (se diferente do nome/razao_social, pode usar 'nome' para isso)
+    inscricao_estadual VARCHAR(20) NULL -- Inscrição Estadual para PJ, se aplicável
+);
+ 
+
 -- Populando dados iniciais essenciais
 INSERT INTO perfis (nome, descricao) VALUES 
 ('Administrador', 'Acesso total ao sistema, incluindo cadastro de lojas e relatórios consolidados.'),
 ('Gerente de Loja', 'Acesso administrativo restrito aos dados da sua própria loja.'),
 ('Vendedor/Caixa', 'Acesso apenas ao módulo PDV para realizar vendas e controlar o caixa da sua loja.');
+
+-- CRIANDO O NECESSARIO ------------------------------------------------------- ****************************************------------------------
+
+INSERT INTO lojas (nome, cnpj, endereco, telefone, is_matriz)
+VALUES ('Loja Matriz QG', '00.000.000/0001-00', 'Rua Principal, 1000', '(11) 99999-9999', TRUE);
+
+--
+
+INSERT INTO funcionarios (
+    loja_id, perfil_id, nome_completo, cpf, email, senha_hash, telefone_contato, is_ativo, data_admissao
+)
+VALUES (1,1,'Administrador do Sistema','000.000.000-00','admin@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 98888-7777',TRUE,'2025-01-01');
+
 
