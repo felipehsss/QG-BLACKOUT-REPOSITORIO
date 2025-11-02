@@ -1,40 +1,31 @@
-import { api } from "./apiService";
+import { apiService } from './apiService';
 
-export const vendaService = {
-  /**
-   * Lista todas as vendas
-   * @param {Object} params - Parâmetros de query (inicio, fim, etc)
-   */
-  listar: async (params = {}) => {
-    return api.get("/vendas", params);
-  },
+const ENDPOINT = '/vendas';
 
-  /**
-   * Busca uma venda por ID
-   */
-  buscarPorId: async (id) => {
-    return api.get(`/vendas/${id}`);
-  },
-
-  /**
-   * Cria uma nova venda
-   */
-  criar: async (dados) => {
-    return api.post("/vendas", dados);
-  },
-
-  /**
-   * Atualiza uma venda existente
-   */
-  atualizar: async (id, dados) => {
-    return api.put(`/vendas/${id}`, dados);
-  },
-
-  /**
-   * Deleta uma venda
-   */
-  deletar: async (id) => {
-    return api.delete(`/vendas/${id}`);
-  },
+export const readAll = (token) => {
+  return apiService.get(ENDPOINT, token);
 };
 
+export const readById = (id, token) => {
+  return apiService.get(`${ENDPOINT}/${id}`, token);
+};
+
+export const create = (data, token) => {
+  return apiService.post(ENDPOINT, data, token);
+};
+
+/**
+ * Cancela uma venda.
+ * (Rota: PUT /cancelar/:id)
+ */
+export const cancelar = (id, token) => {
+  return apiService.put(`${ENDPOINT}/cancelar/${id}`, {}, token);
+};
+
+/**
+ * Busca o relatório de vendas.
+ * (Rota: GET /relatorio/vendas)
+ */
+export const getRelatorioVendas = (token) => {
+  return apiService.get(`${ENDPOINT}/relatorio/vendas`, token);
+};

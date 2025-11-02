@@ -1,26 +1,33 @@
-const API_URL = "http://localhost:3080/api/auth";
+import { apiService } from './apiService';
 
-export async function loginService(credentials) {
+const ENDPOINT = '/auth';
+
+/**
+ * Realiza o login do usuário.
+ * @param {string} email - Email do usuário.
+ * @param {string} senha - Senha do usuário.
+ * @returns {Promise<any>} Resposta da API com token e usuário.
+ */
+export const loginService = (email, senha) => {
   try {
-    const response = await fetch(`${API_URL}/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(credentials),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Erro ao fazer login");
-    }
-
-    return data;
-  } catch (err) {
-    console.error("Erro no loginService:", err);
-    // Se for um erro de rede, retorna mensagem mais amigável
-    if (err instanceof TypeError && err.message.includes("fetch")) {
-      throw new Error("Erro de conexão. Verifique se o backend está rodando.");
-    }
-    throw err;
+    // Esta rota não requer token
+    return apiService.post(`${ENDPOINT}/login`, { email, senha });
+  } catch (error) {
+    console.error('Erro no serviço de login:', error);
+    throw error;
   }
-}
+};
+
+/**
+ * Realiza o logout (apenas notifica o backend, se necessário).
+ * @returns {Promise<any>}
+ */
+export const logoutService = () => {
+  try {
+    // Esta rota não requer token
+    return apiService.post(`${ENDPOINT}/logout`, {});
+  } catch (error) {
+    console.error('Erro no serviço de logout:', error);
+    throw error;
+  }
+};

@@ -1,6 +1,6 @@
 import { apiService } from './apiService';
 
-const ENDPOINT = '/produtos';
+const ENDPOINT = '/fornecedores';
 
 export const readAll = (token) => {
   return apiService.get(ENDPOINT, token);

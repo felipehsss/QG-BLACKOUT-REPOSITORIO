@@ -1,46 +1,31 @@
-import { api } from "./apiService";
+import { apiService } from './apiService';
 
-export const contaPagarService = {
-  /**
-   * Lista todas as contas a pagar
-   */
-  listar: async () => {
-    return api.get("/contas_a_pagar");
-  },
+const ENDPOINT = '/contas-pagar';
 
-  /**
-   * Busca uma conta a pagar por ID
-   */
-  buscarPorId: async (id) => {
-    return api.get(`/contas_a_pagar/${id}`);
-  },
-
-  /**
-   * Lista contas a pagar por loja
-   */
-  listarPorLoja: async (lojaId) => {
-    return api.get(`/contas_a_pagar/loja/${lojaId}`);
-  },
-
-  /**
-   * Cria uma nova conta a pagar
-   */
-  criar: async (dados) => {
-    return api.post("/contas_a_pagar", dados);
-  },
-
-  /**
-   * Atualiza uma conta a pagar existente
-   */
-  atualizar: async (id, dados) => {
-    return api.put(`/contas_a_pagar/${id}`, dados);
-  },
-
-  /**
-   * Deleta uma conta a pagar
-   */
-  deletar: async (id) => {
-    return api.delete(`/contas_a_pagar/${id}`);
-  },
+export const readAll = (token) => {
+  return apiService.get(ENDPOINT, token);
 };
 
+export const readById = (id, token) => {
+  return apiService.get(`${ENDPOINT}/${id}`, token);
+};
+
+export const create = (data, token) => {
+  return apiService.post(ENDPOINT, data, token);
+};
+
+export const update = (id, data, token) => {
+  return apiService.put(`${ENDPOINT}/${id}`, data, token);
+};
+
+export const deleteRecord = (id, token) => {
+  return apiService.delete(`${ENDPOINT}/${id}`, token);
+};
+
+/**
+ * Busca contas a pagar por ID do fornecedor.
+ * (Rota: GET /fornecedor/:id)
+ */
+export const readByFornecedorId = (fornecedorId, token) => {
+  return apiService.get(`${ENDPOINT}/fornecedor/${fornecedorId}`, token);
+};
