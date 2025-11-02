@@ -56,5 +56,5 @@ app.use("/api/clientes", clienteRoutes);
 // Middleware de tratamento de erros
 app.use(errorHandler);
 // Inicialização do servidor
-const PORT = process.env.PORT || 3000;
+const PORT = 3080;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT} 🚀`));
