@@ -32,60 +32,8 @@ import { MoreHorizontal, DollarSign, ShoppingCart, BarChart, XCircle, FileDown, 
 import { ChartAreaInteractive } from "@/components/chart-area-interactive"
 import { DateRangePicker } from "@/components/date-range-picker"
 import { addDays } from "date-fns"
-
-
-// --- DADOS DE EXEMPLO ---
-// No futuro, isso virá do seu backend, baseado na tabela de vendas.
-const vendas = [
-  {
-    id: "VDA-001",
-    data: "2024-07-01T10:30:00",
-    loja: "Matriz - Centro",
-    funcionario: "Ana Silva",
-    valorTotal: 1550.75,
-    status: "Concluída",
-  },
-  {
-    id: "VDA-002",
-    data: "2024-07-01T14:15:00",
-    loja: "Filial - Shopping",
-    funcionario: "Carlos Souza",
-    valorTotal: 850.00,
-    status: "Concluída",
-  },
-  {
-    id: "VDA-003",
-    data: "2024-07-02T11:00:00",
-    loja: "Matriz - Centro",
-    funcionario: "Beatriz Costa",
-    valorTotal: 2340.50,
-    status: "Concluída",
-  },
-  {
-    id: "VDA-004",
-    data: "2024-07-03T16:45:00",
-    loja: "Matriz - Centro",
-    funcionario: "Ana Silva",
-    valorTotal: 450.00,
-    status: "Cancelada",
-  },
-  {
-    id: "VDA-005",
-    data: "2024-07-05T18:00:00",
-    loja: "Filial - Shopping",
-    funcionario: "Mariana Lima",
-    valorTotal: 3120.00,
-    status: "Concluída",
-  },
-  {
-    id: "VDA-006",
-    data: "2024-07-06T12:00:00",
-    loja: "Matriz - Centro",
-    funcionario: "Beatriz Costa",
-    valorTotal: 1780.25,
-    status: "Concluída",
-  },
-];
+import { vendaService } from "@/services/vendaService"
+import { toast } from "sonner"
 
 // --- FUNÇÕES AUXILIARES ---
 
@@ -159,29 +107,47 @@ export default function RelatorioVendasPage() {
     to: new Date(),
   });
 
-  // Simula o carregamento dos dados do backend
+  // Carrega os dados do backend
   React.useEffect(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setAllVendas(vendas);
-      setIsLoading(false);
-    }, 1000); // Simula 1 segundo de delay da rede
-  }, []);
+    const carregarVendas = async () => {
+      setIsLoading(true);
+      try {
+        // Define os parâmetros de data para a requisição
+        const params = {};
+        if (date?.from) {
+          params.inicio = date.from.toISOString();
+        }
+        if (date?.to) {
+          params.fim = date.to.toISOString();
+        }
 
-  // Filtra as vendas com base no período selecionado
-  const vendasFiltradas = React.useMemo(() => {
-    if (!date?.from) return allVendas;
-    const fromDate = new Date(date.from);
-    fromDate.setHours(0, 0, 0, 0);
+        const vendasData = await vendaService.listar(params);
+        
+        // Transforma os dados do backend para o formato esperado pela UI
+        const vendasFormatadas = vendasData.map((venda) => ({
+          id: venda.venda_id?.toString() || venda.id?.toString() || "",
+          data: venda.data_venda || venda.created_at || new Date().toISOString(),
+          loja: venda.nome_loja || venda.loja || "N/A",
+          funcionario: venda.nome_funcionario || venda.funcionario || "N/A",
+          valorTotal: parseFloat(venda.valor_total || 0),
+          status: venda.status_venda || venda.status || "Concluída",
+        }));
 
-    const toDate = date.to ? new Date(date.to) : new Date(date.from);
-    toDate.setHours(23, 59, 59, 999);
+        setAllVendas(vendasFormatadas);
+      } catch (error) {
+        console.error("Erro ao carregar vendas:", error);
+        toast.error("Erro ao carregar vendas: " + (error.message || "Erro desconhecido"));
+        setAllVendas([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return allVendas.filter(venda => {
-      const vendaDate = new Date(venda.data);
-      return vendaDate >= fromDate && vendaDate <= toDate;
-    });
-  }, [allVendas, date]);
+    carregarVendas();
+  }, [date]);
+
+  // As vendas já vêm filtradas do backend, então usamos diretamente
+  const vendasFiltradas = allVendas;
 
   // Calcula os KPIs com base nas vendas filtradas
   const kpis = React.useMemo(() => {

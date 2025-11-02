@@ -27,43 +27,28 @@ import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, DollarSign, ReceiptText, AlertCircle } from "lucide-react"
 import { format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { contaPagarService } from "@/services/contaPagarService";
 
 /**
- * Simula a busca de contas a pagar de uma API.
+ * Busca contas a pagar da API do backend
  */
 async function getContasAPagar() {
-  // Em um cenário real, você faria: `const res = await fetch('/api/contas-a-pagar');`
-  const contas = [
-    {
-      id: "CTA-001",
-      descricao: "Aluguel da Loja - Mês de Julho",
-      valor: 2500.00,
-      vencimento: "2024-07-10", // Usar formato ISO 8601 (YYYY-MM-DD) para datas
-      categoria: "Aluguel",
-      status: "Pendente",
-      dataPagamento: null,
-    },
-    {
-      id: "CTA-002",
-      descricao: "Compra de matéria-prima - Fornecedor X",
-      valor: 1200.50,
-      vencimento: "2024-07-05",
-      categoria: "Fornecedores",
-      status: "Atrasada",
-      dataPagamento: null,
-    },
-    {
-      id: "CTA-003",
-      descricao: "Pagamento de Salários - Junho",
-      valor: 8750.00,
-      vencimento: "2024-07-05",
-      categoria: "Salários",
-      status: "Paga",
-      dataPagamento: "2024-07-05",
-    },
-    // ...outras contas
-  ];
-  return contas;
+  try {
+    const contas = await contaPagarService.listar();
+    // Transforma os dados do backend para o formato esperado pela UI
+    return contas.map((conta) => ({
+      id: conta.conta_pagar_id?.toString() || conta.id?.toString() || "",
+      descricao: conta.descricao || "",
+      valor: parseFloat(conta.valor || 0),
+      vencimento: conta.data_vencimento ? format(new Date(conta.data_vencimento), "yyyy-MM-dd") : null,
+      categoria: conta.categoria || "",
+      status: conta.status || "Pendente",
+      dataPagamento: conta.data_pagamento ? format(new Date(conta.data_pagamento), "yyyy-MM-dd") : null,
+    }));
+  } catch (error) {
+    console.error("Erro ao buscar contas a pagar:", error);
+    throw error;
+  }
 }
 
 // --- FUNÇÕES AUXILIARES ---
@@ -100,7 +85,14 @@ function formatDate(dateString) {
 
 export default async function ContasAPagarPage() {
   // --- CÁLCULOS PARA OS CARDS DE RESUMO ---
-  const contas = await getContasAPagar();
+  let contas = [];
+  try {
+    contas = await getContasAPagar();
+  } catch (error) {
+    console.error("Erro ao carregar contas:", error);
+    // Em caso de erro, retorna array vazio para não quebrar a UI
+    contas = [];
+  }
   const totalAPagar = contas
     .filter(c => c.status === 'Pendente' || c.status === 'Atrasada')
     .reduce((acc, conta) => acc + conta.valor, 0);
