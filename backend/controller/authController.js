@@ -45,7 +45,7 @@ export const login = async (req, res, next) => {
         id: funcionario.funcionario_id,
         email: funcionario.email,
         perfil_id: funcionario.perfil_id,
-        nome: funcionario.nome || null
+        nome_completo: funcionario.nome_completo || null
       }
     });
   } catch (err) {
