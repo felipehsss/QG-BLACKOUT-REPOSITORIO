@@ -35,42 +35,42 @@ const data = {
   menuItems: [
     {
       title: "Dashboard",
-      url: "/dashboard",
+      url: "/",
       icon: IconDashboard,
     },
     {
       title: "Lojas",
-      url: "/dashboard/cadastros/lojas",
+      url: "/cadastros/lojas",
       icon: IconBuilding,
     },
     {
       title: "Usuários",
-      url: "/dashboard/cadastros/usuarios",
+      url: "/cadastros/usuarios",
       icon: IconUsers,
     },
     {
       title: "Produtos",
-      url: "/dashboard/cadastros/produtos",
+      url: "/cadastros/produtos",
       icon: IconPackage,
     },
     {
       title: "Fornecedores",
-      url: "/dashboard/cadastros/fornecedores",
+      url: "/cadastros/fornecedores",
       icon: IconTruck,
     },
     {
       name: "Fluxo de Caixa",
-      url: "/dashboard/financeiro/fluxo-caixa",
+      url: "/financeiro/fluxo-caixa",
       icon: IconChartBar,
     },
     {
       name: "Contas a Pagar",
-      url: "/dashboard/financeiro/contas-a-pagar",
+      url: "/financeiro/contas-a-pagar",
       icon: IconListDetails,
     },
     {
       name: "Relatório de Vendas",
-      url: "/dashboard/relatorios/vendas",
+      url: "/relatorios/vendas",
       icon: IconReport,
     },
   ],

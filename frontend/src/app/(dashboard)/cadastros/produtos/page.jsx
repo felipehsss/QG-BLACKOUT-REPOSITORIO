@@ -38,7 +38,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Package, Plus, MoreHorizontal, Loader2 } from "lucide-react"
-import { produtoService } from "@/services/produtoService"
+// import { produtoService } from "@/services/produtoService"
 import { toast } from "sonner"
 
 export default function ProdutosPage() {
