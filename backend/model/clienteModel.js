@@ -1,6 +1,6 @@
 import * as db from "../config/database.js";
 
-const table = "CLIENTE";
+const table = "clientes";
 const primaryKey = "id_cliente";
 
 export async function getAll() {

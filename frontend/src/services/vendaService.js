@@ -28,6 +28,6 @@ export const cancelar = (id, token) => {
  */
 export const getRelatorioVendas = (token) => {
 
-  return apiService.get(`${ENDPOINT}/vendas/relatorio/vendas`, token);
+  return apiService.get(`${ENDPOINT}`, token);
 
 };
