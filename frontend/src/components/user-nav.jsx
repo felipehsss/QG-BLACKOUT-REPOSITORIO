@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext"; // Nosso hook de autenticação (usando o alias '@')
+import { useAuth } from "@/contexts/AuthContext"; // Nosso hook de autenticação (usando o alias '@')
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,

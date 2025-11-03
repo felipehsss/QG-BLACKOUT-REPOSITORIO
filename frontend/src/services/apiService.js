@@ -1,6 +1,7 @@
 // Define a URL base da sua API Express.
 // O ideal é que esta venha de uma variável de ambiente.
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// ATUALIZADO PARA A PORTA 3080 (com base no seu código antigo que funciona)
+const BASE_URL = 'http://localhost:3080/api';
 
 /**
  * Lida com a resposta da API, tratando sucessos e erros.
@@ -8,8 +9,6 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
  * @returns {Promise<any>} Os dados em JSON.
  * @throws {Error} Lança um erro se a resposta não for 'ok'.
  */
-
-// Função para tratar a resposta da API
 const handleResponse = async (response) => {
   const isJson = response.headers.get('content-type')?.includes('application/json');
   const data = isJson ? await response.json() : null;
@@ -43,7 +42,7 @@ const getHeaders = (token) => {
 
 /**
  * Função de requisição genérica que usa fetch.
- * @param {string} endpoint - O endpoint da API (ex: '/produtos').
+ * @param {string} endpoint - O endpoint da API (ex: '/auth').
  * @param {RequestInit} options - As opções do fetch (method, body, etc).
  * @param {string} [token] - O token JWT (opcional).
  * @returns {Promise<any>} Os dados da resposta.
@@ -59,7 +58,13 @@ const request = async (endpoint, options, token) => {
     return await handleResponse(response);
   } catch (error) {
     console.error(`Erro na requisição para ${endpoint}:`, error.message);
-    // Propaga o erro para que a UI possa tratá-lo
+    
+    // Se for um erro de rede, retorna mensagem mais amigável
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error("Erro de conexão. Verifique se o backend está rodando na porta 3080.");
+    }
+    
+    // Propaga o erro original para que a UI possa tratá-lo
     throw error;
   }
 };
@@ -102,3 +107,4 @@ export const apiService = {
    */
   delete: (endpoint, token) => request(endpoint, { method: 'DELETE' }, token),
 };
+

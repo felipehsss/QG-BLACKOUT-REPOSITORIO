@@ -668,8 +668,8 @@ const SidebarNavLink = React.forwardRef(
   ({ href, active, className, children, ...props }, ref) => (
     <SidebarMenuItem ref={ref} className={cn(className)} {...props}>
       <SidebarMenuButton
-        asChild
-        isActive={active}
+        asChild 
+        isActive={pathname === item.url}
         className="group/nav-link flex w-full items-center justify-start gap-2 rounded-md px-3 py-2 text-sm"
       >
         <a href={href}>{children}</a>

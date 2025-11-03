@@ -21,6 +21,8 @@ export function NavGroup({ items, ...props }) {
         <SidebarMenu>
           {items.map((item) => {
             const title = item.title ?? item.name
+
+            // Caso tenha submenus
             if (item.sub) {
               return (
                 <SidebarMenuSub key={title}>
@@ -28,18 +30,31 @@ export function NavGroup({ items, ...props }) {
                     {item.icon && <item.icon />}
                     <span className="truncate">{title}</span>
                   </SidebarMenuButton>
+
                   {item.sub.map((subItem) => (
-                    <SidebarMenuSubItem key={subItem.title} href={subItem.url} active={pathname === subItem.url}>
-                      {subItem.icon && <subItem.icon />}
-                      {subItem.title}
+                    <SidebarMenuSubItem key={subItem.title}>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={pathname === subItem.url}
+                      >
+                        <a href={subItem.url}>
+                          {subItem.icon && <subItem.icon />}
+                          <span>{subItem.title}</span>
+                        </a>
+                      </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   ))}
                 </SidebarMenuSub>
               )
             }
+
+            // Sem submenu
             return (
               <SidebarMenuItem key={title}>
-                <SidebarMenuButton asChild active={pathname === item.url}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.url}
+                >
                   <a href={item.url}>
                     {item.icon && <item.icon />}
                     <span className="truncate">{title}</span>

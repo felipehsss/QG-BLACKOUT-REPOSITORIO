@@ -1,17 +1,20 @@
 import { apiService } from './apiService';
 
+// CORREÇÃO: Adicionado o prefixo /api que é esperado pelo backend/index.js
 const ENDPOINT = '/auth';
 
 /**
  * Realiza o login do usuário.
- * @param {string} email - Email do usuário.
- * @param {string} senha - Senha do usuário.
+ * @param {object} credentials - Objeto com email e senha.
+ * @param {string} credentials.email - Email do usuário.
+ * @param {string} credentials.senha - Senha do usuário.
  * @returns {Promise<any>} Resposta da API com token e usuário.
  */
-export const loginService = (email, senha) => {
+export const loginService = (credentials) => {
   try {
     // Esta rota não requer token
-    return apiService.post(`${ENDPOINT}/login`, { email, senha });
+    // Envia o objeto 'credentials' diretamente, que contém { email, senha }
+    return apiService.post(`${ENDPOINT}/login`, credentials);
   } catch (error) {
     console.error('Erro no serviço de login:', error);
     throw error;
@@ -31,3 +34,4 @@ export const logoutService = () => {
     throw error;
   }
 };
+

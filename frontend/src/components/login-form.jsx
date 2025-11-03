@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { loginService } from "@/services/authService"; // Importando seu serviço
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/context/AuthContext"; // Importando o Contexto
+import { useAuth } from "@/contexts/AuthContext"; // Importando o Contexto
 import {
   Card,
   CardContent,
@@ -48,7 +48,7 @@ export function LoginForm({ className, ...props }) {
       loginContext(response.user, response.token);
 
       toast.success("Login realizado com sucesso!");
-      router.push("/dashboard"); // Redirecionar para o dashboard
+      router.push("/"); // Redirecionar para o dashboard
 
     } catch (error) {
       console.error("Erro no login:", error);

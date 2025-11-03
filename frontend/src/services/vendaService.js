@@ -27,5 +27,7 @@ export const cancelar = (id, token) => {
  * (Rota: GET /relatorio/vendas)
  */
 export const getRelatorioVendas = (token) => {
-  return apiService.get(`${ENDPOINT}/relatorio/vendas`, token);
+
+  return apiService.get(`${ENDPOINT}/vendas/relatorio/vendas`, token);
+
 };
