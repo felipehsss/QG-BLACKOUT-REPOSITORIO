@@ -1,54 +1,79 @@
 import { apiService } from './apiService';
 
-// O endpoint base para clientes, conforme backend/routes/clienteRoutes.js
 const ENDPOINT = '/clientes';
 
-/**
- * Busca todos os clientes.
- * @param {string} token - O token JWT para autorização.
- * @returns {Promise<Array>} - Uma promessa que resolve para um array de clientes.
- */
-export const readAll = (token) => {
-  return apiService.get(ENDPOINT, token);
+const normalize = (item) => ({
+  id: item.id_cliente ?? item.id ?? item._id ?? null,
+  nome: item.nome ?? item.nome_fantasia ?? item.razao_social ?? '',
+  telefone: item.telefone ?? null,
+  email: item.email ?? null,
+  endereco: item.endereco ?? null,
+  data_cadastro: item.data_cadastro ?? null,
+  tipo_cliente: item.tipo_cliente ?? null, // 'PF' ou 'PJ'
+  cpf: item.cpf ?? null,
+  cnpj: item.cnpj ?? null,
+  razao_social: item.razao_social ?? null,
+  nome_fantasia: item.nome_fantasia ?? null,
+  inscricao_estadual: item.inscricao_estadual ?? null,
+  raw: item,
+});
+
+const ensureNulls = (obj) => {
+  if (obj == null) return null;
+  const out = {};
+  Object.keys(obj).forEach((k) => {
+    const v = obj[k];
+    if (v === undefined) out[k] = null;
+    else if (typeof v === 'object' && v !== null && !Array.isArray(v)) out[k] = ensureNulls(v);
+    else out[k] = v;
+  });
+  return out;
 };
 
-/**
- * Busca um cliente específico pelo ID.
- * @param {number|string} id - O ID do cliente.
- * @param {string} token - O token JWT para autorização.
- * @returns {Promise<Object>} - Uma promessa que resolve para o objeto do cliente.
- */
-export const readById = (id, token) => {
-  return apiService.get(`${ENDPOINT}/${id}`, token);
+export const readAll = async (token) => {
+  const res = await apiService.get(ENDPOINT, token);
+  const arr = Array.isArray(res) ? res : res?.data ?? [];
+  return arr.map(normalize);
 };
 
-/**
- * Cria um novo cliente.
- * @param {Object} data - Os dados do novo cliente (nome, email, telefone, etc.).
- * @param {string} token - O token JWT para autorização.
- * @returns {Promise<Object>} - Uma promessa que resolve para o novo cliente criado.
- */
+export const readById = async (id, token) => {
+  const res = await apiService.get(`${ENDPOINT}/${id}`, token);
+  const item = Array.isArray(res) ? res[0] : res?.data ?? res;
+  return item ? normalize(item) : null;
+};
+
 export const create = (data, token) => {
-  return apiService.post(ENDPOINT, data, token);
+  const safe = ensureNulls({
+    nome: data.nome ?? null,
+    telefone: data.telefone ?? null,
+    email: data.email ?? null,
+    endereco: data.endereco ?? null,
+    tipo_cliente: data.tipo_cliente ?? 'PF',
+    cpf: data.cpf ?? null,
+    cnpj: data.cnpj ?? null,
+    razao_social: data.razao_social ?? null,
+    nome_fantasia: data.nome_fantasia ?? null,
+    inscricao_estadual: data.inscricao_estadual ?? null,
+  });
+  return apiService.post(ENDPOINT, safe, token);
 };
 
-/**
- * Atualiza um cliente existente.
- * @param {number|string} id - O ID do cliente a ser atualizado.
- * @param {Object} data - Os novos dados do cliente.
- * @param {string} token - O token JWT para autorização.
- * @returns {Promise<Object>} - Uma promessa que resolve para o cliente atualizado.
- */
 export const update = (id, data, token) => {
-  return apiService.put(`${ENDPOINT}/${id}`, data, token);
+  const safe = ensureNulls({
+    nome: data.nome ?? null,
+    telefone: data.telefone ?? null,
+    email: data.email ?? null,
+    endereco: data.endereco ?? null,
+    tipo_cliente: data.tipo_cliente ?? null,
+    cpf: data.cpf ?? null,
+    cnpj: data.cnpj ?? null,
+    razao_social: data.razao_social ?? null,
+    nome_fantasia: data.nome_fantasia ?? null,
+    inscricao_estadual: data.inscricao_estadual ?? null,
+  });
+  return apiService.put(`${ENDPOINT}/${id}`, safe, token);
 };
 
-/**
- * Deleta um cliente.
- * @param {number|string} id - O ID do cliente a ser deletado.
- * @param {string} token - O token JWT para autorização.
- * @returns {Promise<Object>} - Uma promessa que resolve para a mensagem de sucesso.
- */
 export const deleteRecord = (id, token) => {
   return apiService.delete(`${ENDPOINT}/${id}`, token);
 };
