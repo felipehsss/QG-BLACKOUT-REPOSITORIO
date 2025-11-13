@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "../../contexts/AuthContext"; // Caminho corrigido
+import { useAuth } from "../../contexts/AuthContext"; 
 import { toast } from "sonner";
 import {
   Card,
