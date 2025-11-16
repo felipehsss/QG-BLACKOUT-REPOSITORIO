@@ -22,11 +22,17 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserNav } from "@/components/user-nav"; // <!-- 1. IMPORTAMOS O NOVO COMPONENTE
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar"
 
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background px-4 md:px-8">
       {/* Mobile Nav - (Seu código original) */}
+       <SidebarTrigger className="-ml-1" />
       <Sheet>
         <SheetTrigger asChild>
           <Button

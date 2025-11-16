@@ -22,6 +22,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { create as createCliente, update as updateCliente } from "@/services/clienteService";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -79,15 +86,16 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
     setIsSubmitting(true);
     try {
       const payload = {
-        ...data,
+        nome: data.nome.trim(),
         email: data.email?.trim() || null,
         telefone: data.telefone?.trim() || null,
         endereco: data.endereco?.trim() || null,
-        cpf: data.cpf?.trim() || null,
-        cnpj: data.cnpj?.trim() || null,
-        razao_social: data.razao_social?.trim() || null,
-        nome_fantasia: data.nome_fantasia?.trim() || null,
-        inscricao_estadual: data.inscricao_estadual?.trim() || null,
+        tipo_cliente: data.tipo_cliente, // "PF" ou "PJ"
+        cpf: data.tipo_cliente === "PF" ? data.cpf?.trim() || null : null,
+        cnpj: data.tipo_cliente === "PJ" ? data.cnpj?.trim() || null : null,
+        razao_social: data.tipo_cliente === "PJ" ? data.razao_social?.trim() || null : null,
+        nome_fantasia: data.tipo_cliente === "PJ" ? data.nome_fantasia?.trim() || null : null,
+        inscricao_estadual: data.tipo_cliente === "PJ" ? data.inscricao_estadual?.trim() || null : null,
       };
 
       if (initialData && (initialData.id ?? initialData.id_cliente)) {
@@ -107,7 +115,7 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
     }
   };
 
-    return (
+  return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
@@ -123,6 +131,7 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Nome */}
             <FormField
               control={form.control}
               name="nome"
@@ -130,16 +139,14 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
                 <FormItem>
                   <FormLabel>Nome *</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Nome completo ou fantasia"
-                      {...field}
-                    />
+                    <Input placeholder="Nome completo ou fantasia" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Email */}
             <FormField
               control={form.control}
               name="email"
@@ -154,6 +161,7 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
               )}
             />
 
+            {/* Telefone */}
             <FormField
               control={form.control}
               name="telefone"
@@ -168,6 +176,7 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
               )}
             />
 
+            {/* Endereço */}
             <FormField
               control={form.control}
               name="endereco"
@@ -175,104 +184,116 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
                 <FormItem>
                   <FormLabel>Endereço</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Rua, nº, bairro, cidade"
-                      {...field}
-                    />
+                    <Input placeholder="Rua, nº, bairro, cidade" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Tipo de Cliente */}
             <FormField
               control={form.control}
               name="tipo_cliente"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo de Cliente</FormLabel>
-                  <FormControl>
-                    <Input placeholder="PF ou PJ" {...field} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione PF ou PJ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PF">Pessoa Física</SelectItem>
+                      <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="cpf"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>CPF (se PF)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="000.000.000-00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* CPF */}
+            {form.watch("tipo_cliente") === "PF" && (
+              <FormField
+                control={form.control}
+                name="cpf"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CPF</FormLabel>
+                    <FormControl>
+                      <Input placeholder="000.000.000-00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
-            <FormField
-              control={form.control}
-              name="cnpj"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>CNPJ (se PJ)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="00.000.000/0001-00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Campos PJ */}
+            {form.watch("tipo_cliente") === "PJ" && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="cnpj"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CNPJ</FormLabel>
+                      <FormControl>
+                        <Input placeholder="00.000.000/0001-00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="razao_social"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Razão Social (PJ)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Razão Social da empresa" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="razao_social"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Razão Social</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Razão Social da empresa" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="nome_fantasia"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome Fantasia (PJ)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome Fantasia da empresa" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="nome_fantasia"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nome Fantasia</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Nome Fantasia da empresa" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="inscricao_estadual"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Inscrição Estadual (PJ)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Inscrição Estadual" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="inscricao_estadual"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inscrição Estadual</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Inscrição Estadual" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             <DialogFooter>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => {
                   setOpen(false);
                   setTimeout(() => form.reset(), 200);
@@ -285,8 +306,8 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
                 {isSubmitting
                   ? "Salvando..."
                   : initialData
-                  ? "Salvar alterações"
-                  : "Salvar"}
+                    ? "Salvar alterações"
+                    : "Salvar"}
               </Button>
             </DialogFooter>
           </form>

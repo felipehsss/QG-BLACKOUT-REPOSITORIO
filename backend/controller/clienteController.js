@@ -12,7 +12,7 @@ export const listar = async (req, res, next) => {
 export const buscarPorId = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const cliente = await clienteModel.getById(id);
+    const cliente = await clienteModel.getById(Number(id));
     if (!cliente) {
       return res.status(404).json({ message: "Cliente não encontrado" });
     }
@@ -24,57 +24,72 @@ export const buscarPorId = async (req, res, next) => {
 
 export const criar = async (req, res, next) => {
   try {
-    const dadosCliente = req.body;
+    const {
+      nome,
+      telefone,
+      email,
+      endereco,
+      tipo_cliente,
+      cpf,
+      cnpj,
+      razao_social,
+      nome_fantasia,
+      inscricao_estadual,
+    } = req.body;
 
-    if (!dadosCliente.nome) {
+    if (!nome) {
       return res.status(400).json({ message: "O nome do cliente é obrigatório." });
     }
-    const tipo = dadosCliente.tipo_cliente || "PF";
-    if (tipo === "PF" && !dadosCliente.cpf) {
+
+    const tipo = tipo_cliente === "PJ" ? "PJ" : "PF";
+
+    if (tipo === "PF" && !cpf) {
       return res.status(400).json({ message: "CPF é obrigatório para Pessoa Física." });
     }
-    if (tipo === "PJ" && !dadosCliente.cnpj) {
-      return res.status(400).json({ message: "CNPJ é obrigatório para Pessoa Jurídica." });
-    }
-    if (tipo === "PJ" && !dadosCliente.razao_social) {
-      return res.status(400).json({ message: "Razão Social é obrigatória para Pessoa Jurídica." });
+    if (tipo === "PJ" && (!cnpj || !razao_social)) {
+      return res.status(400).json({ message: "CNPJ e Razão Social são obrigatórios para Pessoa Jurídica." });
     }
 
-    if (dadosCliente.email) {
-      const emailExiste = await clienteModel.getByEmail(dadosCliente.email);
+    // Verificações de duplicidade
+    if (email) {
+      const emailExiste = await clienteModel.getByEmail(email);
       if (emailExiste) {
-        return res.status(409).json({ message: "E-mail já cadastrado para outro cliente." });
+        return res.status(409).json({ message: "E-mail já cadastrado." });
       }
     }
-    if (tipo === "PF" && dadosCliente.cpf) {
-      const cpfExiste = await clienteModel.getByCpf(dadosCliente.cpf);
+    if (tipo === "PF" && cpf) {
+      const cpfExiste = await clienteModel.getByCpf(cpf);
       if (cpfExiste) {
-        return res.status(409).json({ message: "CPF já cadastrado para outro cliente." });
+        return res.status(409).json({ message: "CPF já cadastrado." });
       }
     }
-    if (tipo === "PJ" && dadosCliente.cnpj) {
-      const cnpjExiste = await clienteModel.getByCnpj(dadosCliente.cnpj);
+    if (tipo === "PJ" && cnpj) {
+      const cnpjExiste = await clienteModel.getByCnpj(cnpj);
       if (cnpjExiste) {
-        return res.status(409).json({ message: "CNPJ já cadastrado para outro cliente." });
+        return res.status(409).json({ message: "CNPJ já cadastrado." });
       }
     }
 
-    const resultado = await clienteModel.createCliente(dadosCliente);
-    const idInserido = resultado?.insertId || resultado?.id_cliente || resultado;
+    // Normaliza os dados
+    const dadosParaSalvar = {
+      nome,
+      tipo_cliente: tipo,
+      telefone: telefone || null,
+      email: email || null,
+      endereco: endereco || null,
+      cpf: tipo === "PF" ? cpf || null : null,
+      cnpj: tipo === "PJ" ? cnpj || null : null,
+      razao_social: tipo === "PJ" ? razao_social || null : null,
+      nome_fantasia: tipo === "PJ" ? nome_fantasia || null : null,
+      inscricao_estadual: tipo === "PJ" ? inscricao_estadual || null : null,
+    };
 
-    if (!idInserido) {
-      throw new Error("Falha ao criar o cliente, ID não retornado.");
-    }
+    const idInserido = await clienteModel.create(dadosParaSalvar);
 
     res.status(201).json({ message: "Cliente criado com sucesso", id: idInserido });
-
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
-      let campo = "desconhecido";
-      if (err.message.includes("cpf")) campo = "CPF";
-      else if (err.message.includes("cnpj")) campo = "CNPJ";
-      else if (err.message.includes("email")) campo = "E-mail";
-      return res.status(409).json({ message: `Erro ao criar cliente: ${campo} já cadastrado.` });
+      return res.status(409).json({ message: "Duplicidade detectada." });
     }
     next(err);
   }
@@ -85,49 +100,29 @@ export const atualizar = async (req, res, next) => {
     const { id } = req.params;
     const dadosCliente = req.body;
 
-    if (Object.keys(dadosCliente).length === 0) {
+    if (!dadosCliente || Object.keys(dadosCliente).length === 0) {
       return res.status(400).json({ message: "Nenhum dado fornecido para atualização." });
     }
 
-    if (dadosCliente.email) {
-      const outroCliente = await clienteModel.getByEmail(dadosCliente.email);
-      if (outroCliente && outroCliente.id_cliente !== parseInt(id, 10)) {
-        return res.status(409).json({ message: "E-mail já cadastrado para outro cliente." });
-      }
-    }
-    if (dadosCliente.cpf && (!dadosCliente.tipo_cliente || dadosCliente.tipo_cliente === "PF")) {
-      const outroCliente = await clienteModel.getByCpf(dadosCliente.cpf);
-      if (outroCliente && outroCliente.id_cliente !== parseInt(id, 10)) {
-        return res.status(409).json({ message: "CPF já cadastrado para outro cliente." });
-      }
-    }
-    if (dadosCliente.cnpj && dadosCliente.tipo_cliente === "PJ") {
-      const outroCliente = await clienteModel.getByCnpj(dadosCliente.cnpj);
-      if (outroCliente && outroCliente.id_cliente !== parseInt(id, 10)) {
-        return res.status(409).json({ message: "CNPJ já cadastrado para outro cliente." });
+    const dadosParaAtualizar = {};
+    for (const key in dadosCliente) {
+      if (dadosCliente[key] !== undefined) {
+        dadosParaAtualizar[key] = dadosCliente[key] === "" ? null : dadosCliente[key];
       }
     }
 
-    const linhasAfetadas = await clienteModel.updateCliente(id, dadosCliente);
+    const linhasAfetadas = await clienteModel.update(Number(id), dadosParaAtualizar);
 
     if (linhasAfetadas === 0) {
-      const clienteExiste = await clienteModel.getById(id);
+      const clienteExiste = await clienteModel.getById(Number(id));
       if (!clienteExiste) {
-        return res.status(404).json({ message: "Cliente não encontrado para atualização" });
-      } else {
-        return res.json({ message: "Nenhuma alteração detectada nos dados do cliente." });
+        return res.status(404).json({ message: "Cliente não encontrado." });
       }
+      return res.json({ message: "Nenhuma alteração realizada." });
     }
 
     res.json({ message: "Cliente atualizado com sucesso" });
   } catch (err) {
-    if (err.code === "ER_DUP_ENTRY") {
-      let campo = "desconhecido";
-      if (err.message.includes("cpf")) campo = "CPF";
-      else if (err.message.includes("cnpj")) campo = "CNPJ";
-      else if (err.message.includes("email")) campo = "E-mail";
-      return res.status(409).json({ message: `Erro ao atualizar cliente: ${campo} já pertence a outro cadastro.` });
-    }
     next(err);
   }
 };
@@ -135,23 +130,22 @@ export const atualizar = async (req, res, next) => {
 export const deletar = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const cliente = await clienteModel.getById(Number(id));
 
-    const cliente = await clienteModel.getById(id);
     if (!cliente) {
-      return res.status(404).json({ message: "Cliente não encontrado para exclusão." });
+      return res.status(404).json({ message: "Cliente não encontrado." });
     }
 
-    const deletado = await clienteModel.deleteCliente(id);
+    const deletado = await clienteModel.deleteCliente(Number(id));
 
     if (!deletado) {
       return res.status(404).json({ message: "Cliente não encontrado ou já excluído." });
     }
 
     res.json({ message: "Cliente removido com sucesso" });
-
   } catch (err) {
-    if (err.code === "ER_ROW_IS_REFERENCED_2" || (err.message && err.message.includes("foreign key constraint fails"))) {
-      return res.status(400).json({ message: "Não é possível excluir o cliente pois ele está associado a uma ou mais vendas." });
+    if (err.code === "ER_ROW_IS_REFERENCED_2") {
+      return res.status(400).json({ message: "Não é possível excluir o cliente pois está associado a vendas." });
     }
     next(err);
   }
