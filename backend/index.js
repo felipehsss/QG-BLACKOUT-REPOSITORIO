@@ -24,6 +24,7 @@ import pagamentoContaRoutes from "./routes/pagamentoContaRoutes.js";
 import financeiroRoutes from "./routes/financeiroRoutes.js";
 import perfilRoutes from "./routes/perfilRoutes.js";
 import clienteRoutes from "./routes/clienteRoutes.js";
+import estoqueRoutes from "./routes/estoqueRoutes.js";
 // Configuração do ambiente
 dotenv.config();
 const app = express();
@@ -52,6 +53,7 @@ app.use("/api/pagamentos_conta", pagamentoContaRoutes);
 app.use("/api/financeiro", financeiroRoutes);
 app.use("/api/perfis", perfilRoutes);
 app.use("/api/clientes", clienteRoutes);
+app.use("/api/estoque", estoqueRoutes);
 
 // Middleware de tratamento de erros
 app.use(errorHandler);

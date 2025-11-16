@@ -2,32 +2,42 @@ import { apiService } from './apiService';
 
 const ENDPOINT = '/vendas';
 
+/**
+ * Lista todas as vendas
+ * (GET /vendas)
+ */
 export const readAll = (token) => {
   return apiService.get(ENDPOINT, token);
 };
 
+/**
+ * Busca uma venda pelo ID
+ * (GET /vendas/:id)
+ */
 export const readById = (id, token) => {
   return apiService.get(`${ENDPOINT}/${id}`, token);
 };
 
+/**
+ * Cria uma nova venda completa
+ * (POST /vendas)
+ */
 export const create = (data, token) => {
   return apiService.post(ENDPOINT, data, token);
 };
 
 /**
- * Cancela uma venda.
- * (Rota: PUT /cancelar/:id)
+ * Atualiza uma venda (ex: cancelar)
+ * (PUT /vendas/:id)
  */
-export const cancelar = (id, token) => {
-  return apiService.put(`${ENDPOINT}/cancelar/${id}`, {}, token);
+export const update = (id, data, token) => {
+  return apiService.put(`${ENDPOINT}/${id}`, data, token);
 };
 
 /**
- * Busca o relatório de vendas.
- * (Rota: GET /relatorio/vendas)
+ * Remove uma venda
+ * (DELETE /vendas/:id)
  */
-export const getRelatorioVendas = (token) => {
-
-  return apiService.get(`${ENDPOINT}`, token);
-
+export const remove = (id, token) => {
+  return apiService.delete(`${ENDPOINT}/${id}`, token);
 };

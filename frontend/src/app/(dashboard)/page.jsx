@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 // Importar o hook de autenticação
-import { useAuth } from "@/contexts/AuthContext"; 
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -39,7 +39,7 @@ const formatCurrency = (value) => {
   } else if (typeof value === 'string') {
     numericValue = parseFloat(value) || 0;
   }
-  
+
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
@@ -69,7 +69,7 @@ const formatTime = (dateString) => {
  * @returns {string} A data formatada.
  */
 const formatDateShort = (dateString) => {
-   try {
+  try {
     // A string vem como 'YYYY-MM-DD'
     const [year, month, day] = dateString.split('-');
     return `${day}/${month}`;
@@ -85,23 +85,23 @@ export default function DashboardPage() {
   const [recentSales, setRecentSales] = useState([]);
   const [stockSummary, setStockSummary] = useState({ criticalCount: 0 });
   const [revenueData, setRevenueData] = useState([]);
-  
+
   // Pegar o token do Contexto de Autenticação
   // Apanha o 'token' e o 'loading' do AuthContext
-  const { token, loading: authLoading } = useAuth(); 
-  
+  const { token, loading: authLoading } = useAuth();
+
   // 'loading' agora rastreia o fetch
-  const [dataLoading, setDataLoading] = useState(true); 
+  const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   useEffect(() => {
     // --- GUARDA PRINCIPAL ---
     // Não faz nada se o AuthContext ainda estiver a carregar (authLoading)
     if (authLoading) {
       setDataLoading(true); // Mostra o skeleton enquanto o auth carrega
-      return; 
+      return;
     }
-    
+
     // Se o AuthContext carregou mas não temos token
     if (!token) {
       setDataLoading(false);
@@ -140,16 +140,16 @@ export default function DashboardPage() {
         // 3. Processar Gráfico de Faturamento (usa dados NORMALIZED de lançamentos)
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
+
         const safeLancamentosData = lancamentosData || [];
 
         // O normalize do financeiroService não expõe 'data_movimento',
         // então acessamos o objeto 'raw' que ele convenientemente inclui.
         // A data no 'raw' é 'data_movimento'
         const dailyRevenueMap = safeLancamentosData
-          .filter(l => 
-            l.tipo === 'receita' && 
-            l.raw && 
+          .filter(l =>
+            l.tipo === 'receita' &&
+            l.raw &&
             l.raw.data_movimento && // Garante que existe
             new Date(l.raw.data_movimento) >= thirtyDaysAgo
           )
@@ -174,7 +174,7 @@ export default function DashboardPage() {
         setRevenueData(chartData);
 
         // 4. Processar Vendas Recentes (enriquecer com nomes)
-        
+
         // Usando os campos 'id' e 'nome_completo' normalizados do funcionarioService
         const safeFuncionariosData = funcionariosData || [];
         const employeeMap = new Map(
@@ -204,9 +204,9 @@ export default function DashboardPage() {
       } catch (err) {
         console.error("Erro ao buscar dados do dashboard:", err);
         if (err.status === 401 || err.status === 403) {
-           setError("Não autorizado. A sua sessão pode ter expirado. Tente fazer login novamente.");
+          setError("Não autorizado. A sua sessão pode ter expirado. Tente fazer login novamente.");
         } else {
-           setError(err.message || "Não foi possível carregar os dados.");
+          setError(err.message || "Não foi possível carregar os dados.");
         }
       } finally {
         setDataLoading(false);
@@ -214,9 +214,9 @@ export default function DashboardPage() {
     }
 
     fetchData();
-  // Agora depende do 'token' e do 'authLoading'.
-  // Vai re-executar quando 'authLoading' for de true para false e quando o token mudar.
-  }, [token, authLoading]); 
+    // Agora depende do 'token' e do 'authLoading'.
+    // Vai re-executar quando 'authLoading' for de true para false e quando o token mudar.
+  }, [token, authLoading]);
 
   // --- Renderização ---
 
@@ -234,74 +234,74 @@ export default function DashboardPage() {
 
   // Estado de loading (authLoading OU dataLoading)
   if (authLoading || dataLoading) {
-     return (
-        <>
+    return (
+      <>
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Card 1 Skeleton */}
-            <Card className="col-span-1 lg:col-span-2">
+          {/* Card 1 Skeleton */}
+          <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2 mt-2" />
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-1/2 mt-2" />
             </CardHeader>
             <CardContent className="h-64">
-                <Skeleton className="w-full h-full" />
+              <Skeleton className="w-full h-full" />
             </CardContent>
-            </Card>
+          </Card>
 
-            {/* Ações e Estoque Skeletons */}
-            <div className="space-y-4">
+          {/* Ações e Estoque Skeletons */}
+          <div className="space-y-4">
             <Card>
-                <CardHeader><Skeleton className="h-6 w-1/3" /></CardHeader>
-                <CardContent className="flex flex-wrap gap-2">
+              <CardHeader><Skeleton className="h-6 w-1/3" /></CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
                 <Skeleton className="h-10 w-24" />
                 <Skeleton className="h-10 w-32" />
-                </CardContent> 
+              </CardContent>
             </Card>
             <Card>
-                <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
-                <CardContent>
+              <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
+              <CardContent>
                 <Skeleton className="h-5 w-3/4 mb-3" />
                 <Skeleton className="h-4 w-1/2" />
-                </CardContent>
+              </CardContent>
             </Card>
-            </div>
+          </div>
 
-            {/* Tabela Skeleton */}
-            <div className="lg:col-span-3">
+          {/* Tabela Skeleton */}
+          <div className="lg:col-span-3">
             <Card>
-                <CardHeader>
+              <CardHeader>
                 <Skeleton className="h-6 w-1/4" />
                 <Skeleton className="h-4 w-1/3 mt-2" />
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead><Skeleton className="h-5 w-16" /></TableHead>
-                        <TableHead><Skeleton className="h-5 w-24" /></TableHead>
-                        <TableHead><Skeleton className="h-5 w-24" /></TableHead>
-                        <TableHead><Skeleton className="h-5 w-20" /></TableHead>
-                        <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead><Skeleton className="h-5 w-16" /></TableHead>
+                      <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+                      <TableHead><Skeleton className="h-5 w-24" /></TableHead>
+                      <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+                      <TableHead><Skeleton className="h-5 w-20" /></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <TableRow key={index}>
+                        <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {Array.from({ length: 5 }).map((_, index) => (
-                        <TableRow key={index}>
-                          <TableCell><Skeleton className="h-5 w-16" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                          <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
             </Card>
-            </div>
+          </div>
         </section>
-        </>
-     )
+      </>
+    )
   }
 
   // Renderização de Sucesso (com dados)
@@ -316,7 +316,7 @@ export default function DashboardPage() {
             <CardDescription>Visão consolidada por dia, por todas as filiais.</CardDescription>
           </CardHeader>
           <CardContent className="h-64">
-             {revenueData.length > 0 ? (
+            {revenueData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart
                   data={revenueData}
@@ -329,7 +329,7 @@ export default function DashboardPage() {
                   <Line
                     type="monotone"
                     dataKey="Faturamento"
-                    stroke="#16a34a" 
+                    stroke="#16a34a"
                     strokeWidth={2}
                     dot={{ r: 4, fill: "#16a34a" }}
                     activeDot={{ r: 6, fill: "#16a34a" }}
@@ -365,9 +365,9 @@ export default function DashboardPage() {
               <CardTitle>Resumo Estoque</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="text-sm text-slate-600">
-                  <span className="font-bold text-base text-red-600">{stockSummary.criticalCount}</span> produtos em nível crítico
-                </div>
+              <div className="text-sm text-slate-600">
+                <span className="font-bold text-base text-red-600">{stockSummary.criticalCount}</span> produtos em nível crítico
+              </div>
               <div className="mt-3 text-xs text-slate-400">Itens com 10 ou menos unidades.</div>
             </CardContent>
           </Card>
@@ -394,25 +394,25 @@ export default function DashboardPage() {
                 <TableBody>
                   {recentSales.length > 0 ? (
                     // Dados Reais
-                    recentSales.map((venda) => (
-                      <TableRow key={venda.id_venda}>
+                    recentSales.map((venda, index) => (
+                      <TableRow key={venda.id_venda ?? index}>
                         <TableCell>{formatTime(venda.data_venda)}</TableCell>
                         <TableCell>{venda.lojaNome}</TableCell>
                         <TableCell>{venda.vendedorNome}</TableCell>
                         <TableCell>{formatCurrency(venda.valor_total)}</TableCell>
                         <TableCell>
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              venda.status === 'Concluída'
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${venda.status === 'Concluída'
                                 ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800' // Assume 'Estornado' ou outro status
-                            }`}
+                                : 'bg-red-100 text-red-800'
+                              }`}
                           >
                             {venda.status}
                           </span>
                         </TableCell>
                       </TableRow>
                     ))
+
                   ) : (
                     // Estado Vazio
                     <TableRow>
