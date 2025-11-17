@@ -1,7 +1,10 @@
 // authController.js
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
 import * as funcionarioModel from "../model/funcionarioModel.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+dotenv.config();
+
 
 const SECRET = process.env.JWT_SECRET || "chaveSecreta123";
 
@@ -15,7 +18,8 @@ export const login = async (req, res, next) => {
     }
 
     const funcionario = await funcionarioModel.getByEmail(email);
-    if (!funcionario) {
+    
+    if (!funcionario || !funcionario.senha_hash) {
       return res.status(401).json({ message: "Credenciais inválidas" });
     }
 
@@ -34,7 +38,16 @@ export const login = async (req, res, next) => {
       { expiresIn: "8h" }
     );
 
-    res.json({ message: "Login bem-sucedido", token });
+    res.json({ 
+      message: "Login bem-sucedido", 
+      token,
+      user: {
+        id: funcionario.funcionario_id,
+        email: funcionario.email,
+        perfil_id: funcionario.perfil_id,
+        nome_completo: funcionario.nome_completo || null
+      }
+    });
   } catch (err) {
     next(err);
   }

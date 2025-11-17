@@ -1,15 +1,11 @@
 "use client"
 
 import * as React from "react"
-
 import {
-  // Ícones que serão usados para a Filial
-  IconShoppingCart, // Adicionando IconShoppingCart para PDV
+  IconShoppingCart,
   IconChartBar,
   IconDashboard,
   IconReport,
-  
-  // Ícones do seu layout original
   IconHelp,
   IconInnerShadowTop,
   IconSettings,
@@ -30,66 +26,60 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// --- DADOS ATUALIZADOS PARA A FILIAL ---
 const data = {
   user: {
     name: "Vendedor",
     email: "vendedor@qgbrightness.com",
-    avatar: "/avatars/shadcn.jpg", // Mantenha ou troque o avatar
+    avatar: "/avatars/shadcn.jpg",
   },
-  // Menu Principal: Operação e Dashboard
   navMain: [
     {
       title: "PDV (Frente de Caixa)",
-      url: "/dashboard/pdv",
+      url: "/pdv", // ✅ corrigido
       icon: IconShoppingCart,
     },
     {
       title: "Dashboard",
-      url: "/dashboard",
+      url: "/", // ✅ rota inicial
       icon: IconDashboard,
     },
   ],
-  // Menu de Documentos: Relatórios da Loja
   documents: [
     {
       name: "Vendas da Loja",
-      url: "/dashboard/relatorios/vendas",
+      url: "/relatorios/vendas",
       icon: IconChartBar,
     },
     {
       name: "Fechamentos de Caixa",
-      url: "/dashboard/relatorios/caixa",
+      url: "/relatorios/caixa",
       icon: IconReport,
     },
   ],
-  // Menu Secundário (Rodapé)
   navSecondary: [
     {
       title: "Configurações",
-      url: "#",
+      url: "/configuracoes",
       icon: IconSettings,
     },
     {
       title: "Ajuda",
-      url: "#",
+      url: "/ajuda",
       icon: IconHelp,
     },
   ],
 }
 
-export function AppSidebar({
-  ...props
-}) {
+export function AppSidebar(props) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <a href="#">
+              <a href="/">
                 <IconInnerShadowTop className="!size-5" />
-                {/* --- NOME DA EMPRESA ATUALIZADO --- */}
+                {/* ✅ removido "Quick Create", agora só nome da empresa */}
                 <span className="text-base font-semibold">QG Brightness</span>
               </a>
             </SidebarMenuButton>
@@ -97,7 +87,6 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {/* --- OS COMPONENTES PERMANECEM OS MESMOS --- */}
         <NavMain items={data.navMain} />
         <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
@@ -106,5 +95,5 @@ export function AppSidebar({
         <NavUser user={data.user} />
       </SidebarFooter>
     </Sidebar>
-  );
+  )
 }

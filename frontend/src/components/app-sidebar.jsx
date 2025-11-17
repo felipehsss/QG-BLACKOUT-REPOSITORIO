@@ -2,103 +2,146 @@
 
 import * as React from "react"
 import {
-  IconBuilding,
-  IconChartBar,
-  IconDashboard,
-  IconListDetails,
-  IconPackage,
-  IconReport,
-  IconTruck,
-  IconUsers,
-} from "@tabler/icons-react"
+  AudioWaveform,
+  BookOpen,
+  Bot,
+  Command,
+  Frame,
+  GalleryVerticalEnd,
+  Map,
+  PieChart,
+  Settings2,
+  SquareTerminal,PiggyBank,ChartLine,
+} from "lucide-react"
 
-import { NavGroup } from "@/components/nav-group"
+import { NavMain } from "@/components/nav-main"
+import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
+import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 
-// --- DADOS ATUALIZADOS PARA A SEDE ---
+// This is sample data.
 const data = {
   user: {
-    name: "Admin",
-    email: "admin@qgblackout.com",
-    avatar: "/avatars/shadcn.jpg", // Mantenha ou troque o avatar
+    name: "shadcn",
+    email: "m@example.com",
+    avatar: "/avatars/shadcn.jpg",
   },
-  // Itens de menu unificados
-  menuItems: [
+  teams: [
     {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: IconDashboard,
+      name: "QG Blackout",
+      logo: GalleryVerticalEnd,
+      plan: "Enterprise",
+    },
+    
+  ],
+  navMain: [
+    {
+      title: "Cadastros",
+      url: "#",
+      icon: SquareTerminal,
+      isActive: true,
+      items: [
+        {
+          title: "Clientes",
+          url: "/cadastros/clientes",
+        },
+        {
+          title: "Fornecedores",
+          url: "/cadastros/fornecedores",
+        },
+        {
+          title: "Produtos",
+          url: "/cadastros/produtos",
+        },
+        {
+          title: "Serviços",
+          url: "/cadastros/servicos",
+        },
+        {
+          title: "Funcionarios",
+          url: "/cadastros/funcionarios",
+        },
+      ],
     },
     {
-      title: "Lojas",
-      url: "/dashboard/cadastros/lojas",
-      icon: IconBuilding,
+      title: "Financeiro",
+      url: "#",
+      icon: PiggyBank,
+      items: [
+        {
+          title: "Contas a Pagar",
+          url: "/financeiro/contas-a-pagar",
+        },
+        {
+          title: "Fluxo de Caixa",
+          url: "/financeiro/fluxo-de-caixa",
+        },
+       
+      ],
     },
     {
-      title: "Usuários",
-      url: "/dashboard/cadastros/usuarios",
-      icon: IconUsers,
+      title: "Relatórios",
+      url: "#",
+      icon: ChartLine,
+      items: [
+        {
+          title: "Vendas",
+          url: "/relatorios/vendas",
+        },
+        
+      
+      ],
     },
     {
-      title: "Produtos",
-      url: "/dashboard/cadastros/produtos",
-      icon: IconPackage,
-    },
-    {
-      title: "Fornecedores",
-      url: "/dashboard/cadastros/fornecedores",
-      icon: IconTruck,
-    },
-    {
-      name: "Fluxo de Caixa",
-      url: "/dashboard/financeiro/fluxo-caixa",
-      icon: IconChartBar,
-    },
-    {
-      name: "Contas a Pagar",
-      url: "/dashboard/financeiro/contas-a-pagar",
-      icon: IconListDetails,
-    },
-    {
-      name: "Relatório de Vendas",
-      url: "/dashboard/relatorios/vendas",
-      icon: IconReport,
+      title: "Settings",
+      url: "#",
+      icon: Settings2,
+      items: [
+        {
+          title: "General",
+          url: "#",
+        },
+        {
+          title: "Team",
+          url: "#",
+        },
+        {
+          title: "Billing",
+          url: "#",
+        },
+        {
+          title: "Limits",
+          url: "#",
+        },
+      ],
     },
   ],
+  
 }
 
 export function AppSidebar({
   ...props
 }) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem className="!p-0">
-            <SidebarMenuButton asChild className="!h-auto !p-2">
-              <a href="/dashboard">
-                {/* --- NOME DA EMPRESA ATUALIZADO --- */}
-                <span className="text-base font-semibold">QG Blackout</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
       <SidebarContent>
-        <NavGroup items={data.menuItems} />
+        <NavMain items={data.navMain} />
+        
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }

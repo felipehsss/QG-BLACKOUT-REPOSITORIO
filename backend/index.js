@@ -23,7 +23,9 @@ import contaPagarRoutes from "./routes/contaPagarRoutes.js";
 import pagamentoContaRoutes from "./routes/pagamentoContaRoutes.js";
 import financeiroRoutes from "./routes/financeiroRoutes.js";
 import perfilRoutes from "./routes/perfilRoutes.js";
-
+import clienteRoutes from "./routes/clienteRoutes.js";
+import estoqueRoutes from "./routes/estoqueRoutes.js";
+import produtoFornecedorRoutes from "./routes/produtoFornecedorRoutes.js";
 // Configuração do ambiente
 dotenv.config();
 const app = express();
@@ -51,9 +53,12 @@ app.use("/api/contas_a_pagar", contaPagarRoutes);
 app.use("/api/pagamentos_conta", pagamentoContaRoutes);
 app.use("/api/financeiro", financeiroRoutes);
 app.use("/api/perfis", perfilRoutes);
+app.use("/api/clientes", clienteRoutes);
+app.use("/api/estoque", estoqueRoutes);
+app.use("/api/produtos-fornecedores", produtoFornecedorRoutes);
 
 // Middleware de tratamento de erros
 app.use(errorHandler);
 // Inicialização do servidor
-const PORT = process.env.PORT || 3000;
+const PORT = 3080;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT} 🚀`));

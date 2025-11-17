@@ -1,5 +1,5 @@
-// vendaController.js
 import * as vendaModel from "../model/vendaModel.js";
+import { getConnection } from "../config/database.js";
 
 // Listar todas as vendas
 export const listar = async (req, res, next) => {
@@ -25,33 +25,113 @@ export const buscarPorId = async (req, res, next) => {
   }
 };
 
-// Criar nova venda
+// Criar nova venda completa
 export const criar = async (req, res, next) => {
+  const { loja_id, sessao_id, funcionario_id, valor_total, status_venda, itens, pagamentos } = req.body;
+
+  // Validação
+  if (!loja_id || !sessao_id || !funcionario_id || !valor_total || !Array.isArray(itens) || !Array.isArray(pagamentos)) {
+    return res.status(400).json({
+      message: "Campos obrigatórios: loja_id, sessao_id, funcionario_id, valor_total, itens (array) e pagamentos (array)",
+    });
+  }
+
+  if (itens.length === 0) {
+    return res.status(400).json({ message: "A venda deve ter pelo menos um item." });
+  }
+
+  if (pagamentos.length === 0) {
+    return res.status(400).json({ message: "A venda deve ter pelo menos um pagamento." });
+  }
+
+  const connection = await getConnection();
+
   try {
-    const { loja_id, sessao_id, funcionario_id, valor_total, status_venda } = req.body;
+    await connection.beginTransaction();
 
-    if (!loja_id || !sessao_id || !funcionario_id || !valor_total) {
-      return res.status(400).json({
-        message:
-          "Campos obrigatórios: loja_id, sessao_id, funcionario_id e valor_total",
-      });
-    }
-
-    const id = await vendaModel.createVenda({
+    // 1. Criar a venda
+    const sqlVenda = `
+      INSERT INTO vendas (loja_id, sessao_id, funcionario_id, valor_total, status_venda)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    const [vendaResult] = await connection.execute(sqlVenda, [
       loja_id,
       sessao_id,
       funcionario_id,
       valor_total,
-      status_venda: status_venda ?? "Concluída",
-    });
+      status_venda ?? "Concluída",
+    ]);
+    const novaVendaId = vendaResult.insertId;
 
-    res.status(201).json({ message: "Venda registrada com sucesso", id });
+    // 2. Inserir itens e dar baixa no estoque
+    const sqlItem = `
+      INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario_momento, subtotal)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    const sqlEstoque = `
+      UPDATE estoque SET quantidade = quantidade - ?
+      WHERE produto_id = ? AND loja_id = ?
+    `;
+
+    for (const item of itens) {
+      await connection.execute(sqlItem, [
+        novaVendaId,
+        item.produto_id,
+        item.quantidade,
+        item.preco_unitario_momento,
+        item.subtotal,
+      ]);
+
+      const [estoqueResult] = await connection.execute(sqlEstoque, [
+        item.quantidade,
+        item.produto_id,
+        loja_id,
+      ]);
+
+      if (estoqueResult.affectedRows === 0) {
+        throw new Error(`Estoque indisponível para produto ID ${item.produto_id} na loja ID ${loja_id}.`);
+      }
+    }
+
+    // 3. Inserir pagamentos
+    const sqlPagamento = `
+      INSERT INTO pagamentos_venda (venda_id, metodo_pagamento, valor_pago)
+      VALUES (?, ?, ?)
+    `;
+    for (const pgto of pagamentos) {
+      await connection.execute(sqlPagamento, [
+        novaVendaId,
+        pgto.metodo_pagamento,
+        pgto.valor_pago,
+      ]);
+    }
+
+    // 4. Inserir no financeiro
+    const sqlFinanceiro = `
+      INSERT INTO financeiro (loja_id, tipo, origem, referencia_id, descricao, valor)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    await connection.execute(sqlFinanceiro, [
+      loja_id,
+      "receita", // coerente com frontend
+      "Venda",
+      novaVendaId,
+      `Venda Concluída ID ${novaVendaId}`,
+      valor_total,
+    ]);
+
+    await connection.commit();
+    res.status(201).json({ message: "Venda registrada com sucesso!", venda_id: novaVendaId });
+
   } catch (err) {
+    if (connection) await connection.rollback();
     next(err);
+  } finally {
+    if (connection) connection.release();
   }
 };
 
-// Atualizar venda existente (ex: cancelar venda)
+// Atualizar venda
 export const atualizar = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -79,5 +159,30 @@ export const deletar = async (req, res, next) => {
     res.json({ message: "Venda removida com sucesso" });
   } catch (err) {
     next(err);
+  }
+};
+
+// Gerar relatório de vendas
+export const getRelatorioVendas = async (req, res, next) => {
+  const connection = await getConnection();
+  try {
+    // Este SQL junta as tabelas de vendas e clientes para obter o nome do cliente.
+    // Usamos LEFT JOIN para garantir que vendas sem cliente associado ainda apareçam.
+    const sql = `
+      SELECT 
+        v.venda_id,
+        v.data_venda,
+        v.valor_total,
+        c.nome AS cliente_nome
+      FROM vendas v
+      LEFT JOIN clientes c ON v.cliente_id = c.id_cliente
+      ORDER BY v.data_venda DESC
+    `;
+    const [vendas] = await connection.execute(sql);
+    res.json({ vendas: vendas });
+  } catch (err) {
+    next(err);
+  } finally {
+    if (connection) connection.release();
   }
 };

@@ -1,24 +1,22 @@
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+"use client";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
   FieldGroup,
   FieldLabel,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
-export function SignupForm({
-  className,
-  ...props
-}) {
+export function SignupForm({ className, ...props }) {
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
@@ -29,15 +27,48 @@ export function SignupForm({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+
+              const name = e.target.name.value;
+              const email = e.target.email.value;
+              const password = e.target.password.value;
+              const confirmPassword = e.target["confirm-password"].value;
+
+              if (password !== confirmPassword) {
+                alert("As senhas não coincidem!");
+                return;
+              }
+
+              try {
+                const response = await signupService({ name, email, password });
+                console.log("Usuário criado:", response);
+                alert("Conta criada com sucesso!");
+                window.location.href = "/login";
+              } catch (error) {
+                alert("Erro ao criar conta: " + error.message);
+              }
+            }}
+          >
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="name">Nome Completo</FieldLabel>
-                <Input id="name" type="text" placeholder="João Ninguém" required />
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="João Ninguém"
+                  required
+                />
               </Field>
               <Field>
                 <FieldLabel htmlFor="email">E-mail</FieldLabel>
-                <Input id="email" type="email" placeholder="m@exemplo.com" required />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="m@exemplo.com"
+                  required
+                />
               </Field>
               <Field>
                 <Field className="grid grid-cols-2 gap-4">
@@ -67,8 +98,9 @@ export function SignupForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        Ao clicar em continuar, você concorda com nossos <a href="#">Termos de Serviço</a>{" "}
-        e <a href="#">Política de Privacidade</a>.
+        Ao clicar em continuar, você concorda com nossos{" "}
+        <a href="#">Termos de Serviço</a> e{" "}
+        <a href="#">Política de Privacidade</a>.
       </FieldDescription>
     </div>
   );
