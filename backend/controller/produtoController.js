@@ -28,23 +28,30 @@ export const buscarPorId = async (req, res, next) => {
 // Criar novo produto
 export const criar = async (req, res, next) => {
   try {
-    const { sku, nome, descricao, preco_venda } = req.body;
+    // [MODIFICADO] Adicionamos 'preco_custo'
+    const { sku, nome, descricao, preco_custo, preco_venda } = req.body;
 
     if (!sku || !nome || !preco_venda) {
-      return res
-        .status(400)
-        .json({ message: "Campos obrigatórios: sku, nome, preco_venda" });
+      return res.status(400).json({
+        message: "Campos obrigatórios: sku, nome e preco_venda",
+      });
     }
 
-    const id = await produtoModel.createProduto({
+    // [MODIFICADO] Passamos 'preco_custo' para o model
+    const dadosProduto = {
       sku,
       nome,
       descricao,
+      preco_custo, // <-- Adicionado
       preco_venda,
-    });
+    };
 
+    const id = await produtoModel.create(dadosProduto);
     res.status(201).json({ message: "Produto criado com sucesso", id });
   } catch (err) {
+    if (err.code === "ER_DUP_ENTRY" && err.message.includes("sku")) {
+      return res.status(409).json({ message: "SKU já cadastrado." });
+    }
     next(err);
   }
 };
@@ -53,15 +60,23 @@ export const criar = async (req, res, next) => {
 export const atualizar = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const dados = req.body;
+    // [MODIFICADO] Pegamos 'preco_custo' e passamos direto
+    // (O database.js já filtra os campos undefined)
+    const dados = req.body; 
 
-    const linhas = await produtoModel.updateProduto(id, dados);
+    if (Object.keys(dados).length === 0) {
+      return res.status(400).json({ message: "Nenhum dado fornecido." });
+    }
+
+    const linhas = await produtoModel.update(id, dados);
     if (!linhas) {
       return res.status(404).json({ message: "Produto não encontrado" });
     }
-
     res.json({ message: "Produto atualizado com sucesso" });
   } catch (err) {
+    if (err.code === "ER_DUP_ENTRY" && err.message.includes("sku")) {
+      return res.status(409).json({ message: "SKU já cadastrado." });
+    }
     next(err);
   }
 };
