@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, DollarSign, ReceiptText, AlertCircle } from "lucide-react"
 import { format, parse, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { contaPagarService } from "@/services/contaPagarService";
+// import { contaPagarService } from "@/services/contaPagarService";
 
 /**
  * Busca contas a pagar da API do backend

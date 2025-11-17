@@ -3,18 +3,14 @@
 import * as React from "react"
 import {
   IconShoppingCart,
-  IconChartBar,
   IconDashboard,
+  IconChartBar,
   IconReport,
-  IconHelp,
-  IconInnerShadowTop,
   IconSettings,
-  IconUsers,
+  IconHelp,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
+import { NavGroup } from "@/components/nav-group"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -26,6 +22,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
+// --- DADOS ATUALIZADOS ---
 const data = {
   user: {
     name: "Vendedor",
@@ -35,12 +32,12 @@ const data = {
   navMain: [
     {
       title: "PDV (Frente de Caixa)",
-      url: "/pdv", // ✅ corrigido
+      url: "/pdv",
       icon: IconShoppingCart,
     },
     {
       title: "Dashboard",
-      url: "/", // ✅ rota inicial
+      url: "/",
       icon: IconDashboard,
     },
   ],
@@ -52,7 +49,7 @@ const data = {
     },
     {
       name: "Fechamentos de Caixa",
-      url: "/relatorios/caixa",
+      url: "/relatorios/caixas",
       icon: IconReport,
     },
   ],
@@ -73,24 +70,32 @@ const data = {
 export function AppSidebar(props) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
+      {/* Cabeçalho */}
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <a href="/">
-                <IconInnerShadowTop className="!size-5" />
-                {/* ✅ removido "Quick Create", agora só nome da empresa */}
-                <span className="text-base font-semibold">QG Brightness</span>
+          <SidebarMenuItem className="!p-0">
+            <SidebarMenuButton asChild className="!h-auto !p-2">
+              <a href="/dashboard">
+                <span className="text-base font-semibold">QG Blackout</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
+      {/* Conteúdo */}
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        {/* Grupo principal */}
+        <NavGroup items={data.navMain} />
+
+        {/* Grupo de relatórios */}
+        <NavGroup items={data.documents} />
+
+        {/* Grupo secundário */}
+        <NavGroup items={data.navSecondary} />
       </SidebarContent>
+
+      {/* Rodapé com usuário */}
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>
