@@ -1,19 +1,20 @@
 -- Criar banco de dados
+DROP DATABASE IF EXISTS qg_db; -- Garante que estamos começando do zero
 CREATE DATABASE qg_db;
 USE qg_db;
--- drop database qg_db;
 
 -- Módulo 1: Cadastros e Controle de Acesso
 
 CREATE TABLE lojas (
-    loja_id INT PRIMARY KEY AUTO_INCREMENT,
-    nome VARCHAR(100) NOT NULL,
-    cnpj VARCHAR(18) UNIQUE NOT NULL,
-    endereco VARCHAR(255),
-    telefone VARCHAR(20),
-    is_matriz BOOLEAN NOT NULL DEFAULT FALSE,
-    is_ativo BOOLEAN NOT NULL DEFAULT TRUE,
-    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    loja_id INT PRIMARY KEY AUTO_INCREMENT,
+    nome VARCHAR(100) NOT NULL,
+    cnpj VARCHAR(18) UNIQUE NOT NULL,
+    endereco VARCHAR(255),
+    telefone VARCHAR(20),
+    email VARCHAR(100) NULL UNIQUE,  -- <-- ADICIONE ESTA LINHA
+    is_matriz BOOLEAN NOT NULL DEFAULT FALSE,
+    is_ativo BOOLEAN NOT NULL DEFAULT TRUE,
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
 CREATE TABLE perfis (
@@ -51,6 +52,11 @@ CREATE TABLE produtos (
     sku VARCHAR(50) UNIQUE NOT NULL,
     nome VARCHAR(150) NOT NULL,
     descricao TEXT,
+    
+    -- (COLUNA ADICIONADA) 
+    -- Para guardar o seu custo médio ou último custo pago
+    preco_custo DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    
     preco_venda DECIMAL(10, 2) NOT NULL
 ) ENGINE=InnoDB;
 
@@ -63,7 +69,7 @@ CREATE TABLE sessoes_caixa (
     data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     valor_inicial DECIMAL(10, 2) NOT NULL,
     funcionario_fechamento_id INT,
-data_fechamento TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    data_fechamento TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     valor_total_apurado DECIMAL(10, 2),
     status ENUM('Aberta', 'Fechada') NOT NULL DEFAULT 'Aberta',
     FOREIGN KEY (loja_id) REFERENCES lojas(loja_id),
@@ -119,7 +125,6 @@ CREATE TABLE contas_a_pagar (
     FOREIGN KEY (fornecedor_id) REFERENCES fornecedores(fornecedor_id)
 ) ENGINE=InnoDB;
 
--- Tabela para registrar todas as movimentações financeiras
 CREATE TABLE financeiro (
     financeiro_id INT PRIMARY KEY AUTO_INCREMENT,
     loja_id INT NOT NULL,
@@ -132,72 +137,75 @@ CREATE TABLE financeiro (
     FOREIGN KEY (loja_id) REFERENCES lojas(loja_id)
 ) ENGINE=InnoDB;
 
--- Tabela  Clientes
 CREATE TABLE clientes (
     id_cliente INT AUTO_INCREMENT PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL, -- Nome da pessoa física ou nome fantasia da empresa
+    nome VARCHAR(100) NOT NULL,
     telefone VARCHAR(20),
     email VARCHAR(100) UNIQUE,
     endereco VARCHAR(255),
     data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    tipo_cliente ENUM('PF', 'PJ') NOT NULL DEFAULT 'PF', -- Para diferenciar Pessoa Física e Jurídica
-    cpf VARCHAR(14) UNIQUE NULL, -- CPF para PF
-    cnpj VARCHAR(18) UNIQUE NULL, -- CNPJ para PJ
-    razao_social VARCHAR(100) NULL, -- Razão Social para PJ (nome legal)
-    nome_fantasia VARCHAR(100) NULL, -- Nome Fantasia (se diferente do nome/razao_social, pode usar 'nome' para isso)
-    inscricao_estadual VARCHAR(20) NULL -- Inscrição Estadual para PJ, se aplicável
+    tipo_cliente ENUM('PF', 'PJ') NOT NULL DEFAULT 'PF',
+    cpf VARCHAR(14) UNIQUE NULL,
+    cnpj VARCHAR(18) UNIQUE NULL,
+    razao_social VARCHAR(100) NULL,
+    nome_fantasia VARCHAR(100) NULL,
+    inscricao_estadual VARCHAR(20) NULL
 );
  
 
--- Populando dados iniciais essenciais
+CREATE TABLE estoque (
+    estoque_id INT PRIMARY KEY AUTO_INCREMENT,
+    produto_id INT NOT NULL,
+    loja_id INT NOT NULL,
+    quantidade INT NOT NULL DEFAULT 0,
+    
+    -- Chaves Estrangeiras
+    FOREIGN KEY (produto_id) REFERENCES produtos(produto_id),
+    FOREIGN KEY (loja_id) REFERENCES lojas(loja_id),
+    
+    -- Regra de negócio:
+    -- Isso impede que exista mais de uma linha para o mesmo produto na mesma loja.
+    UNIQUE KEY uk_produto_loja (produto_id, loja_id)
+) ENGINE=InnoDB;
+
+
+CREATE TABLE produtos_fornecedores (
+    produto_id INT NOT NULL,
+    fornecedor_id INT NOT NULL,
+    
+    -- Preço que você PAGA ao fornecedor por este item
+    preco_custo DECIMAL(10, 2) NOT NULL, 
+    
+    -- (Opcional) O código do produto no sistema DO fornecedor
+    sku_fornecedor VARCHAR(100), 
+    
+    -- Define a chave primária como a combinação dos dois IDs
+    PRIMARY KEY (produto_id, fornecedor_id),
+    
+    -- Cria as chaves estrangeiras
+    FOREIGN KEY (produto_id) REFERENCES produtos(produto_id),
+    FOREIGN KEY (fornecedor_id) REFERENCES fornecedores(fornecedor_id)
+) ENGINE=InnoDB;
+
+
+-- ----------------------------------------------------------------- 
+-- POPULANDO DADOS BASE
+-- ----------------------------------------------------------------- 
+
 INSERT INTO perfis (nome, descricao) VALUES 
-('Administrador', 'Acesso total ao sistema, incluindo cadastro de lojas e relatórios consolidados.'),
-('Gerente de Loja', 'Acesso administrativo restrito aos dados da sua própria loja.'),
-('Vendedor/Caixa', 'Acesso apenas ao módulo PDV para realizar vendas e controlar o caixa da sua loja.');
+('Administrador', 'Acesso total ao sistema.'),
+('Gerente de Loja', 'Acesso administrativo restrito à sua própria loja.'),
+('Vendedor/Caixa', 'Acesso apenas ao módulo PDV.');
 
--- CRIANDO O NECESSARIO ------------------------------------------------------- ****************************************------------------------
+INSERT INTO lojas (nome, cnpj, endereco, telefone, email, is_matriz)
+VALUES ('Loja Matriz QG', '00.000.000/0001-00', 'Rua Principal, 1000', '(11) 99999-9999', 'contato@qgmatriz.com', TRUE);
 
-INSERT INTO lojas (nome, cnpj, endereco, telefone, is_matriz)
-VALUES ('Loja Matriz QG', '00.000.000/0001-00', 'Rua Principal, 1000', '(11) 99999-9999', TRUE);
-
---
-
-INSERT INTO funcionarios (
-    loja_id, perfil_id, nome_completo, cpf, email, senha_hash, telefone_contato, is_ativo, data_admissao
-)
+INSERT INTO funcionarios (loja_id, perfil_id, nome_completo, cpf, email, senha_hash, telefone_contato, is_ativo, data_admissao)
 VALUES (1,1,'Administrador do Sistema','000.000.000-00','admin@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 98888-7777',TRUE,'2025-01-01');
 
--- vizualizar tabelas
+INSERT INTO lojas (nome, cnpj, endereco, telefone, email, is_matriz, is_ativo)
+VALUES ('QG BRIGHTNESS Zona Norte', '11.111.111/0001-12', 'Av. do ABC, 500', '(11) 98888-8228', 'qgbr_zn@gmail.com', FALSE, TRUE);
 
-SELECT * FROM lojas;
-SELECT * FROM perfis;
-SELECT * FROM funcionarios;
-SELECT * FROM fornecedores;
-SELECT * FROM produtos;
-SELECT * FROM sessoes_caixa;
-SELECT * FROM vendas;
-SELECT * FROM itens_venda;
-SELECT * FROM pagamentos_venda;
-SELECT * FROM contas_a_pagar;
-SELECT * FROM financeiro;
-SELECT * FROM clientes;
-
-
-
--- ----------------------------------------------------------------- DADOS AQUI -------------------------*******************!!!!!!!!!!!!!!!!!!!!!!#########################################
-
-
-
-USE qg_db;
-
--- Módulo 1: Inserindo dados de cadastros base
-
--- Adicionar uma loja filial (a Matriz ID=1 já existe)
-INSERT INTO lojas (nome, cnpj, endereco, telefone, is_matriz, is_ativo)
-VALUES ('Filial Zona Leste', '11.111.111/0001-11', 'Av. das Peças, 500', '(11) 98888-8888', FALSE, TRUE);
-
--- Adicionar mais funcionários (o Admin ID=1 já existe)
--- Senha para todos é '123456' (o hash é o mesmo do admin)
 INSERT INTO funcionarios (loja_id, perfil_id, nome_completo, cpf, email, senha_hash, telefone_contato, is_ativo, data_admissao)
 VALUES 
 (1, 2, 'Gerente Loja Matriz', '111.111.111-44', 'gerente.matriz@qg.com', '$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO', '(11) 97777-1111', TRUE, '2025-01-02'),
@@ -205,7 +213,6 @@ VALUES
 (2, 2, 'Gerente Loja Filial', '333.333.333-14', 'gerente.filial@qg.com', '$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO', '(11) 97777-3333', TRUE, '2025-01-04'),
 (2, 3, 'Vendedor Loja Filial', '444.444.444-67', 'vendedor.filial@qg.com', '$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO', '(11) 97777-4444', TRUE, '2025-01-05');
 
--- Adicionar Fornecedores de Auto-Peças
 INSERT INTO fornecedores (razao_social, cnpj, contato_principal, email, telefone)
 VALUES
 ('Distribuidora de Freios Bosch', '12.345.678/0001-01', 'Carlos Mendes', 'comercial@bosch.com', '(21) 98765-4321'),
@@ -213,7 +220,6 @@ VALUES
 ('Suspensão e Cia (Cofap)', '45.678.901/0001-03', 'Marcos Silva', 'contato@cofap.com', '(31) 94444-5555'),
 ('Filtros & Velas NGK', '33.444.555/0001-04', 'Fernanda Lima', 'filtros@ngk.com', '(41) 93333-2222');
 
--- Adicionar Produtos (Peças de Carros)
 INSERT INTO produtos (sku, nome, descricao, preco_venda)
 VALUES
 ('SKU-FO-001', 'Filtro de Óleo Fram', 'Filtro de Óleo PH5548 - Linha GM/Fiat', 35.00),
@@ -237,7 +243,6 @@ VALUES
 ('SKU-AD-001', 'Aditivo Radiador Paraflu', 'Aditivo Orgânico Rosa 1L - Concentrado', 25.00),
 ('SKU-LP-001', 'Lâmpada H4 Super Branca', 'Par Lâmpada H4 Philips CrystalVision', 90.00);
 
--- Adicionar Clientes (Físicos e Oficinas)
 INSERT INTO clientes (nome, telefone, email, endereco, tipo_cliente, cpf, cnpj, razao_social)
 VALUES
 ('Ana Beatriz Silva', '(11) 91111-1111', 'ana.silva@email.com', 'Rua das Flores, 10', 'PF', '111.111.111-01', NULL, NULL),
@@ -251,31 +256,46 @@ VALUES
 ('Centro Automotivo FastCar', '(11) 2020-3030', 'financeiro@fastcar.com', 'Rua dos Pinheiros, 600', 'PJ', NULL, '03.456.789/0001-30', 'FastCar Reparos Rápidos ME'),
 ('Helena Santos', '(11) 98888-8888', 'helena.santos@email.com', 'Alameda Santos, 700', 'PF', '777.777.777-07', NULL, NULL);
 
--- Módulo 2: Ponto de Venda (PDV)
-
--- Criar Sessões de Caixa
--- (loja_id, funcionario_abertura_id, valor_inicial, status)
--- ID Func Vendedor Matriz = 3
--- ID Func Vendedor Filial = 5
-
--- Sessão ABERTA para a Matriz
 INSERT INTO sessoes_caixa (loja_id, funcionario_abertura_id, valor_inicial, status)
 VALUES (1, 3, 300.00, 'Aberta');
 
--- Sessão ABERTA para a Filial
 INSERT INTO sessoes_caixa (loja_id, funcionario_abertura_id, valor_inicial, status)
 VALUES (2, 5, 300.00, 'Aberta');
 
--- Sessões FECHADAS (Histórico)
 INSERT INTO sessoes_caixa (loja_id, funcionario_abertura_id, valor_inicial, funcionario_fechamento_id, data_abertura, data_fechamento, valor_total_apurado, status)
 VALUES 
 (1, 3, 200.00, 3, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), 1500.00, 'Fechada'),
 (2, 5, 200.00, 5, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), 1200.00, 'Fechada');
 
+INSERT INTO contas_a_pagar (loja_id, fornecedor_id, descricao, valor, data_vencimento, data_pagamento, categoria, status)
+VALUES 
+(1, 1, 'Compra de Pastilhas de Freio (NF 1001)', 3200.00, DATE_SUB(NOW(), INTERVAL 15 DAY), DATE_SUB(NOW(), INTERVAL 15 DAY), 'Fornecedores', 'Paga'),
+(1, 2, 'Compra de Velas e Cabos (NF 1002)', 1500.00, DATE_SUB(NOW(), INTERVAL 10 DAY), NULL, 'Fornecedores', 'Atrasada'),
+(1, NULL, 'Aluguel Loja Matriz', 5000.00, DATE_SUB(NOW(), INTERVAL 5 DAY), NULL, 'Aluguel', 'Pendente'),
+(1, 3, 'Compra de Amortecedores (NF 1003)', 4800.00, NOW(), NULL, 'Fornecedores', 'Pendente'),
+(2, 4, 'Compra de Filtros (NF 2001)', 2750.00, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY), 'Fornecedores', 'Paga'),
+(2, NULL, 'Salários Loja Filial', 6000.00, DATE_SUB(NOW(), INTERVAL 5 DAY), NULL, 'Salários', 'Pendente'),
+(2, 1, 'Compra de Discos de Freio (NF 2002)', 1900.00, DATE_ADD(NOW(), INTERVAL 10 DAY), NULL, 'Fornecedores', 'Pendente');
 
--- Módulo 3: Geração de grande volume de VENDAS (Usando Stored Procedure)
+INSERT INTO financeiro (loja_id, tipo, origem, referencia_id, descricao, valor, data_movimento)
+VALUES
+(1, 'Saída', 'Conta a Pagar', 1, 'Pgto NF 1001 - Distribuidora de Freios Bosch', 3200.00, DATE_SUB(NOW(), INTERVAL 15 DAY)),
+(2, 'Saída', 'Conta a Pagar', 5, 'Pgto NF 2001 - Filtros & Velas NGK', 2750.00, DATE_SUB(NOW(), INTERVAL 8 DAY));
 
--- Alteramos o delimitador para criar a procedure
+INSERT INTO estoque (produto_id, loja_id, quantidade)
+VALUES
+(1, 1, 50),  -- 50 unidades do Produto 1 na Loja 1
+(2, 1, 50),  -- 50 unidades do Produto 2 na Loja 1
+(3, 1, 50),  -- 50 unidades do Produto 3 na Loja 1
+(4, 2, 30),  -- 30 unidades do Produto 4 na Loja 2
+(5, 2, 30);  -- 30 unidades do Produto 5 na Loja 2
+
+
+
+-- ----------------------------------------------------------------- 
+-- STORED PROCEDURE (COM A CORREÇÃO)
+-- ----------------------------------------------------------------- 
+
 DELIMITER //
 
 CREATE PROCEDURE sp_gerar_vendas_massa(IN num_vendas INT, IN loja_id_param INT)
@@ -293,8 +313,6 @@ BEGIN
     DECLARE v_subtotal DECIMAL(10, 2);
     DECLARE v_metodo_pgto ENUM('Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'PIX');
     DECLARE v_data_venda TIMESTAMP;
-    DECLARE max_produto_id INT;
-    DECLARE min_produto_id INT;
 
     -- Pegar a SESSÃO ABERTA da loja
     SELECT sessao_id INTO v_sessao_id 
@@ -309,9 +327,6 @@ BEGIN
     ORDER BY RAND()
     LIMIT 1;
     
-    -- IDs min/max de produtos para sorteio
-    SELECT MIN(produto_id), MAX(produto_id) INTO min_produto_id, max_produto_id FROM produtos;
-
     -- Se não houver sessão aberta ou vendedor, não faz nada
     IF v_sessao_id IS NOT NULL AND v_funcionario_id IS NOT NULL THEN
     
@@ -332,9 +347,14 @@ BEGIN
             SET v_num_itens = FLOOR(RAND() * 5) + 1;
             
             WHILE j < v_num_itens DO
-                -- Pega um produto aleatório
-                SET v_produto_id = FLOOR(RAND() * (max_produto_id - min_produto_id + 1)) + min_produto_id;
-                SELECT preco_venda INTO v_preco_produto FROM produtos WHERE produto_id = v_produto_id;
+                
+                -- ******** INÍCIO DA CORREÇÃO ********
+                -- Pega um ID de produto e seu preço que REALMENTE EXISTE na tabela
+                SELECT produto_id, preco_venda INTO v_produto_id, v_preco_produto
+                FROM produtos
+                ORDER BY RAND()
+                LIMIT 1;
+                -- ******** FIM DA CORREÇÃO ********
                 
                 SET v_quantidade = FLOOR(RAND() * 3) + 1;
                 SET v_subtotal = v_preco_produto * v_quantidade;
@@ -370,33 +390,9 @@ END//
 DELIMITER ;
 
 
--- Módulo 3: Inserindo Contas a Pagar e Financeiro (Saídas)
-
--- ID Fornecedores: 1 (Bosch), 2 (Mecânica Geral), 3 (Cofap), 4 (NGK)
--- ID Lojas: 1 (Matriz), 2 (Filial)
-
-INSERT INTO contas_a_pagar (loja_id, fornecedor_id, descricao, valor, data_vencimento, data_pagamento, categoria, status)
-VALUES 
-(1, 1, 'Compra de Pastilhas de Freio (NF 1001)', 3200.00, DATE_SUB(NOW(), INTERVAL 15 DAY), DATE_SUB(NOW(), INTERVAL 15 DAY), 'Fornecedores', 'Paga'),
-(1, 2, 'Compra de Velas e Cabos (NF 1002)', 1500.00, DATE_SUB(NOW(), INTERVAL 10 DAY), NULL, 'Fornecedores', 'Atrasada'),
-(1, NULL, 'Aluguel Loja Matriz', 5000.00, DATE_SUB(NOW(), INTERVAL 5 DAY), NULL, 'Aluguel', 'Pendente'),
-(1, 3, 'Compra de Amortecedores (NF 1003)', 4800.00, NOW(), NULL, 'Fornecedores', 'Pendente'),
-(2, 4, 'Compra de Filtros (NF 2001)', 2750.00, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY), 'Fornecedores', 'Paga'),
-(2, NULL, 'Salários Loja Filial', 6000.00, DATE_SUB(NOW(), INTERVAL 5 DAY), NULL, 'Salários', 'Pendente'),
-(2, 1, 'Compra de Discos de Freio (NF 2002)', 1900.00, DATE_ADD(NOW(), INTERVAL 10 DAY), NULL, 'Fornecedores', 'Pendente');
-
--- Adicionar registros financeiros para as SAÍDAS (Contas Pagas)
--- (baseado nos IDs auto-increment das contas_a_pagar, assumindo que começam em 1)
-INSERT INTO financeiro (loja_id, tipo, origem, referencia_id, descricao, valor, data_movimento)
-VALUES
--- Referente à conta_pagar_id = 1 (Compra Pastilhas)
-(1, 'Saída', 'Conta a Pagar', 1, 'Pgto NF 1001 - Distribuidora de Freios Bosch', 3200.00, DATE_SUB(NOW(), INTERVAL 15 DAY)),
--- Referente à conta_pagar_id = 5 (Compra Filtros)
-(2, 'Saída', 'Conta a Pagar', 5, 'Pgto NF 2001 - Filtros & Velas NGK', 2750.00, DATE_SUB(NOW(), INTERVAL 8 DAY));
-
-
--- ***** EXECUÇÃO DA GERAÇÃO DE DADOS EM MASSA *****
--- Sintaxe: CALL sp_gerar_vendas_massa( <numero_de_vendas>, <loja_id> );
+-- ----------------------------------------------------------------- 
+-- EXECUÇÃO DA GERAÇÃO DE DADOS EM MASSA
+-- ----------------------------------------------------------------- 
 
 -- Gerar 150 vendas para a Loja Matriz (ID=1)
 CALL sp_gerar_vendas_massa(150, 1);
@@ -408,7 +404,23 @@ CALL sp_gerar_vendas_massa(100, 2);
 -- (Opcional) Remover a procedure após o uso para limpar o banco
 -- DROP PROCEDURE sp_gerar_vendas_massa;
 
-SELECT 'Dados de AUTO-PEÇAS em massa gerados com sucesso!' as status;
-aa
+SELECT 'Script completo executado e dados em massa gerados com sucesso!' as status;
 
+/*
+-- tablea de cadastros 
 
+SELECT * FROM lojas;
+SELECT * FROM perfis;
+SELECT * FROM funcionarios;
+SELECT * FROM fornecedores;
+SELECT * FROM produtos;
+SELECT * FROM clientes;
+
+-- tabelas de pdv e financeiro
+SELECT * FROM sessoes_caixa;
+SELECT * FROM vendas;
+SELECT * FROM itens_venda;
+SELECT * FROM pagamentos_venda;
+SELECT * FROM contas_a_pagar;
+SELECT * FROM financeiro;
+*/

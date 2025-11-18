@@ -85,4 +85,3 @@ async function deleteRecord(table, where) {
 }
 
 export { create, readAll, read, update, deleteRecord, getConnection };
-
