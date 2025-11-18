@@ -1,9 +1,10 @@
+// frontend-qgb/src/app/layout.jsx
+
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { SiteHeader } from "@/components/site-header" // importa o header
+import { AuthProvider } from "@/contexts/AuthContext"
+import { Toaster } from "sonner"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,24 +33,10 @@ export default function RootLayout({ children }) {
           enableSystem
           disableTransitionOnChange
         >
-          <SidebarProvider>
-            {/* Flex container ocupando a tela inteira */}
-            <div className="flex min-h-screen w-screen">
-              {/* Sidebar fixa */}
-              <AppSidebar />
-
-              {/* Área principal */}
-              <div className="flex flex-col flex-1">
-                {/* Header no topo */}
-                <SiteHeader />
-
-                {/* Conteúdo da página ocupa o restante */}
-                <main className="flex-1 p-6">
-                  {children}
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
+          <AuthProvider>
+            {children}
+            <Toaster richColors />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
