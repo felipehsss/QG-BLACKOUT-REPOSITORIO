@@ -35,19 +35,22 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Package, Plus, MoreHorizontal, Loader2 } from "lucide-react"
-// import { produtoService } from "@/services/produtoService"
+import * as produtoService from "@/services/produtoService"
 import { toast } from "sonner"
+// 1. Importamos o hook de autenticação
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function ProdutosPage() {
+  // 2. Pegamos o token do contexto
+  const { token } = useAuth();
+  
   const [produtos, setProdutos] = React.useState([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  // Estados do formulário
   const [formData, setFormData] = React.useState({
     sku: "",
     nome: "",
@@ -55,15 +58,18 @@ export default function ProdutosPage() {
     preco_venda: "",
   });
 
-  // Carrega os produtos ao montar o componente
+  // Carrega os produtos ao montar o componente ou quando o token mudar
   React.useEffect(() => {
-    carregarProdutos();
-  }, []);
+    if (token) {
+      carregarProdutos();
+    }
+  }, [token]);
 
   const carregarProdutos = async () => {
     setIsLoading(true);
     try {
-      const dados = await produtoService.listar();
+      // 3. Passamos o token para o serviço
+      const dados = await produtoService.readAll(token);
       setProdutos(dados || []);
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
@@ -76,6 +82,10 @@ export default function ProdutosPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!token) {
+      toast.error("Você precisa estar logado para realizar essa ação.");
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -86,10 +96,10 @@ export default function ProdutosPage() {
         preco_venda: parseFloat(formData.preco_venda),
       };
 
-      await produtoService.criar(dados);
+      // 3. Passamos o token para o serviço
+      await produtoService.create(dados, token);
       toast.success("Produto criado com sucesso!");
       
-      // Limpa o formulário
       setFormData({
         sku: "",
         nome: "",
@@ -98,8 +108,6 @@ export default function ProdutosPage() {
       });
       
       setIsDialogOpen(false);
-      
-      // Recarrega a lista
       await carregarProdutos();
     } catch (error) {
       console.error("Erro ao criar produto:", error);
@@ -113,9 +121,11 @@ export default function ProdutosPage() {
     if (!confirm("Tem certeza que deseja excluir este produto?")) {
       return;
     }
+    if (!token) return;
 
     try {
-      await produtoService.deletar(id);
+      // 3. Passamos o token para o serviço
+      await produtoService.deleteRecord(id, token);
       toast.success("Produto excluído com sucesso!");
       await carregarProdutos();
     } catch (error) {
