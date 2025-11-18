@@ -23,7 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { getFluxoCaixa } from "@/services/financeiroService";
 import { Button } from "@/components/ui/button";
-import { DateRangePicker } from "@/components/date-range-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 const hoje = new Date();
 const trintaDiasAtras = new Date(new Date().setDate(hoje.getDate() - 30));

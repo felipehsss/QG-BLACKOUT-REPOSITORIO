@@ -81,7 +81,7 @@ const data = {
         },
         {
           title: "Fluxo de Caixa",
-          url: "/financeiro/fluxo-de-caixa",
+          url: "/financeiro/fluxo-caixa",
         },
        
       ],
