@@ -1,19 +1,20 @@
 import { apiService } from './apiService';
 
-const ENDPOINT = '/lojas';
+const ENDPOINT = '/clientes';
 
 const normalize = (item) => ({
-  id: item.loja_id ?? item.id ?? item._id ?? null,
-  loja_id: item.loja_id ?? item.id ?? null,
-  nome: item.nome ?? item.nome_fantasia ?? '',
-  nome_fantasia: item.nome_fantasia ?? item.nome ?? null,
-  razao_social: item.razao_social ?? null,
-  cnpj: item.cnpj ?? null,
-  endereco: item.endereco ?? null,
-  email: item.email ?? null,
+  id: item.id_cliente ?? item.id ?? item._id ?? null,
+  nome: item.nome ?? item.nome_fantasia ?? item.razao_social ?? '',
   telefone: item.telefone ?? null,
-  is_matriz: item.is_matriz ?? item.isMatriz ?? false,
-  is_ativo: item.is_ativo ?? item.isAtivo ?? true,
+  email: item.email ?? null,
+  endereco: item.endereco ?? null,
+  data_cadastro: item.data_cadastro ?? null,
+  tipo_cliente: item.tipo_cliente ?? null, // 'PF' ou 'PJ'
+  cpf: item.cpf ?? null,
+  cnpj: item.cnpj ?? null,
+  razao_social: item.razao_social ?? null,
+  nome_fantasia: item.nome_fantasia ?? null,
+  inscricao_estadual: item.inscricao_estadual ?? null,
   raw: item,
 });
 
@@ -44,14 +45,15 @@ export const readById = async (id, token) => {
 export const create = (data, token) => {
   const safe = ensureNulls({
     nome: data.nome ?? null,
-    nome_fantasia: data.nome_fantasia ?? data.nome ?? null,
-    razao_social: data.razao_social ?? null,
-    cnpj: data.cnpj ?? null,
-    endereco: data.endereco ?? null,
-    email: data.email ?? null,
     telefone: data.telefone ?? null,
-    is_matriz: data.is_matriz ?? data.isMatriz ?? false,
-    is_ativo: data.is_ativo ?? data.isAtivo ?? true,
+    email: data.email ?? null,
+    endereco: data.endereco ?? null,
+    tipo_cliente: data.tipo_cliente ?? 'PF',
+    cpf: data.cpf ?? null,
+    cnpj: data.cnpj ?? null,
+    razao_social: data.razao_social ?? null,
+    nome_fantasia: data.nome_fantasia ?? null,
+    inscricao_estadual: data.inscricao_estadual ?? null,
   });
   return apiService.post(ENDPOINT, safe, token);
 };
@@ -59,14 +61,15 @@ export const create = (data, token) => {
 export const update = (id, data, token) => {
   const safe = ensureNulls({
     nome: data.nome ?? null,
-    nome_fantasia: data.nome_fantasia ?? data.nome ?? null,
-    razao_social: data.razao_social ?? null,
-    cnpj: data.cnpj ?? null,
-    endereco: data.endereco ?? null,
-    email: data.email ?? null,
     telefone: data.telefone ?? null,
-    is_matriz: data.is_matriz ?? data.isMatriz ?? null,
-    is_ativo: data.is_ativo ?? data.isAtivo ?? null,
+    email: data.email ?? null,
+    endereco: data.endereco ?? null,
+    tipo_cliente: data.tipo_cliente ?? null,
+    cpf: data.cpf ?? null,
+    cnpj: data.cnpj ?? null,
+    razao_social: data.razao_social ?? null,
+    nome_fantasia: data.nome_fantasia ?? null,
+    inscricao_estadual: data.inscricao_estadual ?? null,
   });
   return apiService.put(`${ENDPOINT}/${id}`, safe, token);
 };

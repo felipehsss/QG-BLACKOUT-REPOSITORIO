@@ -48,7 +48,7 @@ function formatDate(dateString) {
 
 export default function FluxoCaixaPage() {
   const { token } = useAuth();
-  const [data, setData] = useState({ transacoes: [], saldoInicial: 0 });
+  const [data, setData] = useState({ transacoes: [], saldoInicial: 0, totalEntradas: 0, totalSaidas: 0, saldoFinal: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState({ from: trintaDiasAtras, to: hoje });
 
@@ -60,7 +60,7 @@ export default function FluxoCaixaPage() {
     try {
       const from = dateRange.from.toISOString().split('T')[0];
       const to = dateRange.to.toISOString().split('T')[0];
-      const result = await getFluxoCaixa(from, to);
+      const result = await getFluxoCaixa(from, to, token);
       setData(result);
     } catch (error) {
       console.error("Erro ao buscar fluxo de caixa:", error);
@@ -99,7 +99,7 @@ export default function FluxoCaixaPage() {
         <div className="flex items-center gap-2">
           <DateRangePicker
             date={dateRange}
-            onDateChange={setDateRange}
+            setDate={setDateRange}
           />
           <Button onClick={fetchFluxoCaixa} disabled={isLoading}>Atualizar</Button>
         </div>

@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Package, Users, Store, TrendingUp, DollarSign, ShoppingCart } from "lucide-react";
+import { toast } from "sonner";
 import {
   ResponsiveContainer,
   LineChart,
@@ -65,8 +66,9 @@ export default function DashboardPage() {
   const [stockSummary, setStockSummary] = useState({ criticalCount: 0 });
   const [revenueData, setRevenueData] = useState([]);
   const [lojasData, setLojasData] = useState([]);
+  const [produtosData, setProdutosData] = useState([]);
 
-  const { token, loading: authLoading } = useAuth();
+  const { token, isLoading: authLoading } = useAuth();
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -101,8 +103,9 @@ export default function DashboardPage() {
         ]);
 
         // Estoque
-        const criticalCount = (produtosData || []).filter(p => (p.quantidade || 0) < 10).length;
+        const criticalCount = (produtosData || []).filter(p => (p.quantidade || p.quantidade_estoque || 0) < 10).length;
         setStockSummary({ criticalCount });
+        setProdutosData(produtosData || []);
 
         // Faturamento
         const thirtyDaysAgo = new Date();
@@ -167,7 +170,9 @@ export default function DashboardPage() {
         setLojasData(lojasDataRaw || []);
 
       } catch (err) {
-        setError(err.message || "Não foi possível carregar os dados.");
+        const errorMessage = err.message || "Não foi possível carregar os dados.";
+        setError(errorMessage);
+        toast.error(errorMessage);
       } finally {
         setDataLoading(false);
       }
@@ -185,67 +190,119 @@ export default function DashboardPage() {
     return <div>Carregando...</div>;
   }
 
+  // Calcular estatísticas adicionais
+  const totalVendas = recentSales.length;
+  const totalVendasValor = recentSales.reduce((acc, v) => acc + (parseFloat(v.valor_total) || 0), 0);
+  const totalProdutos = produtosData.length;
+  const totalLojas = lojasData.length;
+  const totalFuncionarios = recentSales.length > 0 ? new Set(recentSales.filter(v => v.funcionario_id).map(v => v.funcionario_id)).size : 0;
+
   return (
-    <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Gráfico */}
-      <Card className="col-span-1 lg:col-span-2">
-        <CardHeader>
-          <CardTitle>Fluxo Financeiro - Últimos 30 dias</CardTitle>
-          <CardDescription>Receita, Despesa e Lucro líquido</CardDescription>
-        </CardHeader>
-        <CardContent className="h-64">
-          {revenueData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                <XAxis dataKey="name" />
-                <YAxis tickFormatter={(value) => `R$${value / 1000}k`} />
-                <Tooltip formatter={(value, name) => [formatCurrency(value), name]} />
-                <Line type="monotone" dataKey="Receita" stroke="#16a34a" strokeWidth={2} />
-                <Line type="monotone" dataKey="Despesa" stroke="#dc2626" strokeWidth={2} />
-                <Line type="monotone" dataKey="Lucro" stroke="#2563eb" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full text-slate-400">
-              Nenhum dado financeiro encontrado nos últimos 30 dias.
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-
-      {/* Ações rápidas e estoque */}
-      <div className="space-y-4">
+    <div className="space-y-6">
+      {/* KPIs Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader><CardTitle>Ações Rápidas</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Vendas (Hoje)</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Button>Nova Venda</Button>
-              <Button variant="outline">Cadastrar Produto</Button>
-              <Button variant="ghost">Abrir Caixa</Button>
-              <Button variant="link">Gerar Relatório</Button>
-            </div>
+            <div className="text-2xl font-bold">{totalVendas}</div>
+            <p className="text-xs text-muted-foreground">
+              {formatCurrency(totalVendasValor)} em vendas
+            </p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Resumo Estoque</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Lojas Ativas</CardTitle>
+            <Store className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
           <CardContent>
-            <div className="text-sm text-slate-600">
-              <span className="font-bold text-base text-red-600">{stockSummary.criticalCount}</span> produtos em nível crítico
-            </div>
+            <div className="text-2xl font-bold">{totalLojas}</div>
+            <p className="text-xs text-muted-foreground">
+              Lojas cadastradas no sistema
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalProdutos}</div>
+            <p className={`text-xs ${stockSummary.criticalCount > 0 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+              {stockSummary.criticalCount > 0 ? `${stockSummary.criticalCount} em nível crítico` : 'Todos os produtos OK'}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Vendedores Ativos</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalFuncionarios}</div>
+            <p className="text-xs text-muted-foreground">
+              Funcionários com vendas recentes
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Vendas recentes */}
-      <div className="lg:col-span-3">
-        <Card>
+      {/* Gráfico e Ações Rápidas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="col-span-1 lg:col-span-2">
           <CardHeader>
-            <CardTitle>Vendas Recentes</CardTitle>
-            <CardDescription>Últimas 10 vendas</CardDescription>
+            <CardTitle>Fluxo Financeiro - Últimos 30 dias</CardTitle>
+            <CardDescription>Receita, Despesa e Lucro líquido</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="h-64">
+            {revenueData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                  <XAxis dataKey="name" />
+                  <YAxis tickFormatter={(value) => `R$${value / 1000}k`} />
+                  <Tooltip formatter={(value, name) => [formatCurrency(value), name]} />
+                  <Line type="monotone" dataKey="Receita" stroke="#16a34a" strokeWidth={2} />
+                  <Line type="monotone" dataKey="Despesa" stroke="#dc2626" strokeWidth={2} />
+                  <Line type="monotone" dataKey="Lucro" stroke="#2563eb" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full text-slate-400">
+                Nenhum dado financeiro encontrado nos últimos 30 dias.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Ações rápidas e estoque */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle>Ações Rápidas</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2">
+                <Button className="w-full">Nova Venda</Button>
+                <Button variant="outline" className="w-full">Cadastrar Produto</Button>
+                <Button variant="ghost" className="w-full">Abrir Caixa</Button>
+                <Button variant="link" className="w-full">Gerar Relatório</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Vendas recentes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vendas Recentes</CardTitle>
+          <CardDescription>Últimas 10 vendas registradas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentSales.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -262,33 +319,20 @@ export default function DashboardPage() {
                     <TableCell>{formatTime(venda.data_venda)}</TableCell>
                     <TableCell>{venda.lojaNome}</TableCell>
                     <TableCell>{venda.vendedorNome}</TableCell>
-                    <TableCell>{formatCurrency(venda.valor_total)}</TableCell>
+                    <TableCell className="font-semibold">{formatCurrency(venda.valor_total)}</TableCell>
                     <TableCell>{venda.status}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lojas */}
-      <div className="lg:col-span-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Lojas</CardTitle>
-            <CardDescription>Lista de todas as lojas cadastradas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <LojasTable
-              data={lojasData}
-              onEdit={(loja) => console.log("Editar loja:", loja)}
-              onDelete={(loja) => console.log("Excluir loja:", loja)}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+          ) : (
+            <div className="flex items-center justify-center p-12 text-muted-foreground">
+              Nenhuma venda recente encontrada.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

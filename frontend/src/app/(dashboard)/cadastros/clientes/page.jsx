@@ -9,6 +9,7 @@ import {
   deleteRecord as deleteCliente,
 } from "@/services/clienteService";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function ClientesPage() {
   const { token } = useAuth();
@@ -17,11 +18,14 @@ export default function ClientesPage() {
   const [editingCliente, setEditingCliente] = useState(null);
 
   const fetchClientes = async () => {
+    if (!token) return;
     try {
       const data = await readClientes(token);
-      setClientes(data);
+      setClientes(data || []);
     } catch (err) {
+      const errorMessage = err.message || "Erro ao carregar clientes.";
       console.error("Erro ao carregar clientes:", err);
+      toast.error(errorMessage);
     }
   };
 
@@ -40,13 +44,19 @@ export default function ClientesPage() {
   };
 
   const handleDelete = async (cliente) => {
-    if (confirm(`Confirma exclusão do cliente "${cliente.nome}"?`)) {
-      try {
-        await deleteCliente(cliente.id, token);
-        fetchClientes();
-      } catch (err) {
-        console.error("Erro ao excluir cliente:", err);
-      }
+    if (!confirm(`Confirma exclusão do cliente "${cliente.nome}"?`)) {
+      return;
+    }
+    
+    try {
+      const id = cliente.id ?? cliente.id_cliente;
+      await deleteCliente(id, token);
+      toast.success("Cliente excluído com sucesso!");
+      fetchClientes();
+    } catch (err) {
+      const errorMessage = err.message || "Erro ao excluir cliente.";
+      console.error("Erro ao excluir cliente:", err);
+      toast.error(errorMessage);
     }
   };
 

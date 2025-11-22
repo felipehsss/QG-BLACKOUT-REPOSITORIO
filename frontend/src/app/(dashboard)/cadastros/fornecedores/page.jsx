@@ -17,6 +17,7 @@ import {
 import { FornecedoresTable } from "@/components/fornecedores/fornecedores-table";
 import { FornecedorForm } from "@/components/fornecedores/fornecedor-form";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function FornecedoresPage() {
   const { token } = useAuth();
@@ -32,7 +33,10 @@ export default function FornecedoresPage() {
       const list = await readAllFornecedores(token);
       setFornecedores(Array.isArray(list) ? list : []);
     } catch (err) {
+      const errorMessage = err.message || "Erro ao carregar fornecedores.";
       console.error("Erro ao buscar fornecedores:", err);
+      toast.error(errorMessage);
+      setFornecedores([]);
     } finally {
       setIsLoading(false);
     }
@@ -56,9 +60,12 @@ export default function FornecedoresPage() {
       const id = fornecedor.id ?? fornecedor.fornecedor_id;
       if (!id) throw new Error("ID do fornecedor não encontrado.");
       await deleteFornecedor(id, token);
+      toast.success("Fornecedor excluído com sucesso!");
       fetchFornecedores();
     } catch (err) {
+      const errorMessage = err.message || "Erro ao excluir fornecedor.";
       console.error("Erro ao excluir fornecedor:", err);
+      toast.error(errorMessage);
     }
   };
 

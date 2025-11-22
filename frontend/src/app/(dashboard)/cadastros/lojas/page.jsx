@@ -9,166 +9,118 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, AlertCircle } from "lucide-react"
-import { Skeleton } from "@/components/ui/skeleton" // Importando o Skeleton
+import { LojasTable } from "@/components/lojas/lojas-table"
+import { LojaForm } from "@/components/lojas/loja-form"
+import { readAll as readLojas, deleteRecord as deleteLoja } from "@/services/lojaService"
+import { useAuth } from "@/contexts/AuthContext"
+import { toast } from "sonner"
 
-// Esta página agora é um Client Component ("use client")
-// Isso é necessário porque a rota /api/lojas é protegida e precisamos
-// buscar o token de autenticação do localStorage do navegador.
 export default function LojasPage() {
+  const { token } = useAuth()
   const [lojas, setLojas] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingLoja, setEditingLoja] = useState(null)
 
-  useEffect(() => {
-    async function fetchLojas() {
-      setIsLoading(true)
-      setError(null)
-      try {
-        // 1. Buscar o token de autenticação do localStorage
-        // (Estou assumindo que você salva o token com a chave 'qg_auth_token' após o login)
-        const token = localStorage.getItem("qg_auth_token")
-
-        if (!token) {
-          throw new Error("Usuário não autenticado. Faça o login novamente.")
-        }
-
-        // 2. Fazer a chamada fetch para a API
-        const response = await fetch("http://localhost:3080/api/lojas", {
-          headers: {
-            "Content-Type": "application/json",
-            // 3. Enviar o token no cabeçalho de autorização
-            Authorization: `Bearer ${token}`,
-          },
-        })
-
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            throw new Error("Sua sessão expirou. Faça o login novamente.")
-          }
-          throw new Error("Falha ao buscar os dados das lojas.")
-        }
-
-        const data = await response.json()
-        setLojas(data)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setIsLoading(false)
-      }
+  const fetchLojas = async () => {
+    if (!token) {
+      setIsLoading(false)
+      setError("Token não encontrado. Por favor, faça login.")
+      return
     }
 
+    setIsLoading(true)
+    setError(null)
+    try {
+      const data = await readLojas(token)
+      setLojas(data || [])
+    } catch (err) {
+      const errorMessage = err.message || "Erro ao carregar lojas."
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchLojas()
-  }, []) // O array vazio [] garante que isso rode apenas uma vez (ao montar o componente)
+  }, [token])
 
-  // Componente de Skeleton para a tabela
-  const TableSkeleton = () => (
-    <div className="space-y-3 mt-4">
-      <Skeleton className="h-8 w-full" />
-      <Skeleton className="h-8 w-full" />
-      <Skeleton className="h-8 w-full" />
-    </div>
-  )
+  const handleAdd = () => {
+    setEditingLoja(null)
+    setIsFormOpen(true)
+  }
 
-  // Componente de Mensagem de Erro
-  const ErrorMessage = ({ message }) => (
-    <div className="flex flex-col items-center justify-center gap-4 py-12 text-center text-destructive">
-      <AlertCircle className="h-16 w-16" />
-      <h3 className="text-xl font-semibold">Ocorreu um Erro</h3>
-      <p className="text-muted-foreground">{message}</p>
-      <Button variant="outline" onClick={() => window.location.reload()}>
-        Tentar Novamente
-      </Button>
-    </div>
-  )
+  const handleEdit = (loja) => {
+    setEditingLoja(loja)
+    setIsFormOpen(true)
+  }
 
-  // Componente de "Nenhum Resultado"
-  const NoResults = () => (
-     <TableRow>
-        <TableCell colSpan={4} className="h-24 text-center">
-          Nenhuma loja cadastrada.
-        </TableCell>
-      </TableRow>
-  )
+  const handleDelete = async (loja) => {
+    if (!confirm(`Confirma exclusão da loja "${loja.nome || loja.nome_fantasia}"?`)) {
+      return
+    }
+
+    try {
+      const id = loja.id ?? loja.loja_id
+      await deleteLoja(id, token)
+      toast.success("Loja excluída com sucesso!")
+      fetchLojas()
+    } catch (err) {
+      const errorMessage = err.message || "Erro ao excluir loja."
+      toast.error(errorMessage)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Carregando lojas...</p>
+      </div>
+    )
+  }
+
+  if (error && lojas.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-12 text-center text-destructive">
+        <h3 className="text-xl font-semibold">Erro ao carregar lojas</h3>
+        <p className="text-muted-foreground">{error}</p>
+        <Button variant="outline" onClick={fetchLojas}>
+          Tentar Novamente
+        </Button>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Gestão de Lojas</h1>
           <p className="text-muted-foreground">
             Cadastre e gerencie as filiais e matriz da sua empresa.
           </p>
         </div>
-        <Button>Adicionar Loja</Button>
+        <Button onClick={handleAdd}>Adicionar Loja</Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lojas Cadastradas</CardTitle>
-          <CardDescription>
-            Lista de todas as lojas registradas no sistema.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <TableSkeleton />
-          ) : error ? (
-            <ErrorMessage message={error} />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>CNPJ</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lojas.length > 0 ? (
-                  lojas.map((loja) => (
-                    <TableRow key={loja.loja_id}>
-                      {/* Corrigido para usar os nomes das colunas do banco de dados:
-                        - loja.id -> loja.loja_id
-                        - loja.isMatriz -> loja.is_matriz
-                        - loja.status -> loja.is_ativo
-                      */}
-                      <TableCell className="font-medium">{loja.nome}</TableCell>
-                      <TableCell>{loja.cnpj}</TableCell>
-                      <TableCell>
-                        {loja.is_matriz ? (
-                          <Badge variant="outline">Matriz</Badge>
-                        ) : (
-                          <Badge variant="secondary">Filial</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={loja.is_ativo ? "default" : "destructive"}
-                        >
-                          {loja.is_ativo ? "Ativa" : "Inativa"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <NoResults />
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <LojasTable
+        data={lojas}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      <LojaForm
+        open={isFormOpen}
+        setOpen={setIsFormOpen}
+        initialData={editingLoja}
+        onSuccess={() => {
+          fetchLojas()
+          toast.success(editingLoja ? "Loja atualizada com sucesso!" : "Loja criada com sucesso!")
+        }}
+      />
     </div>
   )
 }

@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 
 export function LojasTable({ data = [], onEdit, onDelete }) {
@@ -31,14 +32,18 @@ export function LojasTable({ data = [], onEdit, onDelete }) {
         <TableHeader>
           <TableRow>
             <TableHead>Nome</TableHead>
+            <TableHead>CNPJ</TableHead>
+            <TableHead>Tipo</TableHead>
             <TableHead>Endereço</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Telefone</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead className="w-[50px] text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((loja, idx) => {
+          {data.length > 0 ? (
+            data.map((loja, idx) => {
             const key =
               loja.id ??
               loja.loja_id ??
@@ -46,10 +51,23 @@ export function LojasTable({ data = [], onEdit, onDelete }) {
 
             return (
               <TableRow key={key}>
-                <TableCell className="font-medium">{loja.nome}</TableCell>
+                <TableCell className="font-medium">{loja.nome || loja.nome_fantasia || "N/A"}</TableCell>
+                <TableCell>{loja.cnpj || "N/A"}</TableCell>
+                <TableCell>
+                  {loja.is_matriz ? (
+                    <Badge variant="outline">Matriz</Badge>
+                  ) : (
+                    <Badge variant="secondary">Filial</Badge>
+                  )}
+                </TableCell>
                 <TableCell>{loja.endereco || "N/A"}</TableCell>
                 <TableCell>{loja.email || "N/A"}</TableCell>
                 <TableCell>{loja.telefone || "N/A"}</TableCell>
+                <TableCell>
+                  <Badge variant={loja.is_ativo !== false ? "default" : "destructive"}>
+                    {loja.is_ativo !== false ? "Ativa" : "Inativa"}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -76,7 +94,14 @@ export function LojasTable({ data = [], onEdit, onDelete }) {
                 </TableCell>
               </TableRow>
             );
-          })}
+          })
+          ) : (
+            <TableRow>
+              <TableCell colSpan={8} className="h-24 text-center">
+                Nenhuma loja cadastrada.
+              </TableCell>
+            </TableRow>
+          )}
         </TableBody>
       </Table>
     </div>

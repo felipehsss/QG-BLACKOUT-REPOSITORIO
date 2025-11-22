@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { create as createCliente, update as updateCliente } from "@/services/clienteService";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const formSchema = z
   .object({
@@ -120,15 +121,19 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
       if (initialData && (initialData.id ?? initialData.id_cliente)) {
         const id = initialData.id ?? initialData.id_cliente;
         await updateCliente(id, payload, token);
+        toast.success("Cliente atualizado com sucesso!");
       } else {
         await createCliente(payload, token);
+        toast.success("Cliente criado com sucesso!");
       }
 
       onSuccess?.();
       setOpen(false);
       form.reset();
     } catch (err) {
+      const errorMessage = err.message || "Erro ao salvar cliente.";
       console.error("Erro ao salvar cliente:", err);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

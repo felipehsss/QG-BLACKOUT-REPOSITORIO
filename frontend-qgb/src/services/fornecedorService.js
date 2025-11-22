@@ -1,19 +1,15 @@
 import { apiService } from './apiService';
 
-const ENDPOINT = '/lojas';
+const ENDPOINT = '/fornecedores';
 
 const normalize = (item) => ({
-  id: item.loja_id ?? item.id ?? item._id ?? null,
-  loja_id: item.loja_id ?? item.id ?? null,
-  nome: item.nome ?? item.nome_fantasia ?? '',
-  nome_fantasia: item.nome_fantasia ?? item.nome ?? null,
-  razao_social: item.razao_social ?? null,
+  id: item.fornecedor_id ?? item.id ?? item._id ?? null,
+  nome: item.razao_social ?? item.nome ?? '',
   cnpj: item.cnpj ?? null,
-  endereco: item.endereco ?? null,
+  contato_principal: item.contato_principal ?? null,
   email: item.email ?? null,
   telefone: item.telefone ?? null,
-  is_matriz: item.is_matriz ?? item.isMatriz ?? false,
-  is_ativo: item.is_ativo ?? item.isAtivo ?? true,
+  endereco: item.endereco ?? null, // <- agora incluído
   raw: item,
 });
 
@@ -43,30 +39,24 @@ export const readById = async (id, token) => {
 
 export const create = (data, token) => {
   const safe = ensureNulls({
-    nome: data.nome ?? null,
-    nome_fantasia: data.nome_fantasia ?? data.nome ?? null,
-    razao_social: data.razao_social ?? null,
+    razao_social: data.razao_social ?? data.nome ?? null,
     cnpj: data.cnpj ?? null,
-    endereco: data.endereco ?? null,
+    contato_principal: data.contato_principal ?? null,
     email: data.email ?? null,
     telefone: data.telefone ?? null,
-    is_matriz: data.is_matriz ?? data.isMatriz ?? false,
-    is_ativo: data.is_ativo ?? data.isAtivo ?? true,
+    endereco: data.endereco ?? null,
   });
   return apiService.post(ENDPOINT, safe, token);
 };
 
 export const update = (id, data, token) => {
   const safe = ensureNulls({
-    nome: data.nome ?? null,
-    nome_fantasia: data.nome_fantasia ?? data.nome ?? null,
-    razao_social: data.razao_social ?? null,
+    razao_social: data.razao_social ?? data.nome ?? null,
     cnpj: data.cnpj ?? null,
-    endereco: data.endereco ?? null,
+    contato_principal: data.contato_principal ?? null,
     email: data.email ?? null,
     telefone: data.telefone ?? null,
-    is_matriz: data.is_matriz ?? data.isMatriz ?? null,
-    is_ativo: data.is_ativo ?? data.isAtivo ?? null,
+    endereco: data.endereco ?? null,
   });
   return apiService.put(`${ENDPOINT}/${id}`, safe, token);
 };

@@ -27,6 +27,7 @@ import {
   update as updateLoja,
 } from "@/services/lojaService";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   nome: z.string().min(3, "Nome obrigatório"),
@@ -73,15 +74,19 @@ export function LojaForm({ open, setOpen, onSuccess, initialData = null }) {
       if (initialData && (initialData.id ?? initialData.loja_id)) {
         const id = initialData.id ?? initialData.loja_id;
         await updateLoja(id, payload, token);
+        toast.success("Loja atualizada com sucesso!");
       } else {
         await createLoja(payload, token);
+        toast.success("Loja criada com sucesso!");
       }
 
       onSuccess?.();
       setOpen(false);
       form.reset();
     } catch (err) {
+      const errorMessage = err.message || "Erro ao salvar loja.";
       console.error("Erro ao salvar loja:", err);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

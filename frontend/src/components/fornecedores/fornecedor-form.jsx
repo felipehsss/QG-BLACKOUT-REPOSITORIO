@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { create as createFornecedor, update as updateFornecedor } from "@/services/fornecedorService";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   nome: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
@@ -86,16 +87,19 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
       if (initialData && (initialData.id ?? initialData.fornecedor_id)) {
         const id = initialData.id ?? initialData.fornecedor_id;
         await updateFornecedor(id, payload, token);
+        toast.success("Fornecedor atualizado com sucesso!");
       } else {
         await createFornecedor(payload, token);
+        toast.success("Fornecedor criado com sucesso!");
       }
 
       onSuccess?.();
       setOpen(false);
       form.reset();
     } catch (err) {
+      const errorMessage = err.message || "Erro ao salvar fornecedor.";
       console.error("Erro ao salvar fornecedor:", err);
-      // TODO: toast de erro
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
