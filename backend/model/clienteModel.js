@@ -8,27 +8,29 @@ export async function getAll() {
 }
 
 export async function getById(id) {
+  // Removido [0] pois db.read já retorna o objeto ou null
   const result = await db.read(table, `${primaryKey} = ?`, [id]);
-  return result[0];
+  return result;
 }
 
 export async function getByCpf(cpf) {
   const result = await db.read(table, "cpf = ?", [cpf]);
-  return result[0];
+  return result;
 }
 
 export async function getByCnpj(cnpj) {
   const result = await db.read(table, "cnpj = ?", [cnpj]);
-  return result[0];
+  return result;
 }
 
 export async function getByEmail(email) {
   const result = await db.read(table, "email = ?", [email]);
-  return result[0];
+  return result;
 }
 
 export async function createCliente(data) {
   const clienteData = { ...data };
+  // Lógica para garantir nulos nos campos opcionais
   clienteData.cpf = (clienteData.tipo_cliente === "PF" && clienteData.cpf) ? clienteData.cpf : null;
   clienteData.cnpj = (clienteData.tipo_cliente === "PJ" && clienteData.cnpj) ? clienteData.cnpj : null;
   clienteData.razao_social = (clienteData.tipo_cliente === "PJ" && clienteData.razao_social) ? clienteData.razao_social : null;
@@ -51,6 +53,7 @@ export async function updateCliente(id, data) {
     clienteData.nome_fantasia = (clienteData.tipo_cliente === "PJ" && clienteData.nome_fantasia) ? clienteData.nome_fantasia : null;
     clienteData.inscricao_estadual = (clienteData.tipo_cliente === "PJ" && clienteData.inscricao_estadual) ? clienteData.inscricao_estadual : null;
   } else {
+    // Se não enviou tipo_cliente, remove campos que não devem ser apagados acidentalmente
     delete clienteData.cpf;
     delete clienteData.cnpj;
     delete clienteData.razao_social;
@@ -62,5 +65,6 @@ export async function updateCliente(id, data) {
 }
 
 export async function deleteCliente(id) {
-  return await db.del(table, `${primaryKey} = ?`, [id]);
+  // Corrigido de db.del para db.deleteRecord
+  return await db.deleteRecord(table, `${primaryKey} = ?`, [id]);
 }

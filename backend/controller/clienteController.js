@@ -84,7 +84,8 @@ export const criar = async (req, res, next) => {
       inscricao_estadual: tipo === "PJ" ? inscricao_estadual || null : null,
     };
 
-    const idInserido = await clienteModel.create(dadosParaSalvar);
+    // Corrigido: chama createCliente em vez de create
+    const idInserido = await clienteModel.createCliente(dadosParaSalvar);
 
     res.status(201).json({ message: "Cliente criado com sucesso", id: idInserido });
   } catch (err) {
@@ -111,7 +112,8 @@ export const atualizar = async (req, res, next) => {
       }
     }
 
-    const linhasAfetadas = await clienteModel.update(Number(id), dadosParaAtualizar);
+    // Corrigido: chama updateCliente em vez de update
+    const linhasAfetadas = await clienteModel.updateCliente(Number(id), dadosParaAtualizar);
 
     if (linhasAfetadas === 0) {
       const clienteExiste = await clienteModel.getById(Number(id));
