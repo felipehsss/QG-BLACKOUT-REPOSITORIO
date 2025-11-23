@@ -141,7 +141,8 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[500px]">
+      {/* AQUI ESTA A CORRECAO: max-h-[90vh] overflow-y-auto */}
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {initialData ? "Editar Cliente" : "Adicionar Cliente"}
