@@ -82,15 +82,21 @@ export const criar = async (req, res, next) => {
       razao_social: tipo === "PJ" ? razao_social || null : null,
       nome_fantasia: tipo === "PJ" ? nome_fantasia || null : null,
       inscricao_estadual: tipo === "PJ" ? inscricao_estadual || null : null,
+      // ADICIONADO: Salva o nome do arquivo se ele existir
+      foto: req.file ? req.file.filename : null 
     };
 
-    // Corrigido: chama createCliente em vez de create
+    // IMPORTANTE: Use createCliente se o seu model exporta como createCliente, 
+    // ou create se exporta como create. No seu último envio estava createCliente no model.
+    // Vou manter createCliente para garantir compatibilidade com a correção anterior.
+    // Verifique se no model/clienteModel.js a função se chama create ou createCliente.
+    // Pelo seu último upload, parecia ser createCliente. Se der erro, mude para create.
     const idInserido = await clienteModel.createCliente(dadosParaSalvar);
 
     res.status(201).json({ message: "Cliente criado com sucesso", id: idInserido });
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "Duplicidade detectada." });
+      return res.status(409).json({ message: "Duplicidade detectada (CPF, CNPJ ou Email)." });
     }
     next(err);
   }
@@ -101,7 +107,9 @@ export const atualizar = async (req, res, next) => {
     const { id } = req.params;
     const dadosCliente = req.body;
 
-    if (!dadosCliente || Object.keys(dadosCliente).length === 0) {
+    // Nota: Com FormData, campos vazios podem vir como string vazia ""
+    // O if abaixo ainda é válido, mas vamos garantir que req.file conte como dado
+    if ((!dadosCliente || Object.keys(dadosCliente).length === 0) && !req.file) {
       return res.status(400).json({ message: "Nenhum dado fornecido para atualização." });
     }
 
@@ -112,10 +120,16 @@ export const atualizar = async (req, res, next) => {
       }
     }
 
-    // Corrigido: chama updateCliente em vez de update
+    // Se enviou nova foto, atualiza o campo
+    if (req.file) {
+      dadosParaAtualizar.foto = req.file.filename;
+    }
+
+    // Mesmo caso da função create: verifique se é update ou updateCliente no model
     const linhasAfetadas = await clienteModel.updateCliente(Number(id), dadosParaAtualizar);
 
     if (linhasAfetadas === 0) {
+      // Se não alterou linhas, verifica se existe
       const clienteExiste = await clienteModel.getById(Number(id));
       if (!clienteExiste) {
         return res.status(404).json({ message: "Cliente não encontrado." });
