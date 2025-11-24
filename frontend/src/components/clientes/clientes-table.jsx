@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -16,10 +16,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Eye, User, MapPin, Phone, Mail, FileText } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -29,23 +39,18 @@ import {
 } from "@/components/ui/chart";
 
 export function ClientesTable({ data = [], onEdit, onDelete }) {
+  // Estado para controlar o cliente que está sendo visualizado
+  const [clienteSelecionado, setClienteSelecionado] = useState(null);
+
   const defaultOnEdit = (c) => console.log("Editar cliente:", c);
   const defaultOnDelete = (c) => {
     if (confirm(`Confirma exclusão de "${c.nome}" ?`)) console.log("Excluir:", c);
   };
 
   const chartConfig = {
-    clientes: {
-      label: "Clientes",
-    },
-    pf: {
-      label: "Pessoa Física",
-      color: "hsl(0 84.2% 60.2%)", // Vermelho
-    },
-    pj: {
-      label: "Pessoa Jurídica",
-      color: "hsl(var(--primary))", // Cor primária do sistema
-    },
+    clientes: { label: "Clientes" },
+    pf: { label: "Pessoa Física", color: "hsl(0 84.2% 60.2%)" },
+    pj: { label: "Pessoa Jurídica", color: "hsl(var(--primary))" },
   };
 
   const summary = useMemo(() => {
@@ -61,6 +66,19 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
       ].filter((item) => item.value > 0),
     };
   }, [data]);
+
+  // Função auxiliar para renderizar linhas de detalhes no modal
+  const DetailRow = ({ icon: Icon, label, value }) => (
+    <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+      <div className="mt-1 bg-primary/10 p-2 rounded-full">
+        <Icon className="h-4 w-4 text-primary" />
+      </div>
+      <div>
+        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium">{value || "Não informado"}</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -93,23 +111,20 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
         {summary.chartData.length > 0 && (
           <Card className="p-4 flex flex-col justify-center">
             <CardHeader className="items-center pb-0">
-              <CardTitle className="text-sm font-medium">Distribuição de Clientes</CardTitle>
+              <CardTitle className="text-sm font-medium">Distribuição</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-1 flex-col items-center justify-center p-0">
               <ChartContainer
                 config={chartConfig}
-                className="mx-auto aspect-square w-full max-w-[150px]"
+                className="mx-auto aspect-square w-full max-w-[100px]"
               >
                 <PieChart>
-                  <Tooltip
-                    content={<ChartTooltipContent nameKey="name" hideLabel />}
-                  />
+                  <Tooltip content={<ChartTooltipContent nameKey="name" hideLabel />} />
                   <Pie data={summary.chartData} dataKey="value" nameKey="name" innerRadius={25} strokeWidth={2}>
                     {summary.chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Pie>
-                  <ChartLegend content={<ChartLegendContent nameKey="name" />} />
                 </PieChart>
               </ChartContainer>
             </CardContent>
@@ -118,14 +133,15 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
       </div>
 
       {/* Tabela de Clientes */}
-      <div className="rounded-md border">
+      <div className="rounded-md border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[80px]">Foto</TableHead>
               <TableHead>Nome</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Telefone</TableHead>
-              <TableHead>Endereço</TableHead>
+              <TableHead className="hidden md:table-cell">Email</TableHead>
+              <TableHead className="hidden md:table-cell">Telefone</TableHead>
+              <TableHead className="hidden lg:table-cell">Endereço</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead className="w-[50px] text-right">Ações</TableHead>
             </TableRow>
@@ -134,26 +150,40 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
           <TableBody>
             {data.length > 0 ? (
               data.map((cliente, idx) => {
-                const key =
-                  cliente.id ??
-                  cliente.id_cliente ??
-                  `${cliente.nome ?? "cliente"}-${idx}`;
+                const key = cliente.id ?? cliente.id_cliente ?? `${cliente.nome ?? "cliente"}-${idx}`;
+                const fotoUrl = cliente.foto ? `http://localhost:3080/uploads/${cliente.foto}` : null;
 
                 return (
                   <TableRow key={key}>
-                    <TableCell className="font-medium">{cliente.nome}</TableCell>
-                    <TableCell>{cliente.email || "N/A"}</TableCell>
-                    <TableCell>{cliente.telefone || "N/A"}</TableCell>
-                    <TableCell>{cliente.endereco || "N/A"}</TableCell>
+                    {/* COLUNA DO AVATAR */}
                     <TableCell>
-                      {cliente.tipo_cliente === "PF" && (
-                        <Badge variant="secondary">Pessoa Física</Badge>
-                      )}
-                      {cliente.tipo_cliente === "PJ" && (
-                        <Badge variant="outline">Pessoa Jurídica</Badge>
-                      )}
-                      {!cliente.tipo_cliente && "N/A"}
+                      <Avatar>
+                        <AvatarImage src={fotoUrl} alt={cliente.nome} className="object-cover" />
+                        <AvatarFallback>{cliente.nome?.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
                     </TableCell>
+
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col">
+                        <span>{cliente.nome}</span>
+                        <span className="md:hidden text-xs text-muted-foreground">{cliente.email}</span>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell className="hidden md:table-cell">{cliente.email || "-"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{cliente.telefone || "-"}</TableCell>
+                    <TableCell className="hidden lg:table-cell truncate max-w-[200px]" title={cliente.endereco}>
+                      {cliente.endereco || "-"}
+                    </TableCell>
+                    
+                    <TableCell>
+                      {cliente.tipo_cliente === "PF" ? (
+                        <Badge variant="secondary" className="whitespace-nowrap">Pessoa Física</Badge>
+                      ) : (
+                        <Badge variant="outline" className="whitespace-nowrap">Pessoa Jurídica</Badge>
+                      )}
+                    </TableCell>
+
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -162,18 +192,25 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
                             <span className="sr-only">Abrir menu</span>
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem
-                            onClick={() => (onEdit ?? defaultOnEdit)(cliente)}
-                            className="flex items-center gap-2"
-                          >
-                            <Edit className="h-4 w-4" /> Editar
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          
+                          {/* Botão Visualizar */}
+                          <DropdownMenuItem onClick={() => setClienteSelecionado(cliente)}>
+                            <Eye className="mr-2 h-4 w-4" /> Visualizar
                           </DropdownMenuItem>
+
+                          <DropdownMenuItem onClick={() => (onEdit ?? defaultOnEdit)(cliente)}>
+                            <Edit className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator />
+                          
                           <DropdownMenuItem
                             onClick={() => (onDelete ?? defaultOnDelete)(cliente)}
-                            className="flex items-center gap-2 text-destructive"
+                            className="text-destructive focus:text-destructive"
                           >
-                            <Trash2 className="h-4 w-4" /> Excluir
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -183,7 +220,7 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan="6" className="h-24 text-center">
+                <TableCell colSpan="7" className="h-24 text-center text-muted-foreground">
                   Nenhum cliente cadastrado.
                 </TableCell>
               </TableRow>
@@ -191,6 +228,63 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
           </TableBody>
         </Table>
       </div>
+
+      {/* MODAL DE VISUALIZAÇÃO (Card do Cliente) */}
+      <Dialog open={!!clienteSelecionado} onOpenChange={(open) => !open && setClienteSelecionado(null)}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Cliente</DialogTitle>
+            <DialogDescription>Informações completas do cadastro.</DialogDescription>
+          </DialogHeader>
+          
+          {clienteSelecionado && (
+            <div className="grid gap-6 py-4">
+              {/* Cabeçalho do Card: Foto e Nome Principal */}
+              <div className="flex flex-col items-center justify-center gap-3 pb-4 border-b">
+                <Avatar className="h-24 w-24 border-4 border-muted">
+                  <AvatarImage 
+                    src={clienteSelecionado.foto ? `http://localhost:3080/uploads/${clienteSelecionado.foto}` : null} 
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="text-3xl">
+                    {clienteSelecionado.nome?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-foreground">{clienteSelecionado.nome}</h3>
+                  <Badge variant={clienteSelecionado.tipo_cliente === "PF" ? "secondary" : "outline"} className="mt-2">
+                    {clienteSelecionado.tipo_cliente === "PF" ? "Pessoa Física" : "Pessoa Jurídica"}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Grid de Informações */}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-4">
+                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contato</h4>
+                   <DetailRow icon={Mail} label="Email" value={clienteSelecionado.email} />
+                   <DetailRow icon={Phone} label="Telefone" value={clienteSelecionado.telefone} />
+                   <DetailRow icon={MapPin} label="Endereço" value={clienteSelecionado.endereco} />
+                </div>
+
+                <div className="space-y-4">
+                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Documentação</h4>
+                   {clienteSelecionado.tipo_cliente === "PF" ? (
+                     <DetailRow icon={FileText} label="CPF" value={clienteSelecionado.cpf} />
+                   ) : (
+                     <>
+                       <DetailRow icon={FileText} label="CNPJ" value={clienteSelecionado.cnpj} />
+                       <DetailRow icon={User} label="Razão Social" value={clienteSelecionado.razao_social} />
+                       <DetailRow icon={User} label="Nome Fantasia" value={clienteSelecionado.nome_fantasia} />
+                       <DetailRow icon={FileText} label="Inscrição Estadual" value={clienteSelecionado.inscricao_estadual} />
+                     </>
+                   )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

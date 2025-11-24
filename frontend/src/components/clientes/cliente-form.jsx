@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,7 @@ const formSchema = z
     email: z.string().email("Email inválido.").optional().or(z.literal("")),
     telefone: z.string().optional().or(z.literal("")),
     endereco: z.string().optional().or(z.literal("")),
+    foto: z.any().optional(), // Campo para a foto
     tipo_cliente: z.enum(["PF", "PJ"], {
       required_error: "Selecione o tipo de cliente.",
     }),
@@ -49,6 +51,7 @@ const formSchema = z
     inscricao_estadual: z.string().optional().or(z.literal("")),
   })
   .superRefine((data, ctx) => {
+    // VALIDAÇÃO: Apenas verifica se os dados estão corretos
     if (data.tipo_cliente === "PF" && !data.cpf) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -66,6 +69,7 @@ const formSchema = z
   });
 
 export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
+  const [preview, setPreview] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { token } = useAuth();
 
@@ -99,37 +103,86 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
         nome_fantasia: initialData.nome_fantasia ?? "",
         inscricao_estadual: initialData.inscricao_estadual ?? "",
       });
+      
+      // Configura o preview se o cliente já tiver foto
+      if (initialData.foto) {
+        setPreview(`http://localhost:3080/uploads/${initialData.foto}`);
+      } else {
+        setPreview(null);
+      }
+    } else {
+      // Limpa o form se for cadastro novo
+      form.reset({
+        nome: "",
+        email: "",
+        telefone: "",
+        endereco: "",
+        tipo_cliente: "PF",
+        cpf: "",
+        cnpj: "",
+        razao_social: "",
+        nome_fantasia: "",
+        inscricao_estadual: "",
+      });
+      setPreview(null);
     }
-  }, [initialData, form]);
+  }, [initialData, form, open]); // Adicionei 'open' para garantir reset ao abrir
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      form.setValue("foto", file); // Salva o arquivo no estado do formulário
+      setPreview(URL.createObjectURL(file)); // Cria preview local para exibir na hora
+    }
+  };
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      const payload = {
-        nome: data.nome.trim(),
-        email: data.email?.trim() || null,
-        telefone: data.telefone?.trim() || null,
-        endereco: data.endereco?.trim() || null,
-        tipo_cliente: data.tipo_cliente, // "PF" ou "PJ"
-        cpf: data.tipo_cliente === "PF" ? data.cpf?.trim() || null : null,
-        cnpj: data.tipo_cliente === "PJ" ? data.cnpj?.trim() || null : null,
-        razao_social: data.tipo_cliente === "PJ" ? data.razao_social?.trim() || null : null,
-        nome_fantasia: data.tipo_cliente === "PJ" ? data.nome_fantasia?.trim() || null : null,
-        inscricao_estadual: data.tipo_cliente === "PJ" ? data.inscricao_estadual?.trim() || null : null,
-      };
+      // PREPARAÇÃO DOS DADOS: Transforma tudo em FormData para enviar arquivos
+      const formData = new FormData();
 
+      // Campos comuns
+      formData.append("nome", data.nome.trim());
+      if (data.email) formData.append("email", data.email.trim());
+      if (data.telefone) formData.append("telefone", data.telefone.trim());
+      if (data.endereco) formData.append("endereco", data.endereco.trim());
+      formData.append("tipo_cliente", data.tipo_cliente);
+
+      // Campos específicos por tipo
+      if (data.tipo_cliente === "PF") {
+        if (data.cpf) formData.append("cpf", data.cpf.trim());
+      } else {
+        if (data.cnpj) formData.append("cnpj", data.cnpj.trim());
+        if (data.razao_social) formData.append("razao_social", data.razao_social.trim());
+        if (data.nome_fantasia) formData.append("nome_fantasia", data.nome_fantasia.trim());
+        if (data.inscricao_estadual) formData.append("inscricao_estadual", data.inscricao_estadual.trim());
+      }
+
+      // Envio da foto (apenas se for um novo arquivo selecionado)
+      if (data.foto instanceof File) {
+        formData.append("foto", data.foto);
+      }
+
+      // Chamada à API
       if (initialData && (initialData.id ?? initialData.id_cliente)) {
         const id = initialData.id ?? initialData.id_cliente;
-        await updateCliente(id, payload, token);
+        await updateCliente(id, formData, token);
         toast.success("Cliente atualizado com sucesso!");
       } else {
-        await createCliente(payload, token);
+        await createCliente(formData, token);
         toast.success("Cliente criado com sucesso!");
       }
 
       onSuccess?.();
       setOpen(false);
-      form.reset();
+      
+      // Pequeno delay para limpar o form visualmente após fechar
+      setTimeout(() => {
+        form.reset();
+        setPreview(null);
+      }, 200);
+
     } catch (err) {
       const errorMessage = err.message || "Erro ao salvar cliente.";
       console.error("Erro ao salvar cliente:", err);
@@ -141,7 +194,6 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      {/* AQUI ESTA A CORRECAO: max-h-[90vh] overflow-y-auto */}
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
@@ -156,6 +208,25 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            
+            {/* ÁREA DA FOTO */}
+            <div className="flex flex-col items-center gap-4">
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={preview} className="object-cover" />
+                <AvatarFallback className="text-lg">
+                  {initialData?.nome?.charAt(0).toUpperCase() || "F"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="w-full max-w-xs cursor-pointer"
+                />
+              </div>
+            </div>
+
             {/* Nome */}
             <FormField
               control={form.control}
@@ -327,7 +398,10 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
                 variant="outline"
                 onClick={() => {
                   setOpen(false);
-                  setTimeout(() => form.reset(), 200);
+                  setTimeout(() => {
+                    form.reset();
+                    setPreview(null);
+                  }, 200);
                 }}
                 disabled={isSubmitting}
               >

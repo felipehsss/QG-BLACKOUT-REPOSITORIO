@@ -4,6 +4,7 @@ import * as funcionarioModel from "../model/funcionarioModel.js";
 
 const SECRET = process.env.JWT_SECRET || "chaveSecreta123";
 
+// ... listar e buscarPorId permanecem iguais ...
 export const listar = async (req, res, next) => {
   try {
     const funcionarios = await funcionarioModel.getAll();
@@ -28,7 +29,7 @@ export const buscarPorId = async (req, res, next) => {
 
 export const criar = async (req, res, next) => {
   try {
-    const { nome_completo, email, cpf, senha, loja_id, perfil_id } = req.body;
+    const { nome_completo, email, cpf, senha, telefone_contato, data_admissao, loja_id, perfil_id } = req.body;
 
     if (!email || !senha) {
       return res.status(400).json({ message: "E-mail e senha são obrigatórios" });
@@ -44,11 +45,15 @@ export const criar = async (req, res, next) => {
     const novoFuncionario = {
       nome_completo,
       email,
-      cpf,
-      loja_id,
-      perfil_id,
+      cpf: cpf || null,
+      telefone_contato: telefone_contato || null,
+      data_admissao: data_admissao || null,
+      // Conversão de Strings para Números (necessário com FormData)
+      loja_id: Number(loja_id),
+      perfil_id: Number(perfil_id),
       senha_hash,
-      is_ativo: true,
+      is_ativo: 1, // Padrão ativo ao criar
+      foto: req.file ? req.file.filename : null // <--- Foto
     };
 
     const id = await funcionarioModel.createFuncionario(novoFuncionario);
@@ -61,11 +66,26 @@ export const criar = async (req, res, next) => {
 export const atualizar = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const dados = req.body;
+    const dados = { ...req.body };
 
+    // Se enviou foto nova
+    if (req.file) {
+      dados.foto = req.file.filename;
+    }
+
+    // Tratamento da senha (se enviada)
     if (dados.senha) {
       dados.senha_hash = await bcrypt.hash(dados.senha, 10);
       delete dados.senha;
+    }
+
+    // Tratamento de números e booleanos que vêm como string no FormData
+    if (dados.loja_id) dados.loja_id = Number(dados.loja_id);
+    if (dados.perfil_id) dados.perfil_id = Number(dados.perfil_id);
+
+    // Checkbox no HTML envia "true" string ou nada
+    if (dados.is_ativo !== undefined) {
+      dados.is_ativo = String(dados.is_ativo) === "true" || dados.is_ativo === true ? 1 : 0;
     }
 
     const linhas = await funcionarioModel.updateFuncionario(id, dados);
@@ -92,28 +112,20 @@ export const deletar = async (req, res, next) => {
   }
 };
 
+// ... login permanece igual ...
 export const login = async (req, res, next) => {
   try {
     const { email, senha } = req.body;
-
     const funcionario = await funcionarioModel.getByEmail(email);
-    if (!funcionario) {
-      return res.status(401).json({ message: "Credenciais inválidas" });
-    }
+    if (!funcionario) return res.status(401).json({ message: "Credenciais inválidas" });
 
     const senhaValida = await bcrypt.compare(senha, funcionario.senha_hash);
-    if (!senhaValida) {
-      return res.status(401).json({ message: "Credenciais inválidas" });
-    }
+    if (!senhaValida) return res.status(401).json({ message: "Credenciais inválidas" });
 
     const token = jwt.sign(
-      {
-        id: funcionario.funcionario_id,
-        email: funcionario.email,
-        perfil_id: funcionario.perfil_id,
-      },
+      { id: funcionario.funcionario_id, email: funcionario.email, perfil_id: funcionario.perfil_id },
       SECRET,
-      { expiresIn: "8h" },
+      { expiresIn: "8h" }
     );
 
     res.json({ message: "Login bem-sucedido", token });
