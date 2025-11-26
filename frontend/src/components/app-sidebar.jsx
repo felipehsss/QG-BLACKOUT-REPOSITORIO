@@ -61,6 +61,10 @@ const data = {
           url: "/cadastros/produtos",
         },
         {
+          title: "Vínculos",
+          url: "/cadastros/produtos/vinculos",
+        },
+        {
           title: "Serviços",
           url: "/cadastros/servicos",
         },
