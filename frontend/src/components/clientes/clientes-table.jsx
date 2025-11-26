@@ -37,6 +37,7 @@ import {
   ChartLegend,
   ChartLegendContent,
 } from "@/components/ui/chart";
+import { formatCPF, formatCNPJ, formatPhone } from "@/lib/utils";
 
 export function ClientesTable({ data = [], onEdit, onDelete }) {
   // Estado para controlar o cliente que está sendo visualizado
@@ -171,7 +172,7 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
                     </TableCell>
                     
                     <TableCell className="hidden md:table-cell">{cliente.email || "-"}</TableCell>
-                    <TableCell className="hidden md:table-cell">{cliente.telefone || "-"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{cliente.telefone ? formatPhone(cliente.telefone) : "-"}</TableCell>
                     <TableCell className="hidden lg:table-cell truncate max-w-[200px]" title={cliente.endereco}>
                       {cliente.endereco || "-"}
                     </TableCell>
@@ -263,17 +264,17 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
                 <div className="space-y-4">
                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contato</h4>
                    <DetailRow icon={Mail} label="Email" value={clienteSelecionado.email} />
-                   <DetailRow icon={Phone} label="Telefone" value={clienteSelecionado.telefone} />
+                   <DetailRow icon={Phone} label="Telefone" value={formatPhone(clienteSelecionado.telefone) || "Não informado"} />
                    <DetailRow icon={MapPin} label="Endereço" value={clienteSelecionado.endereco} />
                 </div>
 
                 <div className="space-y-4">
                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Documentação</h4>
                    {clienteSelecionado.tipo_cliente === "PF" ? (
-                     <DetailRow icon={FileText} label="CPF" value={clienteSelecionado.cpf} />
+                     <DetailRow icon={FileText} label="CPF" value={formatCPF(clienteSelecionado.cpf) || "Não informado"} />
                    ) : (
                      <>
-                       <DetailRow icon={FileText} label="CNPJ" value={clienteSelecionado.cnpj} />
+                       <DetailRow icon={FileText} label="CNPJ" value={formatCNPJ(clienteSelecionado.cnpj) || "Não informado"} />
                        <DetailRow icon={User} label="Razão Social" value={clienteSelecionado.razao_social} />
                        <DetailRow icon={User} label="Nome Fantasia" value={clienteSelecionado.nome_fantasia} />
                        <DetailRow icon={FileText} label="Inscrição Estadual" value={clienteSelecionado.inscricao_estadual} />

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MaskedInput } from "@/components/ui/masked-input"; // Importa o novo componente
 import {
   Select,
   SelectTrigger,
@@ -33,19 +34,43 @@ import {
 import { create as createCliente, update as updateCliente } from "@/services/clienteService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { formatCPF, formatCNPJ, formatPhone } from "@/lib/utils";
 
 const formSchema = z
   .object({
     nome: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
     email: z.string().email("Email inválido.").optional().or(z.literal("")),
-    telefone: z.string().optional().or(z.literal("")),
+    telefone: z.string().optional().or(z.literal("")).refine(
+      (val) => !val || /^\d{10,11}$/.test(val.replace(/\D/g, "")),
+      {
+        message: "O telefone deve ter 10 ou 11 dígitos numéricos.",
+      }
+    ),
     endereco: z.string().optional().or(z.literal("")),
     foto: z.any().optional(), // Campo para a foto
     tipo_cliente: z.enum(["PF", "PJ"], {
       required_error: "Selecione o tipo de cliente.",
     }),
-    cpf: z.string().optional().or(z.literal("")),
-    cnpj: z.string().optional().or(z.literal("")),
+    cpf: z.string().optional().or(z.literal("")).refine(
+      (val) => {
+        if (!val) return true; // Permite campo vazio se opcional
+        const numericVal = val.replace(/\D/g, "");
+        return numericVal.length === 11;
+      },
+      {
+        message: "O CPF deve conter exatamente 11 números.",
+      }
+    ),
+    cnpj: z.string().optional().or(z.literal("")).refine(
+      (val) => {
+        if (!val) return true; // Permite campo vazio
+        const numericVal = val.replace(/\D/g, "");
+        return numericVal.length === 14;
+      },
+      {
+        message: "O CNPJ deve conter exatamente 14 números.",
+      }
+    ),
     razao_social: z.string().optional().or(z.literal("")),
     nome_fantasia: z.string().optional().or(z.literal("")),
     inscricao_estadual: z.string().optional().or(z.literal("")),
@@ -53,11 +78,11 @@ const formSchema = z
   .superRefine((data, ctx) => {
     // VALIDAÇÃO: Apenas verifica se os dados estão corretos
     if (data.tipo_cliente === "PF" && !data.cpf) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "CPF é obrigatório para Pessoa Física.",
-        path: ["cpf"],
-      });
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "CPF é obrigatório para Pessoa Física.",
+            path: ["cpf"],
+        });
     }
     if (data.tipo_cliente === "PJ" && !data.cnpj) {
       ctx.addIssue({
@@ -90,43 +115,29 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
   });
 
   useEffect(() => {
+    // Define os valores do formulário com base nos dados iniciais ou limpa se não houver.
+    // Usar `reset` é a forma recomendada pelo react-hook-form para atualizar o formulário.
     if (initialData) {
       form.reset({
         nome: initialData.nome ?? "",
         email: initialData.email ?? "",
-        telefone: initialData.telefone ?? "",
+        telefone: initialData.telefone ? formatPhone(initialData.telefone) : "",
         endereco: initialData.endereco ?? "",
         tipo_cliente: initialData.tipo_cliente ?? "PF",
-        cpf: initialData.cpf ?? "",
-        cnpj: initialData.cnpj ?? "",
+        cpf: initialData.cpf ? formatCPF(initialData.cpf) : "",
+        cnpj: initialData.cnpj ? formatCNPJ(initialData.cnpj) : "",
         razao_social: initialData.razao_social ?? "",
         nome_fantasia: initialData.nome_fantasia ?? "",
         inscricao_estadual: initialData.inscricao_estadual ?? "",
+        foto: undefined, // O campo de arquivo é controlado separadamente
       });
-      
-      // Configura o preview se o cliente já tiver foto
-      if (initialData.foto) {
-        setPreview(`http://localhost:3080/uploads/${initialData.foto}`);
-      } else {
-        setPreview(null);
-      }
+      setPreview(initialData.foto ? `http://localhost:3080/uploads/${initialData.foto}` : null);
     } else {
-      // Limpa o form se for cadastro novo
-      form.reset({
-        nome: "",
-        email: "",
-        telefone: "",
-        endereco: "",
-        tipo_cliente: "PF",
-        cpf: "",
-        cnpj: "",
-        razao_social: "",
-        nome_fantasia: "",
-        inscricao_estadual: "",
-      });
+      // Limpa para os valores padrão quando for um novo cliente
+      form.reset(); 
       setPreview(null);
     }
-  }, [initialData, form, open]); // Adicionei 'open' para garantir reset ao abrir
+  }, [initialData, form]); // A dependência 'open' foi removida para evitar re-renders desnecessários
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -145,15 +156,15 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
       // Campos comuns
       formData.append("nome", data.nome.trim());
       if (data.email) formData.append("email", data.email.trim());
-      if (data.telefone) formData.append("telefone", data.telefone.trim());
+      if (data.telefone) formData.append("telefone", data.telefone.replace(/\D/g, ""));
       if (data.endereco) formData.append("endereco", data.endereco.trim());
       formData.append("tipo_cliente", data.tipo_cliente);
 
       // Campos específicos por tipo
       if (data.tipo_cliente === "PF") {
-        if (data.cpf) formData.append("cpf", data.cpf.trim());
+        if (data.cpf) formData.append("cpf", data.cpf.replace(/\D/g, ""));
       } else {
-        if (data.cnpj) formData.append("cnpj", data.cnpj.trim());
+        if (data.cnpj) formData.append("cnpj", data.cnpj.replace(/\D/g, ""));
         if (data.razao_social) formData.append("razao_social", data.razao_social.trim());
         if (data.nome_fantasia) formData.append("nome_fantasia", data.nome_fantasia.trim());
         if (data.inscricao_estadual) formData.append("inscricao_estadual", data.inscricao_estadual.trim());
@@ -265,7 +276,13 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
-                    <Input placeholder="(11) 99999-9999" {...field} />
+                    <MaskedInput
+                      placeholder="(11) 99999-9999"
+                      maxLength={15} // (xx) xxxxx-xxxx
+                      mask={formatPhone} // Passa a função de máscara
+                      onChange={field.onChange} // Deixa o react-hook-form controlar
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -318,7 +335,13 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
                     <FormItem>
                       <FormLabel>CPF *</FormLabel>
                       <FormControl>
-                        <Input placeholder="000.000.000-00" {...field} />
+                        <MaskedInput
+                          placeholder="000.000.000-00"
+                          maxLength={14} // xxx.xxx.xxx-xx
+                          mask={formatCPF} // Passa a função de máscara
+                          onChange={field.onChange} // Deixa o react-hook-form controlar
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -338,7 +361,13 @@ export function ClienteForm({ open, setOpen, onSuccess, initialData = null }) {
                     <FormItem>
                       <FormLabel>CNPJ *</FormLabel>
                       <FormControl>
-                        <Input placeholder="00.000.000/0001-00" {...field} />
+                        <MaskedInput
+                          placeholder="00.000.000/0001-00"
+                          maxLength={18} // xx.xxx.xxx/xxxx-xx
+                          mask={formatCNPJ} // Passa a função de máscara
+                          onChange={field.onChange} // Deixa o react-hook-form controlar
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
