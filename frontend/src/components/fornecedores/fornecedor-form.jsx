@@ -25,12 +25,14 @@ import { Button } from "@/components/ui/button";
 import { create as createFornecedor, update as updateFornecedor } from "@/services/fornecedorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { MaskedInput } from "@/components/ui/masked-input";
+import { cpfCnpjMask, phoneMask } from "../funcionarios/masks";
 
 const formSchema = z.object({
   nome: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
   email: z.string().email("Por favor, insira um email válido.").optional().or(z.literal("")),
   telefone: z.string().optional().or(z.literal("")),
-  cnpj: z.string().optional().or(z.literal("")),
+  cnpj: z.string().max(18, "CNPJ inválido").optional().or(z.literal("")),
   endereco: z.string().optional().or(z.literal("")),
 });
 
@@ -134,7 +136,7 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
             <FormField control={form.control} name="telefone" render={({ field }) => (
               <FormItem>
                 <FormLabel>Telefone</FormLabel>
-                <FormControl><Input placeholder="(11) 99999-9999" {...field} /></FormControl>
+                <FormControl><MaskedInput placeholder="(00) 00000-0000" {...field} mask={phoneMask} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
@@ -142,7 +144,7 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
             <FormField control={form.control} name="cnpj" render={({ field }) => (
               <FormItem>
                 <FormLabel>CNPJ</FormLabel>
-                <FormControl><Input placeholder="00.000.000/0001-00" {...field} /></FormControl>
+                <FormControl><MaskedInput placeholder="00.000.000/0001-00" {...field} mask={cpfCnpjMask} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />

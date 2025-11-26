@@ -26,6 +26,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { create as createFuncionario, update as updateFuncionario } from "@/services/funcionarioService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { MaskedInput } from "@/components/ui/masked-input"; 
+import { cpfMask, phoneMask } from "./masks"; 
 
 // Schema Zod
 const formSchema = z.object({
@@ -186,7 +188,7 @@ export function FuncionarioForm({ open, setOpen, onSuccess, initialData = null }
                 <FormField control={form.control} name="cpf" render={({ field }) => (
                     <FormItem>
                     <FormLabel>CPF</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl><MaskedInput {...field} mask={cpfMask} placeholder="000.000.000-00" /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )} />
@@ -194,7 +196,7 @@ export function FuncionarioForm({ open, setOpen, onSuccess, initialData = null }
                 <FormField control={form.control} name="telefone_contato" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Telefone</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
+                    <FormControl><MaskedInput {...field} mask={phoneMask} placeholder="(00) 00000-0000" /></FormControl>
                     <FormMessage />
                     </FormItem>
                 )} />
