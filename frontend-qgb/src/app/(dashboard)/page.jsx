@@ -191,21 +191,21 @@ export default function DashboardPage() {
       {/* KPIs */}
       <div className="grid gap-6 md:grid-cols-3">
         <Card>
-          <CardHeader><CardTitle>📈 Vendas do Dia</CardTitle></CardHeader>
+          <CardHeader><CardTitle> Vendas do Dia</CardTitle></CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">R$ {vendasHoje.toLocaleString("pt-BR")},00</p>
             <p className="text-sm text-muted-foreground">+15% em relação a ontem (meta R$ 10.000)</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>📦 Pedidos para Separação</CardTitle></CardHeader>
+          <CardHeader><CardTitle> Pedidos para Separação</CardTitle></CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{pedidosEmAndamento}</p>
             <p className="text-sm text-muted-foreground">2 aguardando cotação de frete</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>💰 Caixa Atual</CardTitle></CardHeader>
+          <CardHeader><CardTitle> Caixa Atual</CardTitle></CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">R$ {caixaAtual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
             <p className="text-sm text-muted-foreground">Última atualização: 14h</p>
@@ -216,7 +216,7 @@ export default function DashboardPage() {
       {/* Gráficos linha 1 */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>📊 Vendas Semanais</CardTitle></CardHeader>
+          <CardHeader><CardTitle> Vendas Semanais</CardTitle></CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={vendasFiltradas}>
@@ -230,7 +230,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>📈 Pedidos Mensais</CardTitle></CardHeader>
+          <CardHeader><CardTitle> Pedidos Mensais</CardTitle></CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={pedidosMensais}>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
       {/* Gráficos linha 2 */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle>🥧 Vendas por Categoria de Peças</CardTitle></CardHeader>
+          <CardHeader><CardTitle> Vendas por Categoria de Peças</CardTitle></CardHeader>
           <CardContent className="h-72 flex justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -264,7 +264,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>🎯 Avaliação de Desempenho (Fornecimento)</CardTitle></CardHeader>
+          <CardHeader><CardTitle> Avaliação de Desempenho (Fornecimento)</CardTitle></CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <RadarChart data={desempenhoData}>
@@ -282,7 +282,7 @@ export default function DashboardPage() {
 
       {/* Tabela de últimos pedidos com busca */}
       <Card>
-        <CardHeader><CardTitle>📋 Últimos Pedidos de Peças</CardTitle></CardHeader>
+        <CardHeader><CardTitle> Últimos Pedidos de Peças</CardTitle></CardHeader>
         <CardContent>
           <div className="flex justify-between mb-3">
             <Input
