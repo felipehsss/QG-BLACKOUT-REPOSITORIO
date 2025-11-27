@@ -1,6 +1,7 @@
 // fornecedorController.js
 import * as fornecedorModel from "../model/fornecedorModel.js";
-
+import * as contaPagarModel from "../model/contaPagarModel.js"; // Importe o model de contas
+import { getConnection } from "../config/database.js"; // Necessário para query manual de produtos
 // Listar todos os fornecedores
 export const listar = async (req, res, next) => {
   try {
@@ -78,5 +79,55 @@ export const deletar = async (req, res, next) => {
     res.json({ message: "Fornecedor removido com sucesso" });
   } catch (err) {
     next(err);
+  }
+};
+
+export const obterRelatorio = async (req, res, next) => {
+  const connection = await getConnection();
+  try {
+    const { id } = req.params;
+
+    // 1. Busca dados do Fornecedor
+    const fornecedor = await fornecedorModel.getById(id);
+    if (!fornecedor) {
+      return res.status(404).json({ message: "Fornecedor não encontrado" });
+    }
+
+    // 2. Busca Produtos vinculados a este fornecedor
+    // (Assumindo que existe fornecedor_id na tabela produtos ou uma tabela pivo)
+    const [produtos] = await connection.execute(
+      "SELECT * FROM produtos WHERE fornecedor_id = ?",
+      [id]
+    );
+
+    // 3. Busca Contas a Pagar deste fornecedor
+    // Nota: Se getByFornecedorId retornar array direto ou [rows], ajuste conforme seu db.read
+    const contasRaw = await contaPagarModel.getByFornecedorId(id);
+    const contas = Array.isArray(contasRaw) ? contasRaw : (contasRaw?.data || []);
+
+    // 4. Calcula Totais
+    const totalDivida = contas
+      .filter(c => c.status !== "Pago") // Exemplo de filtro
+      .reduce((acc, curr) => acc + Number(curr.valor), 0);
+
+    const totalPago = contas
+      .filter(c => c.status === "Pago")
+      .reduce((acc, curr) => acc + Number(curr.valor), 0);
+
+    res.json({
+      fornecedor,
+      produtos: produtos || [],
+      financeiro: {
+        contas: contas || [],
+        total_divida: totalDivida,
+        total_pago: totalPago,
+        total_geral: totalDivida + totalPago
+      }
+    });
+
+  } catch (err) {
+    next(err);
+  } finally {
+    if (connection) connection.release();
   }
 };

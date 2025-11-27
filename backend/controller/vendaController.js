@@ -27,7 +27,8 @@ export const buscarPorId = async (req, res, next) => {
 
 // Criar nova venda completa
 export const criar = async (req, res, next) => {
-  const { loja_id, sessao_id, funcionario_id, valor_total, status_venda, itens, pagamentos } = req.body;
+  // ADICIONADO: cliente_id no destructuring
+  const { loja_id, sessao_id, funcionario_id, cliente_id, valor_total, status_venda, itens, pagamentos } = req.body;
 
   // Validação
   if (!loja_id || !sessao_id || !funcionario_id || !valor_total || !Array.isArray(itens) || !Array.isArray(pagamentos)) {
@@ -50,14 +51,16 @@ export const criar = async (req, res, next) => {
     await connection.beginTransaction();
 
     // 1. Criar a venda
+    // CORREÇÃO: Adicionado cliente_id no INSERT
     const sqlVenda = `
-      INSERT INTO vendas (loja_id, sessao_id, funcionario_id, valor_total, status_venda)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO vendas (loja_id, sessao_id, funcionario_id, cliente_id, valor_total, status_venda)
+      VALUES (?, ?, ?, ?, ?, ?)
     `;
     const [vendaResult] = await connection.execute(sqlVenda, [
       loja_id,
       sessao_id,
       funcionario_id,
+      cliente_id || null, // Salva null se não tiver cliente
       valor_total,
       status_venda ?? "Concluída",
     ]);
@@ -113,7 +116,7 @@ export const criar = async (req, res, next) => {
     `;
     await connection.execute(sqlFinanceiro, [
       loja_id,
-      "receita", // coerente com frontend
+      "receita", 
       "Venda",
       novaVendaId,
       `Venda Concluída ID ${novaVendaId}`,
@@ -167,7 +170,6 @@ export const getRelatorioVendas = async (req, res, next) => {
   const connection = await getConnection();
   try {
     // Este SQL junta as tabelas de vendas e clientes para obter o nome do cliente.
-    // Usamos LEFT JOIN para garantir que vendas sem cliente associado ainda apareçam.
     const sql = `
       SELECT 
         v.venda_id,
@@ -180,6 +182,29 @@ export const getRelatorioVendas = async (req, res, next) => {
     `;
     const [vendas] = await connection.execute(sql);
     res.json({ vendas: vendas });
+  } catch (err) {
+    next(err);
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+// Listar vendas por cliente
+export const listarPorCliente = async (req, res, next) => {
+  const connection = await getConnection();
+  try {
+    const { id } = req.params;
+    
+    // Agora que a coluna existe, este SQL funcionará
+    const sql = `
+      SELECT v.venda_id, v.data_venda, v.valor_total, v.status_venda
+      FROM vendas v
+      WHERE v.cliente_id = ?
+      ORDER BY v.data_venda DESC
+    `;
+    
+    const [vendas] = await connection.execute(sql, [id]);
+    res.json(vendas);
   } catch (err) {
     next(err);
   } finally {
