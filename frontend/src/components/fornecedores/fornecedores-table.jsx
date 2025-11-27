@@ -14,11 +14,12 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, BarChart3 } from "lucide-react";
 
-export function FornecedoresTable({ data = [], onEdit, onDelete }) {
+export function FornecedoresTable({ data = [], onEdit, onDelete, onViewReport }) {
   const defaultOnEdit = (f) => console.log("Editar:", f);
   const defaultOnDelete = (f) => {
     if (confirm(`Confirma exclusão de "${f.nome ?? f.razao_social}" ?`)) console.log("Excluir:", f);
@@ -66,11 +67,28 @@ export function FornecedoresTable({ data = [], onEdit, onDelete }) {
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent align="end" className="w-40">
-                      <DropdownMenuItem onClick={() => (onEdit ?? defaultOnEdit)(fornecedor)} className="flex items-center gap-2">
+                      
+                      {/* Botão de Relatório */}
+                      <DropdownMenuItem 
+                        onClick={() => onViewReport && onViewReport(fornecedor)} 
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <BarChart3 className="h-4 w-4" /> Relatório
+                      </DropdownMenuItem>
+
+                      <DropdownMenuSeparator />
+
+                      <DropdownMenuItem 
+                        onClick={() => (onEdit ?? defaultOnEdit)(fornecedor)} 
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
                         <Edit className="h-4 w-4" /> Editar
                       </DropdownMenuItem>
 
-                      <DropdownMenuItem onClick={() => (onDelete ?? defaultOnDelete)(fornecedor)} className="flex items-center gap-2 text-destructive">
+                      <DropdownMenuItem 
+                        onClick={() => (onDelete ?? defaultOnDelete)(fornecedor)} 
+                        className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer"
+                      >
                         <Trash2 className="h-4 w-4" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>

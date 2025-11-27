@@ -11,7 +11,7 @@ import {
   Map,
   PieChart,
   Settings2,
-  SquareTerminal,PiggyBank,ChartLine,
+  SquareTerminal, PiggyBank, ChartLine,LayoutDashboard
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -39,9 +39,14 @@ const data = {
       logo: GalleryVerticalEnd,
       plan: "Enterprise",
     },
-    
+
   ],
   navMain: [
+    {
+      title: "Dashboard",
+      url: "/",
+      icon: LayoutDashboard,
+    },
     {
       title: "Cadastros",
       url: "#",
@@ -83,7 +88,7 @@ const data = {
           title: "Fluxo de Caixa",
           url: "/financeiro/fluxo-caixa",
         },
-       
+
       ],
     },
     {
@@ -95,10 +100,11 @@ const data = {
           title: "Vendas",
           url: "/relatorios/vendas",
         },
-        
-      
+
+
       ],
     },
+
     {
       title: "Settings",
       url: "#",
@@ -123,7 +129,7 @@ const data = {
       ],
     },
   ],
-  
+
 }
 
 export function AppSidebar({
@@ -136,7 +142,7 @@ export function AppSidebar({
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        
+
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

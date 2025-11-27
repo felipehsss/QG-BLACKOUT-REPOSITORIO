@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -29,18 +29,26 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2, Eye, User, MapPin, Phone, Mail, FileText } from "lucide-react";
+import { 
+  MoreHorizontal, 
+  Edit, 
+  Trash2, 
+  Eye, 
+  User, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  FileText, 
+  ShoppingBag // <--- Importado para o ícone de histórico
+} from "lucide-react";
 import {
   ChartContainer,
-  ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from "@/components/ui/chart";
 import { formatCPF, formatCNPJ, formatPhone } from "@/lib/utils";
 
-export function ClientesTable({ data = [], onEdit, onDelete }) {
-  // Estado para controlar o cliente que está sendo visualizado
+export function ClientesTable({ data = [], onEdit, onDelete, onViewHistory }) {
+  // Estado para controlar o cliente que está sendo visualizado (Detalhes)
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
 
   const defaultOnEdit = (c) => console.log("Editar cliente:", c);
@@ -68,7 +76,7 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
     };
   }, [data]);
 
-  // Função auxiliar para renderizar linhas de detalhes no modal
+  // Função auxiliar para renderizar linhas de detalhes no modal local
   const DetailRow = ({ icon: Icon, label, value }) => (
     <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
       <div className="mt-1 bg-primary/10 p-2 rounded-full">
@@ -196,16 +204,21 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuLabel>Ações</DropdownMenuLabel>
                           
-                          {/* Botão Visualizar */}
+                          {/* Botão Visualizar Detalhes */}
                           <DropdownMenuItem onClick={() => setClienteSelecionado(cliente)}>
                             <Eye className="mr-2 h-4 w-4" /> Visualizar
                           </DropdownMenuItem>
 
+                          {/* Botão Ver Histórico - CHAMA A FUNÇÃO DA PÁGINA */}
+                          <DropdownMenuItem onClick={() => onViewHistory && onViewHistory(cliente)}>
+                            <ShoppingBag className="mr-2 h-4 w-4" /> Histórico
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator />
+
                           <DropdownMenuItem onClick={() => (onEdit ?? defaultOnEdit)(cliente)}>
                             <Edit className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator />
                           
                           <DropdownMenuItem
                             onClick={() => (onDelete ?? defaultOnDelete)(cliente)}
@@ -230,7 +243,7 @@ export function ClientesTable({ data = [], onEdit, onDelete }) {
         </Table>
       </div>
 
-      {/* MODAL DE VISUALIZAÇÃO (Card do Cliente) */}
+      {/* MODAL DE VISUALIZAÇÃO (Card do Cliente - Dados Cadastrais) */}
       <Dialog open={!!clienteSelecionado} onOpenChange={(open) => !open && setClienteSelecionado(null)}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>

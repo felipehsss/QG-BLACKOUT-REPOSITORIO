@@ -64,3 +64,6 @@ export const update = (id, data, token) => {
 export const deleteRecord = (id, token) => {
   return apiService.delete(`${ENDPOINT}/${id}`, token);
 };
+export const getRelatorio = (id, token) => {
+  return apiService.get(`${ENDPOINT}/${id}/relatorio`, token);
+};
