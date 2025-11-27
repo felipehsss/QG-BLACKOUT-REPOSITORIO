@@ -458,8 +458,9 @@ export default function ProdutosPage() {
                         </SelectTrigger>
                         <SelectContent>
                             {fornecedores.map((f) => (
-                                <SelectItem key={f.fornecedor_id} value={String(f.fornecedor_id)}>
-                                    {f.razao_social}
+                                // CORREÇÃO AQUI: f.id e f.nome ao invés de f.fornecedor_id e f.razao_social
+                                <SelectItem key={f.id} value={String(f.id)}>
+                                    {f.nome}
                                 </SelectItem>
                             ))}
                         </SelectContent>
