@@ -2,103 +2,105 @@
 
 import * as React from "react"
 import {
-  IconShoppingCart,
-  IconDashboard,
-  IconChartBar,
-  IconReport,
-  IconSettings,
-  IconHelp,
-} from "@tabler/icons-react"
+  LayoutDashboard,
+  ShoppingCart,
+  FileText,
+  Settings,
+  HelpCircle,
+  ChartNoAxesColumn,
+  GalleryVerticalEnd
+} from "lucide-react"
 
-import { NavGroup } from "@/components/nav-group"
+import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
+import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
+  SidebarRail,
 } from "@/components/ui/sidebar"
 
-// --- DADOS ATUALIZADOS ---
+// Dados adaptados para o contexto do QGB
 const data = {
   user: {
     name: "Vendedor",
     email: "vendedor@qgbrightness.com",
     avatar: "/avatars/shadcn.jpg",
   },
+  teams: [
+    {
+      name: "QG Brightness",
+      logo: GalleryVerticalEnd,
+      plan: "Loja Física",
+    },
+  ],
   navMain: [
     {
-      title: "PDV (Frente de Caixa)",
-      url: "/pdv",
-      icon: IconShoppingCart,
+      title: "Principal",
+      url: "#",
+      icon: LayoutDashboard,
+      isActive: true,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/",
+        },
+        {
+          title: "PDV (Frente de Caixa)",
+          url: "/pdv",
+          icon: ShoppingCart, // Opcional: ícone específico se o NavMain suportar
+        },
+      ],
     },
     {
-      title: "Dashboard",
-      url: "/",
-      icon: IconDashboard,
-    },
-  ],
-  documents: [
-    {
-      name: "Vendas da Loja",
-      url: "/relatorios/vendas",
-      icon: IconChartBar,
-    },
-    {
-      name: "Fechamentos de Caixa",
-      url: "/relatorios/caixas",
-      icon: IconReport,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Configurações",
-      url: "/configuracoes",
-      icon: IconSettings,
+      title: "Relatórios",
+      url: "#",
+      icon: FileText,
+      items: [
+        {
+          title: "Vendas da Loja",
+          url: "/relatorios/vendas",
+        },
+        {
+          title: "Fechamentos de Caixa",
+          url: "/relatorios/caixas",
+        },
+      ],
     },
     {
-      title: "Ajuda",
-      url: "/ajuda",
-      icon: IconHelp,
+      title: "Sistema",
+      url: "#",
+      icon: Settings,
+      items: [
+        {
+          title: "Configurações",
+          url: "/configuracoes",
+        },
+        {
+          title: "Ajuda",
+          url: "/ajuda",
+        },
+      ],
     },
   ],
 }
 
-export function AppSidebar(props) {
+export function AppSidebar({ ...props }) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      {/* Cabeçalho */}
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem className="!p-0">
-            <SidebarMenuButton asChild className="!h-auto !p-2">
-              <a href="/dashboard">
-                <span className="text-base font-semibold">QG Blackout</span>
-              </a>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        {/* Adicionado o TeamSwitcher para manter o padrão visual do topo */}
+        <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
-
-      {/* Conteúdo */}
       <SidebarContent>
-        {/* Grupo principal */}
-        <NavGroup items={data.navMain} />
-
-        {/* Grupo de relatórios */}
-        <NavGroup items={data.documents} />
-
-        {/* Grupo secundário */}
-        <NavGroup items={data.navSecondary} />
+        <NavMain items={data.navMain} />
       </SidebarContent>
-
-      {/* Rodapé com usuário */}
       <SidebarFooter>
         <NavUser user={data.user} />
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   )
 }
