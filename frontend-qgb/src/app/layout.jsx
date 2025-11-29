@@ -1,21 +1,24 @@
-import { Geist, Geist_Mono } from "next/font/google"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { SiteHeader } from "@/components/site-header" // importa o header
+import { Inter } from "next/font/google"; // 1. Mude a importação para Inter
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AppSidebar } from "@/components/app-sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
+import { SiteHeader } from "@/components/site-header";
 
+// 2. Configure a fonte Inter
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "QG Brightness Dashboard",
   description: "Painel administrativo da loja",
-}
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body
-        className={` antialiased`}
+        // 3. Aplique a classe da fonte aqui
+        className={`${inter.className} antialiased`}
       >
         <ThemeProvider
           attribute="class"
@@ -24,17 +27,10 @@ export default function RootLayout({ children }) {
           disableTransitionOnChange
         >
           <SidebarProvider>
-            {/* Flex container ocupando a tela inteira */}
             <div className="flex min-h-screen w-screen">
-              {/* Sidebar fixa */}
               <AppSidebar />
-
-              {/* Área principal */}
               <div className="flex flex-col flex-1">
-                {/* Header no topo */}
                 <SiteHeader />
-
-                {/* Conteúdo da página ocupa o restante */}
                 <main className="flex-1 p-6">
                   {children}
                 </main>
@@ -44,5 +40,5 @@ export default function RootLayout({ children }) {
         </ThemeProvider>
       </body>
     </html>
-  )
+  );
 }

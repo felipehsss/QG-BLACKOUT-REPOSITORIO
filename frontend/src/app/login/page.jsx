@@ -4,16 +4,22 @@ import { LoginForm } from "@/components/login-form";
 export default function LoginPage() {
   return (
     <div
-      className="bg-muted flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
+      className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10"
+      style={{
+        backgroundImage: "url('/imgs/imageFundo.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}>
+        <div className="rounded-xl bg-black/75 p-8 backdrop-blur-lg">
       <div className="flex w-full max-w-sm flex-col gap-6">
-        <a href="#" className="flex items-center gap-2 self-center font-medium">
-          <div
-            className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-            <GalleryVerticalEnd className="size-4" />
+        <a href="#" className="grid justify-items-center gap-2 self-center font-medium text-white"> 
+          <div className="rounded-lg bg-white p-2">
+            <img src="/imgs/logo.png" alt="QG-BLACKOUT Logo" className="size-18"/>
           </div>
-          QG-BLACKOUT
+          AUTO PEÇAS
         </a>
         <LoginForm />
+      </div>
       </div>
     </div>
   );

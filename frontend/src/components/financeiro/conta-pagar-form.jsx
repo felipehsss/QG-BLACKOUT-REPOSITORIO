@@ -23,20 +23,29 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   create as createConta,
   update as updateConta,
 } from "@/services/contaPagarService";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Schema de validação
 const formSchema = z.object({
   descricao: z.string().min(3, "Descrição obrigatória"),
-  valor: z.string().min(1, "Informe o valor"),
+  valor: z.coerce.number().min(0.01, "Informe um valor válido"), // coerce converte string pra number
   data_vencimento: z.string().min(1, "Informe a data de vencimento"),
-  categoria: z.string().min(1, "Informe a categoria"),
-  status: z.enum(["Pendente", "Paga", "Atrasada"]).default("Pendente"),
+  fornecedor_id: z.string().min(1, "Selecione um fornecedor"),
+  loja_id: z.string().min(1, "Selecione uma loja"),
+  status: z.enum(["Pendente", "Pago"]).default("Pendente"),
 });
 
-export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null }) {
+export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, fornecedores = [], lojas = [] }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { token } = useAuth();
 
@@ -46,7 +55,8 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null })
       descricao: "",
       valor: "",
       data_vencimento: "",
-      categoria: "",
+      fornecedor_id: "",
+      loja_id: "",
       status: "Pendente",
     },
   });
@@ -54,14 +64,24 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null })
   useEffect(() => {
     if (initialData) {
       form.reset({
-        descricao: initialData.descricao ?? "",
-        valor: initialData.valor ?? "",
-        data_vencimento: initialData.data_vencimento?.slice(0, 10) ?? "",
-        categoria: initialData.categoria ?? "",
-        status: initialData.status ?? "Pendente",
+        descricao: initialData.descricao || "",
+        valor: initialData.valor || "",
+        data_vencimento: initialData.data_vencimento ? initialData.data_vencimento.split('T')[0] : "",
+        fornecedor_id: String(initialData.fornecedor_id || ""),
+        loja_id: String(initialData.loja_id || ""),
+        status: initialData.status || "Pendente",
+      });
+    } else {
+      form.reset({
+        descricao: "",
+        valor: "",
+        data_vencimento: "",
+        fornecedor_id: "",
+        loja_id: "",
+        status: "Pendente",
       });
     }
-  }, [initialData, form]);
+  }, [initialData, form, open]);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -69,11 +89,12 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null })
       const payload = {
         ...data,
         valor: parseFloat(data.valor),
+        fornecedor_id: parseInt(data.fornecedor_id),
+        loja_id: parseInt(data.loja_id),
       };
 
-      if (initialData && (initialData.id ?? initialData.conta_pagar_id)) {
-        const id = initialData.id ?? initialData.conta_pagar_id;
-        await updateConta(id, payload, token);
+      if (initialData && initialData.conta_pagar_id) {
+        await updateConta(initialData.conta_pagar_id, payload, token);
       } else {
         await createConta(payload, token);
       }
@@ -90,108 +111,147 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null })
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>
-            {initialData ? "Editar Conta a Pagar" : "Adicionar Conta a Pagar"}
+            {initialData ? "Editar Conta" : "Nova Conta a Pagar"}
           </DialogTitle>
           <DialogDescription>
-            {initialData
-              ? "Altere os dados da conta a pagar."
-              : "Preencha os dados da nova conta a pagar."}
+            Preencha os detalhes da conta abaixo.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="descricao"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descrição *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Aluguel Loja Matriz" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            
+            <div className="grid grid-cols-2 gap-4">
+              {/* Descrição */}
+              <FormField
+                control={form.control}
+                name="descricao"
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Boleto Aluguel" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="valor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor *</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" placeholder="0,00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Valor */}
+              <FormField
+                control={form.control}
+                name="valor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valor (R$)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="data_vencimento"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Data de Vencimento *</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Vencimento */}
+              <FormField
+                control={form.control}
+                name="data_vencimento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vencimento</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="categoria"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoria *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Aluguel, Fornecedores" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Fornecedor */}
+              <FormField
+                control={form.control}
+                name="fornecedor_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fornecedor</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {fornecedores.map((f) => (
+                          <SelectItem key={f.fornecedor_id} value={String(f.fornecedor_id)}>
+                            {f.nome || f.razao_social}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Pendente/Paga/Atrasada" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {/* Loja */}
+              <FormField
+                control={form.control}
+                name="loja_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Loja</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {lojas.map((l) => (
+                          <SelectItem key={l.loja_id} value={String(l.loja_id)}>
+                            {l.nome_fantasia || l.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setOpen(false);
-                  setTimeout(() => form.reset(), 200);
-                }}
-                disabled={isSubmitting}
-              >
+              {/* Status */}
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Status atual" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Pendente">Pendente</SelectItem>
+                        <SelectItem value="Pago">Pago</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancelar
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting
-                  ? "Salvando..."
-                  : initialData
-                  ? "Salvar alterações"
-                  : "Salvar"}
+                {isSubmitting ? "Salvando..." : "Salvar"}
               </Button>
             </DialogFooter>
           </form>

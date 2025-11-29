@@ -18,6 +18,7 @@ export const getFluxoCaixa = async (dataInicio, dataFim, token) => {
   }
 };
 
+
 /**
  * Busca todos os lançamentos financeiros (movimentações).
  * @param {string} token - O token de autenticação do usuário.
@@ -25,12 +26,12 @@ export const getFluxoCaixa = async (dataInicio, dataFim, token) => {
  */
 export const readAll = async (token) => {
   try {
-    // Esta rota precisa ser criada no backend. Ex: /api/financeiro/lancamentos
-    const response = await apiService.get('/financeiro/lancamentos', token);
+    // CORREÇÃO: A rota correta é apenas '/financeiro' conforme definido em financeiroRoutes.js
+    // A rota '/financeiro/lancamentos' não existe e retorna 404 (caindo no catch e retornando [])
+    const response = await apiService.get('/financeiro', token);
     return Array.isArray(response) ? response : [];
   } catch (error) {
     console.error('Falha ao buscar todos os lançamentos financeiros:', error);
-    // Retorna um array vazio em caso de erro para não quebrar a UI
     return [];
   }
 };
