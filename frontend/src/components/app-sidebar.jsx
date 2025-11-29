@@ -11,7 +11,8 @@ import {
   Map,
   PieChart,
   Settings2,
-  SquareTerminal, PiggyBank, ChartLine,LayoutDashboard
+  SquareTerminal, PiggyBank, ChartLine,LayoutDashboard,
+  Package,Truck,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -51,7 +52,7 @@ const data = {
       title: "Cadastros",
       url: "#",
       icon: SquareTerminal,
-      isActive: true,
+      isActive: false,
       items: [
         {
           title: "Clientes",
@@ -72,6 +73,21 @@ const data = {
         {
           title: "Funcionarios",
           url: "/cadastros/funcionarios",
+        },
+      ],
+    },
+    {
+      title: "Gestão de Estoque",
+      url: "#",
+      icon: Package,
+      items: [
+        {
+          title: "Estoque",
+          url: "gestao-de-estoque/produtos/estoque", // Rota para sua página de estoque
+        },
+        {
+          title: "Requerimentos & Envios",
+          url: "gestao-de-estoque/produtos/requerimento", // Rota para sua página de requerimentos
         },
       ],
     },
