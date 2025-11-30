@@ -1,6 +1,7 @@
 import { apiService } from './apiService';
 
-const ENDPOINT = '/contas_a_pagar';
+// CORREÇÃO: Ajustado para hífens para bater com a rota padrão do backend (/api/contas-pagar)
+const ENDPOINT = '/contas-pagar';
 
 const normalize = (item) => ({
   id: item.conta_pagar_id ?? item.id ?? item._id ?? null,
@@ -73,10 +74,22 @@ export const deleteRecord = (id, token) => {
 
 /**
  * Busca contas a pagar por ID do fornecedor.
- * Rota: GET /contas_a_pagar/fornecedor/:id
  */
 export const readByFornecedorId = async (fornecedorId, token) => {
   const res = await apiService.get(`${ENDPOINT}/fornecedor/${fornecedorId}`, token);
   const arr = Array.isArray(res) ? res : res?.data ?? [];
   return arr.map(normalize);
+};
+
+// --- NOVA FUNÇÃO ADICIONADA PARA CORRIGIR O ERRO ---
+export const marcarComoPago = async (id, token) => {
+  // Define a data de hoje como data de pagamento e muda o status
+  const today = new Date().toISOString().split('T')[0];
+  const payload = {
+    status: 'Pago',
+    data_pagamento: today
+  };
+  
+  // Reutiliza a lógica de update ou chama apiService.put diretamente
+  return apiService.put(`${ENDPOINT}/${id}`, payload, token);
 };
