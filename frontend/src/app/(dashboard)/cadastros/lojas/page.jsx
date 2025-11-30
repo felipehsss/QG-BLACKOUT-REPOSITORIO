@@ -1,126 +1,119 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react";
+import { Plus, RefreshCw, Store } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { LojasTable } from "@/components/lojas/lojas-table"
-import { LojaForm } from "@/components/lojas/loja-form"
-import { readAll as readLojas, deleteRecord as deleteLoja } from "@/services/lojaService"
-import { useAuth } from "@/contexts/AuthContext"
-import { toast } from "sonner"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { LojasTable } from "@/components/lojas/lojas-table";
+import { LojaForm } from "@/components/lojas/loja-form";
+import { useAuth } from "@/contexts/AuthContext";
+import { readAll, deleteRecord } from "@/services/lojaService";
+import { toast } from "sonner";
 
 export default function LojasPage() {
-  const { token } = useAuth()
-  const [lojas, setLojas] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingLoja, setEditingLoja] = useState(null)
+  const { token } = useAuth();
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
 
-  const fetchLojas = async () => {
-    if (!token) {
-      setIsLoading(false)
-      setError("Token não encontrado. Por favor, faça login.")
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
+  const loadData = async () => {
+    if (!token) return;
+    setLoading(true);
     try {
-      const data = await readLojas(token)
-      setLojas(data || [])
-    } catch (err) {
-      const errorMessage = err.message || "Erro ao carregar lojas."
-      setError(errorMessage)
-      toast.error(errorMessage)
+      const result = await readAll(token);
+      setData(result || []);
+    } catch (error) {
+      console.error("Erro ao carregar lojas:", error);
+      toast.error("Erro ao carregar lista de lojas.");
     } finally {
-      setIsLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchLojas()
-  }, [token])
+    loadData();
+  }, [token]);
 
-  const handleAdd = () => {
-    setEditingLoja(null)
-    setIsFormOpen(true)
-  }
+  const handleCreate = () => {
+    setEditingItem(null);
+    setIsDialogOpen(true);
+  };
 
-  const handleEdit = (loja) => {
-    setEditingLoja(loja)
-    setIsFormOpen(true)
-  }
+  const handleEdit = (item) => {
+    setEditingItem(item);
+    setIsDialogOpen(true);
+  };
 
-  const handleDelete = async (loja) => {
-    if (!confirm(`Confirma exclusão da loja "${loja.nome || loja.nome_fantasia}"?`)) {
-      return
+  const handleDelete = async (id) => {
+    if (confirm("Tem certeza que deseja excluir esta loja?")) {
+      try {
+        await deleteRecord(id, token);
+        toast.success("Loja excluída com sucesso!");
+        loadData();
+      } catch (error) {
+        toast.error("Erro ao excluir loja.");
+      }
     }
+  };
 
-    try {
-      const id = loja.id ?? loja.loja_id
-      await deleteLoja(id, token)
-      toast.success("Loja excluída com sucesso!")
-      fetchLojas()
-    } catch (err) {
-      const errorMessage = err.message || "Erro ao excluir loja."
-      toast.error(errorMessage)
-    }
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Carregando lojas...</p>
-      </div>
-    )
-  }
-
-  if (error && lojas.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-12 text-center text-destructive">
-        <h3 className="text-xl font-semibold">Erro ao carregar lojas</h3>
-        <p className="text-muted-foreground">{error}</p>
-        <Button variant="outline" onClick={fetchLojas}>
-          Tentar Novamente
-        </Button>
-      </div>
-    )
-  }
+  const handleSuccess = () => {
+    setIsDialogOpen(false);
+    loadData();
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Gestão de Lojas</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Store className="h-8 w-8 text-primary" /> Lojas & Filiais
+          </h1>
           <p className="text-muted-foreground">
-            Cadastre e gerencie as filiais e matriz da sua empresa.
+            Gerencie as unidades da sua rede.
           </p>
         </div>
-        <Button onClick={handleAdd}>Adicionar Loja</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Nova Loja
+          </Button>
+        </div>
       </div>
 
-      <LojasTable
-        data={lojas}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
+      <LojasTable 
+        data={data} 
+        onEdit={handleEdit} 
+        onDelete={handleDelete} 
       />
 
-      <LojaForm
-        open={isFormOpen}
-        setOpen={setIsFormOpen}
-        initialData={editingLoja}
-        onSuccess={() => {
-          fetchLojas()
-          toast.success(editingLoja ? "Loja atualizada com sucesso!" : "Loja criada com sucesso!")
-        }}
-      />
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingItem ? "Editar Loja" : "Cadastrar Nova Loja"}
+            </DialogTitle>
+            <DialogDescription>
+              Preencha as informações da unidade abaixo.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <LojaForm
+            loja={editingItem}
+            onSuccess={handleSuccess}
+            onCancel={() => setIsDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
-  )
+  );
 }

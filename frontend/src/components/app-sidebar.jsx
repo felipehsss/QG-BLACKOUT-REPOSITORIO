@@ -1,18 +1,15 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
   GalleryVerticalEnd,
-  Map,
-  PieChart,
+  PiggyBank, 
+  ChartLine,
+  LayoutDashboard,
+  Package,
+  SquareTerminal,
   Settings2,
-  SquareTerminal, PiggyBank, ChartLine,LayoutDashboard,
-  Package,Truck,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -26,7 +23,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// This is sample data.
+// ... (Mantenha seus dados 'data' exatamente como estavam) ...
 const data = {
   user: {
     name: "shadcn",
@@ -39,7 +36,6 @@ const data = {
       logo: GalleryVerticalEnd,
       plan: "Enterprise",
     },
-
   ],
   navMain: [
     {
@@ -79,6 +75,10 @@ const data = {
           title: "Funcionarios",
           url: "/cadastros/funcionarios",
         },
+        {
+          title: "Lojas",
+          url: "/cadastros/lojas",
+        },
       ],
     },
     {
@@ -88,11 +88,11 @@ const data = {
       items: [
         {
           title: "Estoque",
-          url: "/produtos/estoque", // Rota para sua página de estoque
+          url: "/produtos/estoque", 
         },
         {
           title: "Requerimentos & Envios",
-          url: "/produtos/requerimento", // Rota para sua página de requerimentos
+          url: "/produtos/requerimento", 
         },
       ],
     },
@@ -109,7 +109,6 @@ const data = {
           title: "Fluxo de Caixa",
           url: "/financeiro/fluxo-caixa",
         },
-
       ],
     },
     {
@@ -121,11 +120,8 @@ const data = {
           title: "Vendas",
           url: "/relatorios/vendas",
         },
-
-
       ],
     },
-
     {
       title: "Settings",
       url: "#",
@@ -150,23 +146,40 @@ const data = {
       ],
     },
   ],
-
 }
 
-export function AppSidebar({
-  ...props
-}) {
+export function AppSidebar({ ...props }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
+        {/* 1. LOGO DA EMPRESA - AJUSTADA PARA PREENCHER */}
+        <div className="flex justify-center  group-data-[collapsible=icon]:hidden">
+           {/* Aumentei a altura para h-24 (96px) e coloquei w-full.
+              A imagem vai tentar preencher esse espaço mantendo a proporção.
+           */}
+           <div className="relative h-16 w-full"> 
+             <Image 
+                src="/logo/1.svg" 
+                alt="QG Blackout"
+                fill
+                className="object-contain" // Garante que a logo apareça inteira
+                priority
+             />
+           </div>
+        </div>
+
+        {/* 2. SELETOR DE FILIAL/TIME */}
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
+      
       <SidebarContent>
         <NavMain items={data.navMain} />
-
       </SidebarContent>
-     
+      
+      <SidebarFooter>
+        {/* <NavUser user={data.user} /> */}
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }
