@@ -17,7 +17,6 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
@@ -44,9 +43,15 @@ const data = {
   ],
   navMain: [
     {
-      title: "Dashboard",
+      title: "Principal",
       url: "/",
       icon: LayoutDashboard,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/",
+        },
+      ],
     },
     {
       title: "Cadastros",
@@ -83,11 +88,11 @@ const data = {
       items: [
         {
           title: "Estoque",
-          url: "gestao-de-estoque/produtos/estoque", // Rota para sua página de estoque
+          url: "/produtos/estoque", // Rota para sua página de estoque
         },
         {
           title: "Requerimentos & Envios",
-          url: "gestao-de-estoque/produtos/requerimento", // Rota para sua página de requerimentos
+          url: "/produtos/requerimento", // Rota para sua página de requerimentos
         },
       ],
     },
@@ -160,9 +165,7 @@ export function AppSidebar({
         <NavMain items={data.navMain} />
 
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
+     
       <SidebarRail />
     </Sidebar>
   );

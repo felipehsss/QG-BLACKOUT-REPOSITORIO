@@ -8,11 +8,11 @@ import {
   Settings,
   HelpCircle,
   ChartNoAxesColumn,
-  GalleryVerticalEnd
+  GalleryVerticalEnd,Package
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
+
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
@@ -50,6 +50,22 @@ const data = {
         {
           title: "PDV (Frente de Caixa)",
           url: "/pdv",
+          icon: ShoppingCart, // Opcional: ícone específico se o NavMain suportar
+        },
+      ],
+    },
+    {
+      title: "Produtos",
+      url: "#",
+      icon: Package,
+      items: [
+        {
+          title: "Estoque",
+          url: "/produtos/estoque",
+        },
+        {
+          title: "Requerimento de Produtos",
+          url: "/produtos/requerimento",
           icon: ShoppingCart, // Opcional: ícone específico se o NavMain suportar
         },
       ],
@@ -97,9 +113,7 @@ export function AppSidebar({ ...props }) {
       <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={data.user} />
-      </SidebarFooter>
+    
       <SidebarRail />
     </Sidebar>
   )
