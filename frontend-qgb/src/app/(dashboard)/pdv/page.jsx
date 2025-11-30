@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Trash2, CheckCircle, User, Percent, XCircle, Search, FileText, PlusCircle, Loader2 } from "lucide-react"
+import { Trash2, CheckCircle, User, Percent, XCircle, Search, FileText, PlusCircle, Loader2, Image as ImageIcon } from "lucide-react"
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem
 } from "@/components/ui/select"
@@ -24,7 +24,12 @@ import * as produtoService from "@/services/produtoService"
 import * as vendaService from "@/services/vendaService"
 import * as pagamentoVendaService from "@/services/pagamentoVendaService"
 
-// Utilitários CPF/CNPJ
+// --- CONFIGURAÇÃO DA URL DE IMAGENS E API ---
+// Se a API for 'http://localhost:3080/api', a base para imagens é 'http://localhost:3080'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3080/api';
+const BASE_URL = API_URL.replace('/api', ''); 
+
+// Utilitários de Formatação
 const formatCPF = (value) =>
   value.replace(/\D/g, "")
     .replace(/(\d{3})(\d)/, "$1.$2")
@@ -43,16 +48,16 @@ const formatCNPJ = (value) =>
 export default function PDVPage() {
   const { token } = useAuth()
 
-  // Estado de Dados
+  // --- Estados de Dados ---
   const [clientes, setClientes] = useState([])
   const [produtos, setProdutos] = useState([])
   
-  // Estado do Fluxo
+  // --- Estados do Fluxo de Venda ---
   const [cliente, setCliente] = useState({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" })
   const [carrinho, setCarrinho] = useState([])
   const [descontoPercent, setDescontoPercent] = useState(0)
 
-  // Modais e Controles
+  // --- Estados de Controle Visual/Modais ---
   const [showDesconto, setShowDesconto] = useState(false)
   const [showPagamento, setShowPagamento] = useState(false)
   const [loadingPagamento, setLoadingPagamento] = useState(false)
@@ -75,7 +80,7 @@ export default function PDVPage() {
   const [novoCliente, setNovoCliente] = useState({ nome: "", documento: "", tipo: "", telefone: "", email: "" })
   const [buscaCliente, setBuscaCliente] = useState("")
 
-  // Carregar Dados Iniciais
+  // --- Carregamento Inicial ---
   useEffect(() => {
     if (token) {
       carregarProdutos()
@@ -86,14 +91,17 @@ export default function PDVPage() {
   const carregarProdutos = async () => {
     try {
       const res = await produtoService.readAll(token)
-      // Ajuste para garantir que a resposta seja um array e normalize o preço
+      // Garante que é array (tratamento defensivo)
       const lista = Array.isArray(res) ? res : (res.data || [])
       
       const produtosFormatados = lista.map(p => ({
         ...p,
-        id: p.id_produto || p.id,
-        // Garante que o preço seja numérico. Tenta preco_venda, depois preco, depois 0
-        preco: Number(p.preco_venda || p.preco || 0) 
+        // CORREÇÃO CRÍTICA: Mapeia produto_id (do banco) para id (usado no frontend)
+        id: p.produto_id || p.id || p._id,
+        // Garante que preço é numérico
+        preco: Number(p.preco_venda || p.preco || 0),
+        // Constrói a URL completa da imagem se ela existir
+        fotoUrl: p.foto ? `${BASE_URL}/uploads/${p.foto}` : null
       }))
       setProdutos(produtosFormatados)
     } catch (error) {
@@ -104,12 +112,11 @@ export default function PDVPage() {
 
   const carregarClientes = async () => {
     try {
+      // clienteService.readAll já deve normalizar, mas reforçamos o documento
       const lista = await clienteService.readAll(token)
-      // O service clienteService já normaliza os dados (id, nome, documento, etc)
-      // Mas vamos garantir que o campo 'documento' esteja preenchido com CPF ou CNPJ
       const clientesFormatados = lista.map(c => ({
         ...c,
-        documento: c.cpf || c.cnpj || ""
+        documento: c.cpf || c.cnpj || "" 
       }))
       setClientes(clientesFormatados)
     } catch (error) {
@@ -118,11 +125,11 @@ export default function PDVPage() {
     }
   }
 
-  // Totais
-  const subtotal = carrinho.reduce((acc, p) => acc + p.preco * p.quantidade, 0)
+  // --- Cálculos ---
+  const subtotal = carrinho.reduce((acc, p) => acc + (p.preco * p.quantidade), 0)
   const valorDesconto = (subtotal * descontoPercent) / 100
   const base = subtotal - valorDesconto
-  const impostos = base * 0.06 // Exemplo fixo de imposto
+  const impostos = base * 0.06 // Exemplo de imposto
   const totalComDesconto = base + impostos
 
   const troco = useMemo(() => {
@@ -130,9 +137,8 @@ export default function PDVPage() {
     return recebido > totalComDesconto ? recebido - totalComDesconto : 0
   }, [valorRecebido, totalComDesconto])
 
-  // Documento com reconhecimento
+  // --- Manipuladores de Cliente ---
   const handleDocumentoChange = (value) => {
-    // Aplica formatação visual apenas
     const rawValue = value.replace(/\D/g, "")
     let formatted = value
 
@@ -144,35 +150,31 @@ export default function PDVPage() {
 
     setCliente((prev) => ({ ...prev, documento: formatted }))
 
-    // Tenta encontrar cliente na lista já carregada
-    // Remove formatação para comparar se necessário, mas aqui comparamos formatado se o service retornou formatado
-    // Como normalizamos no useEffect, vamos comparar com flexibilidade
     const documentoLimpo = formatted.replace(/\D/g, "")
-    
-    const encontrado = clientes.find((c) => {
-      const docC = (c.documento || "").replace(/\D/g, "")
-      return docC === documentoLimpo && docC.length > 0
-    })
+    // Busca apenas se tiver conteúdo suficiente para evitar falsos positivos
+    if (documentoLimpo.length > 5) {
+      const encontrado = clientes.find((c) => {
+        const docC = (c.documento || "").replace(/\D/g, "")
+        return docC === documentoLimpo
+      })
 
-    if (encontrado) {
-      setCliente(encontrado)
-      toast.success("Cliente reconhecido automaticamente!")
+      if (encontrado) {
+        setCliente(encontrado)
+        toast.success(`Cliente ${encontrado.nome} reconhecido!`)
+      }
     }
   }
 
-  // Cadastro de cliente via API
   const cadastrarCliente = async () => {
     if (!novoCliente.nome || !novoCliente.documento || !novoCliente.tipo) {
-      toast.error("Preencha os campos obrigatórios (Nome, Tipo, Documento).")
+      toast.error("Preencha Nome, Tipo e Documento.")
       return
     }
 
     setLoadingCadastro(true)
     try {
-      // Prepara payload conforme esperado pelo clienteService
       const payload = {
         ...novoCliente,
-        // Limpa formatação para envio se a API esperar números puros
         cpf: novoCliente.tipo === 'PF' ? novoCliente.documento.replace(/\D/g, "") : null,
         cnpj: novoCliente.tipo === 'PJ' ? novoCliente.documento.replace(/\D/g, "") : null,
         tipo_cliente: novoCliente.tipo
@@ -180,26 +182,25 @@ export default function PDVPage() {
 
       await clienteService.create(payload, token)
       
-      toast.success("Cliente cadastrado com sucesso!")
-      await carregarClientes() // Recarrega a lista
+      toast.success("Cliente cadastrado!")
+      await carregarClientes()
       setShowCadastroCliente(false)
       setNovoCliente({ nome: "", documento: "", tipo: "", telefone: "", email: "" })
     } catch (error) {
       console.error(error)
-      toast.error("Erro ao cadastrar cliente.")
+      toast.error(error.message || "Erro ao cadastrar cliente.")
     } finally {
       setLoadingCadastro(false)
     }
   }
 
-  // Seleção de cliente
   const selecionarCliente = (c) => {
     setCliente(c)
     setShowSelecionarCliente(false)
-    toast.success(`Cliente ${c.nome} selecionado!`)
+    toast.success("Cliente selecionado.")
   }
 
-  // Carrinho
+  // --- Manipuladores de Carrinho ---
   const adicionarProduto = (produto) => {
     setCarrinho((prev) => {
       const idx = prev.findIndex((p) => p.id === produto.id)
@@ -211,20 +212,18 @@ export default function PDVPage() {
       return [...prev, { ...produto, quantidade: 1 }]
     })
   }
+
   const removerProduto = (index) => setCarrinho((prev) => prev.filter((_, i) => i !== index))
+
   const alterarQuantidade = (index, qtd) => {
     if (qtd < 1 || Number.isNaN(qtd)) return
     setCarrinho((prev) => prev.map((item, i) => (i === index ? { ...item, quantidade: qtd } : item)))
   }
 
-  // Fluxo de Venda
+  // --- Finalização da Venda ---
   const finalizarVenda = () => {
-    if (!cliente.nome) { // Validação básica se cliente foi selecionado/preenchido
-      toast.error("Selecione ou identifique um cliente.")
-      return
-    }
     if (carrinho.length === 0) {
-      toast.error("Adicione ao menos um produto.")
+      toast.warning("O carrinho está vazio.")
       return
     }
     setShowPagamento(true)
@@ -232,15 +231,14 @@ export default function PDVPage() {
 
   const confirmarPagamento = async () => {
     if (!metodoPagamento) {
-      toast.error("Selecione um método de pagamento.")
+      toast.warning("Selecione a forma de pagamento.")
       return
     }
     
-    // Validação de dinheiro
     const valRecebidoNum = parseFloat(valorRecebido || "0")
     if (metodoPagamento === "Dinheiro") {
       if (isNaN(valRecebidoNum) || valRecebidoNum < totalComDesconto) {
-        toast.error("Valor recebido insuficiente.")
+        toast.error("Valor recebido é menor que o total.")
         return
       }
     }
@@ -248,10 +246,10 @@ export default function PDVPage() {
     setLoadingPagamento(true)
 
     try {
-      // 1. Criar a Venda
+      // 1. Cria a venda
       const vendaPayload = {
-        id_cliente: cliente.id, // Se for cliente avulso não cadastrado, a API precisa aceitar nulo ou tratar isso
-        status: "concluida", // Ou 'pendente' dependendo da regra de negócio
+        id_cliente: cliente.id, // Envia ID se existir, ou null para consumidor final
+        status: "concluida",
         valor_total: totalComDesconto,
         desconto: valorDesconto,
         itens: carrinho.map(item => ({
@@ -263,25 +261,25 @@ export default function PDVPage() {
       }
 
       const resVenda = await vendaService.create(vendaPayload, token)
-      // Ajuste: verificar como a API retorna o ID. Normalmente resVenda.id, resVenda.data.id ou resVenda.insertId
-      const idVenda = resVenda.id || resVenda.id_venda || (resVenda.data && resVenda.data.id)
+      
+      // Tenta recuperar o ID de várias formas possíveis que a API possa retornar
+      const idVenda = resVenda?.id || resVenda?.id_venda || resVenda?.data?.id || resVenda?.insertId
 
       if (!idVenda) {
-        throw new Error("Falha ao obter ID da venda criada.")
+        throw new Error("Venda criada, mas ID não retornado pelo servidor.")
       }
 
-      // 2. Registrar o Pagamento
-      // Se a API de Venda já não registra o pagamento automaticamente no create
+      // 2. Registra o pagamento
       const pagamentoPayload = {
         id_venda: idVenda,
-        valor: metodoPagamento === "Dinheiro" ? totalComDesconto : totalComDesconto, // Registra o valor da venda, não o recebido (troco é visual)
+        valor: totalComDesconto,
         forma_pagamento: metodoPagamento,
         data_pagamento: new Date().toISOString()
       }
 
       await pagamentoVendaService.create(pagamentoPayload, token)
 
-      // 3. Sucesso e Recibo
+      // 3. Sucesso -> Gera recibo visual
       const reciboData = {
         cliente,
         itens: carrinho,
@@ -294,37 +292,36 @@ export default function PDVPage() {
         valorRecebido: metodoPagamento === "Dinheiro" ? valRecebidoNum : totalComDesconto,
         troco: metodoPagamento === "Dinheiro" ? troco : 0,
         data: new Date().toLocaleString(),
-        idTransacao: idVenda, // Usa o ID real da venda
+        idTransacao: idVenda,
       }
 
       setRecibo(reciboData)
       setShowPagamento(false)
       setShowRecibo(true)
-      toast.success("Venda realizada com sucesso!")
+      toast.success("Venda finalizada com sucesso!")
       
-      // Limpa estado
+      // Limpa PDV
       setCarrinho([])
       setDescontoPercent(0)
       setMetodoPagamento("")
       setValorRecebido("")
-      setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" }) // Opcional: limpar cliente
+      setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" }) 
 
     } catch (error) {
-      console.error(error)
-      toast.error("Erro ao processar venda. Tente novamente.")
+      console.error("Erro ao finalizar venda:", error)
+      toast.error(error.message || "Falha ao registrar venda.")
     } finally {
       setLoadingPagamento(false)
     }
   }
 
-  // Emissão de nota (Simulada - backend geralmente faz isso)
   const emitirNota = () => {
     if (!recibo) {
-      toast.error("Finalize a venda para emitir a nota.")
+      toast.error("É necessário finalizar uma venda antes.")
       return
     }
     const nf = {
-      chave: `NFe-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
+      chave: `NFe-${Math.random().toString(36).slice(2, 14).toUpperCase()}`,
       cliente: recibo.cliente,
       itens: recibo.itens,
       total: recibo.total,
@@ -335,498 +332,420 @@ export default function PDVPage() {
     }
     setNotaFiscal(nf)
     setShowNota(true)
-    toast.success("Nota emitida (simulação visual).")
+    toast.success("DANFE gerada para visualização.")
   }
 
   const cancelarVenda = () => {
-    setCarrinho([])
-    setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" })
-    setDescontoPercent(0)
-    setMetodoPagamento("")
-    setValorRecebido("")
-    setRecibo(null)
-    setNotaFiscal(null)
-    setShowRecibo(false)
-    setShowNota(false)
-    toast.info("Sessão limpa.")
+    if (carrinho.length === 0 && !cliente.id) return
+    if (confirm("Tem certeza que deseja limpar toda a venda atual?")) {
+      setCarrinho([])
+      setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" })
+      setDescontoPercent(0)
+      setMetodoPagamento("")
+      setValorRecebido("")
+      setRecibo(null)
+      setNotaFiscal(null)
+      setShowRecibo(false)
+      setShowNota(false)
+      toast.info("Venda cancelada.")
+    }
   }
 
-  // Catálogo filtrado
-  const produtosFiltrados = produtos.filter((p) => {
+  // --- Filtros ---
+  const produtosFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase()
-    return (p.nome || "").toLowerCase().includes(q) || (p.codigo || "").toLowerCase().includes(q)
-  })
+    return produtos.filter((p) => {
+      const nome = (p.nome || "").toLowerCase()
+      const codigo = (p.sku || p.codigo || "").toLowerCase()
+      return nome.includes(q) || codigo.includes(q)
+    })
+  }, [produtos, busca])
 
-  // Clientes filtrados para seleção
-  const clientesFiltrados = clientes.filter((c) => {
+  const clientesFiltrados = useMemo(() => {
     const q = buscaCliente.trim().toLowerCase()
-    return (
-      (c.nome || "").toLowerCase().includes(q) ||
-      (c.documento || "").toLowerCase().includes(q) ||
-      (c.email || "").toLowerCase().includes(q)
-    )
-  })
+    return clientes.filter((c) => {
+      const nome = (c.nome || "").toLowerCase()
+      const doc = (c.documento || "").toLowerCase()
+      return nome.includes(q) || doc.includes(q)
+    })
+  }, [clientes, buscaCliente])
 
   return (
-    <main className="p-6 space-y-6">
+    <main className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto h-[calc(100vh-80px)] flex flex-col">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold">PDV - QG Blackout</h1>
-          <p className="text-muted-foreground">Frente de caixa</p>
+          <h1 className="text-2xl font-bold tracking-tight">Frente de Caixa (PDV)</h1>
+          <p className="text-muted-foreground">Registar vendas e emitir comprovantes</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowCadastroCliente(true)}>
-            <PlusCircle className="w-4 h-4 mr-2" /> Cadastrar cliente
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => setShowCadastroCliente(true)}>
+            <PlusCircle className="w-4 h-4 mr-2" /> Novo Cliente
           </Button>
-          <Button variant="outline" onClick={() => setShowSelecionarCliente(true)}>
-            <User className="w-4 h-4 mr-2" /> Selecionar cliente
+          <Button variant="outline" size="sm" onClick={() => setShowSelecionarCliente(true)}>
+            <User className="w-4 h-4 mr-2" /> Buscar Cliente
           </Button>
-          <Button variant="outline" onClick={cancelarVenda}>
-            <XCircle className="w-4 h-4 mr-2" /> Limpar Tela
+          <Button variant="destructive" size="sm" onClick={cancelarVenda}>
+            <XCircle className="w-4 h-4 mr-2" /> Limpar Venda
           </Button>
         </div>
       </div>
 
-      {/* Cliente */}
-      <Card>
-        <CardHeader><CardTitle>Cliente</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-5">
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="nome">Nome</Label>
-            <Input
-              id="nome"
-              value={cliente.nome}
-              onChange={(e) => setCliente({ ...cliente, nome: e.target.value })}
-              placeholder="Nome completo"
-              disabled={!!cliente.id} // Trava edição se selecionado da lista, destrava se limpar
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="tipo">Tipo</Label>
-            <Select
-              value={cliente.tipo || undefined}
-              onValueChange={(value) => {
-                const doc = value === "PF" ? formatCPF(cliente.documento) :
-                            value === "PJ" ? formatCNPJ(cliente.documento) : cliente.documento
-                setCliente({ ...cliente, tipo: value, documento: doc })
-              }}
-              disabled={!!cliente.id}
-            >
-              <SelectTrigger><SelectValue placeholder="PF ou PJ" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PF">Pessoa Física</SelectItem>
-                <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="documento">CPF/CNPJ</Label>
-            <Input
-              id="documento"
-              value={cliente.documento}
-              onChange={(e) => handleDocumentoChange(e.target.value)}
-              placeholder={cliente.tipo === "PJ" ? "00.000.000/0001-00" : "000.000.000-00"}
-              disabled={!!cliente.id}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="telefone">Telefone</Label>
-            <Input
-              id="telefone"
-              value={cliente.telefone || ""}
-              onChange={(e) => setCliente({ ...cliente, telefone: e.target.value })}
-              placeholder="(11) 90000-0000"
-              disabled={!!cliente.id}
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              value={cliente.email || ""}
-              onChange={(e) => setCliente({ ...cliente, email: e.target.value })}
-              placeholder="email@exemplo.com"
-              disabled={!!cliente.id}
-            />
-          </div>
-          {cliente.id && (
-             <div className="md:col-span-5 flex justify-end">
-                <Button variant="ghost" size="sm" onClick={() => setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" })}>
-                   Limpar seleção de cliente
-                </Button>
-             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Layout lateralizado */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Catálogo */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Buscar produto por nome ou código..."
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
-            <Search className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-            {produtosFiltrados.map((produto) => (
-              <Card key={produto.id} className="cursor-pointer hover:border-primary transition-colors" onClick={() => adicionarProduto(produto)}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex flex-col gap-1">
-                    <span className="text-base truncate" title={produto.nome}>{produto.nome}</span>
-                    <span className="text-xs text-muted-foreground font-normal">{produto.codigo || "S/ Cód"}</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-lg font-semibold">R$ {produto.preco.toFixed(2)}</p>
-                  <Button className="mt-2 w-full" size="sm">
-                    Adicionar
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+        {/* Coluna da Esquerda: Catálogo e Cliente */}
+        <div className="lg:col-span-2 flex flex-col gap-6 min-h-0 overflow-y-auto pr-1 pb-2">
+          
+          {/* Card do Cliente */}
+          <Card className="shrink-0">
+            <CardHeader className="pb-3 pt-4">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-base">Dados do Cliente</CardTitle>
+                {cliente.id && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" })}>
+                    Remover
                   </Button>
-                </CardContent>
-              </Card>
-            ))}
-            {produtosFiltrados.length === 0 && (
-              <div className="col-span-full py-8 text-center text-muted-foreground bg-muted/20 rounded-lg border border-dashed">
-                 Nenhum produto encontrado.
+                )}
               </div>
-            )}
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+              <div className="space-y-1 sm:col-span-2">
+                <Label className="text-xs text-muted-foreground">Nome</Label>
+                <Input 
+                  value={cliente.nome} 
+                  onChange={(e) => setCliente({ ...cliente, nome: e.target.value })}
+                  placeholder="Consumidor Final" className="h-8" disabled={!!cliente.id}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">CPF/CNPJ</Label>
+                <Input 
+                  value={cliente.documento} onChange={(e) => handleDocumentoChange(e.target.value)}
+                  className="h-8" placeholder="000.000.000-00" disabled={!!cliente.id}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Tipo</Label>
+                <Select value={cliente.tipo || undefined} onValueChange={(v) => setCliente({...cliente, tipo: v})} disabled={!!cliente.id}>
+                  <SelectTrigger className="h-8"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PF">Pessoa Física</SelectItem>
+                    <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Catálogo de Produtos */}
+          <div className="flex-1 flex flex-col gap-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto por nome, SKU..."
+                className="pl-9 bg-background"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
+              {produtosFiltrados.map((produto) => (
+                <Card 
+                  key={produto.id} 
+                  className="cursor-pointer hover:border-primary/50 hover:bg-accent/50 transition-all active:scale-95 flex flex-col justify-between overflow-hidden"
+                  onClick={() => adicionarProduto(produto)}
+                >
+                  {/* Área da Imagem */}
+                  <div className="aspect-square w-full bg-muted flex items-center justify-center overflow-hidden relative">
+                    {produto.fotoUrl ? (
+                      <img 
+                        src={produto.fotoUrl} 
+                        alt={produto.nome} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'; // Esconde a imagem quebrada
+                          e.currentTarget.nextSibling.style.display = 'flex'; // Mostra o fallback
+                        }}
+                      />
+                    ) : null}
+                    
+                    {/* Fallback (placeholder) se não tiver foto ou der erro */}
+                    <div 
+                      className="flex items-center justify-center w-full h-full text-muted-foreground/20 bg-muted absolute inset-0"
+                      style={{ display: produto.fotoUrl ? 'none' : 'flex' }}
+                    >
+                      <ImageIcon className="w-10 h-10" />
+                    </div>
+                  </div>
+
+                  <CardHeader className="p-3 pb-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="font-medium text-sm leading-tight line-clamp-2" title={produto.nome}>{produto.nome}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-mono truncate">
+                      {produto.sku || produto.codigo || "—"}
+                    </span>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-2">
+                    <div className="text-lg font-bold text-primary">
+                      R$ {produto.preco.toFixed(2)}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {produtosFiltrados.length === 0 && (
+                <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed rounded-lg">
+                  Nenhum produto encontrado.
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Carrinho + Ações */}
-        <div className="space-y-4">
-          {/* Carrinho */}
-          <Card className="flex flex-col h-[calc(100vh-200px)] lg:h-auto lg:min-h-[500px]">
-            <CardHeader><CardTitle>Carrinho</CardTitle></CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4">
-              <div className="flex-1 overflow-auto space-y-4 pr-2 max-h-[300px]">
-                {carrinho.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-10">Carrinho vazio.</p>
-                ) : (
-                  carrinho.map((item, index) => (
-                    <div key={`${item.id}-${index}`} className="flex items-start justify-between border-b pb-2 last:border-0">
-                      <div className="space-y-1">
-                        <p className="font-medium text-sm line-clamp-1" title={item.nome}>{item.nome}</p>
-                        <div className="flex items-center gap-2">
-                          <Label className="text-xs">Qtd</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={item.quantidade}
-                            onChange={(e) => alterarQuantidade(index, parseInt(e.target.value || "1"))}
-                            className="w-16 h-7 text-xs"
-                          />
-                        </div>
+        {/* Coluna da Direita: Carrinho e Totais */}
+        <div className="flex flex-col gap-4 h-full min-h-0">
+          <Card className="flex-1 flex flex-col shadow-md border-primary/20 overflow-hidden">
+            <CardHeader className="bg-muted/30 py-3 border-b">
+              <CardTitle className="flex justify-between items-center text-base">
+                <span>Carrinho</span>
+                <span className="text-xs font-normal text-muted-foreground">{carrinho.length} itens</span>
+              </CardTitle>
+            </CardHeader>
+            
+            <CardContent className="flex-1 overflow-y-auto p-0">
+              {carrinho.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8 gap-2">
+                  <Search className="w-8 h-8 opacity-20" />
+                  <p className="text-sm">Carrinho vazio</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {carrinho.map((item, index) => (
+                    <div key={`${item.id}-${index}`} className="flex items-center gap-3 p-3 hover:bg-muted/20 transition-colors">
+                      {/* Miniatura no carrinho */}
+                      <div className="h-10 w-10 rounded bg-muted overflow-hidden shrink-0 flex items-center justify-center border">
+                         {item.fotoUrl ? (
+                           <img src={item.fotoUrl} alt="" className="h-full w-full object-cover" />
+                         ) : <ImageIcon className="w-4 h-4 opacity-30" />}
                       </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <p className="font-semibold text-sm">R$ {(item.preco * item.quantidade).toFixed(2)}</p>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removerProduto(index)}>
-                          <Trash2 className="w-3 h-3" />
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate" title={item.nome}>{item.nome}</p>
+                        <p className="text-xs text-muted-foreground">Unit: R$ {item.preco.toFixed(2)}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Input 
+                          type="number" className="h-7 w-12 text-center px-1 text-xs" min={1}
+                          value={item.quantidade}
+                          onChange={(e) => alterarQuantidade(index, parseInt(e.target.value) || 1)}
+                        />
+                        <div className="text-right w-20">
+                          <p className="text-sm font-bold">R$ {(item.preco * item.quantidade).toFixed(2)}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => removerProduto(index)}>
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
-                  ))
+                  ))}
+                </div>
+              )}
+            </CardContent>
+
+            <div className="p-4 bg-muted/30 border-t space-y-3">
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>R$ {subtotal.toFixed(2)}</span>
+                </div>
+                {descontoPercent > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Desconto ({descontoPercent}%)</span>
+                    <span>- R$ {valorDesconto.toFixed(2)}</span>
+                  </div>
                 )}
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Impostos (Est.)</span>
+                  <span>R$ {impostos.toFixed(2)}</span>
+                </div>
               </div>
-
               <Separator />
-
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <p>Subtotal:</p><p className="text-right">R$ {subtotal.toFixed(2)}</p>
-                <p>Desconto ({descontoPercent}%):</p><p className="text-right text-destructive">- R$ {valorDesconto.toFixed(2)}</p>
-                <p>Impostos (Est.):</p><p className="text-right text-muted-foreground">R$ {impostos.toFixed(2)}</p>
-                <p className="font-bold text-lg mt-2">Total:</p>
-                <p className="text-right font-bold text-lg mt-2 text-green-600">R$ {totalComDesconto.toFixed(2)}</p>
+              <div className="flex justify-between items-end">
+                <span className="font-bold text-lg">Total</span>
+                <span className="font-bold text-2xl text-primary">R$ {totalComDesconto.toFixed(2)}</span>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 mt-auto pt-4">
-                <Button variant="outline" className="w-full flex gap-2" onClick={() => setShowDesconto(true)}>
-                  <Percent className="w-4 h-4" /> Desconto
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowDesconto(true)}>
+                  <Percent className="w-4 h-4 mr-2" /> Desconto
                 </Button>
-                <Button className="w-full flex items-center gap-2" onClick={finalizarVenda}>
-                  <CheckCircle className="w-5 h-5" /> Finalizar
+                <Button onClick={finalizarVenda} className="w-full" size="lg">
+                  <CheckCircle className="w-5 h-5 mr-2" /> Finalizar
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Ações Rápidas */}
-          <Card>
-            <CardHeader className="py-4"><CardTitle className="text-base">Ações Rápidas</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-2 gap-3 pb-4">
-              <Button variant="secondary" size="sm" onClick={() => setShowSelecionarCliente(true)}>
-                <User className="w-4 h-4 mr-2" /> Clientes
-              </Button>
-              <Button variant="secondary" size="sm" onClick={emitirNota}>
-                <FileText className="w-4 h-4 mr-2" /> Nota Fiscal
-              </Button>
-            </CardContent>
+            </div>
           </Card>
         </div>
       </div>
 
-      {/* Modal de desconto */}
+      {/* --- Modais --- */}
+
+      {/* Desconto */}
       <Dialog open={showDesconto} onOpenChange={setShowDesconto}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Aplicar desconto</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Label htmlFor="desconto">Desconto (%)</Label>
-            <Input
-              id="desconto"
-              type="number"
-              min={0}
-              max={100}
-              value={descontoPercent}
-              onChange={(e) => setDescontoPercent(parseFloat(e.target.value || "0"))}
-            />
-            <p className="text-sm text-muted-foreground">Valor de desconto: R$ {valorDesconto.toFixed(2)}</p>
+        <DialogContent className="max-w-xs">
+          <DialogHeader><DialogTitle>Aplicar Desconto</DialogTitle></DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Porcentagem (%)</Label>
+              <Input type="number" min={0} max={100} autoFocus value={descontoPercent} onChange={(e) => setDescontoPercent(parseFloat(e.target.value) || 0)} />
+            </div>
+            <div className="text-center text-sm text-muted-foreground">
+              Desconto: <span className="font-bold text-foreground">R$ {valorDesconto.toFixed(2)}</span>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDesconto(false)}>Cancelar</Button>
-            <Button onClick={() => setShowDesconto(false)}>Aplicar</Button>
-          </DialogFooter>
+          <DialogFooter><Button onClick={() => setShowDesconto(false)}>Confirmar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de pagamento */}
+      {/* Pagamento */}
       <Dialog open={showPagamento} onOpenChange={setShowPagamento}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Realizar Pagamento</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Método de Pagamento</Label>
-              <Select value={metodoPagamento || undefined} onValueChange={setMetodoPagamento}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PIX">PIX</SelectItem>
-                  <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                  <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                </SelectContent>
-              </Select>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Finalizar Pagamento</DialogTitle></DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="flex justify-between items-center bg-muted p-4 rounded-lg">
+              <span className="font-medium">Total a Pagar</span>
+              <span className="text-2xl font-bold">R$ {totalComDesconto.toFixed(2)}</span>
             </div>
-
+            <div className="space-y-2">
+              <Label>Forma de Pagamento</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {['Dinheiro', 'Cartão de Crédito', 'Cartão de Débito', 'PIX'].map((metodo) => (
+                  <Button key={metodo} variant={metodoPagamento === metodo ? "default" : "outline"} className="justify-start" onClick={() => setMetodoPagamento(metodo)}>{metodo}</Button>
+                ))}
+              </div>
+            </div>
             {metodoPagamento === "Dinheiro" && (
-              <div className="space-y-2">
-                <Label htmlFor="recebido">Valor entregue pelo cliente</Label>
-                <Input
-                  id="recebido"
-                  type="number"
-                  min={0}
-                  value={valorRecebido}
-                  onChange={(e) => setValorRecebido(e.target.value)}
-                  placeholder="0,00"
-                />
-                <div className={`text-sm font-medium ${troco < 0 ? 'text-destructive' : 'text-green-600'}`}>
-                   {troco >= 0 ? `Troco: R$ ${troco.toFixed(2)}` : "Valor insuficiente"}
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                <Label>Valor Recebido</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">R$</span>
+                  <Input className="pl-9 text-lg font-bold" type="number" placeholder="0.00" autoFocus value={valorRecebido} onChange={(e) => setValorRecebido(e.target.value)} />
+                </div>
+                <div className={`text-right text-sm font-medium ${troco < 0 ? 'text-destructive' : 'text-green-600'}`}>
+                  {troco < 0 ? "Faltam R$ " + Math.abs(troco).toFixed(2) : "Troco: R$ " + troco.toFixed(2)}
                 </div>
               </div>
             )}
-
-            <Separator />
-
-            <div className="flex justify-between items-center text-lg font-bold">
-              <span>Total a Pagar:</span>
-              <span>R$ {totalComDesconto.toFixed(2)}</span>
-            </div>
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPagamento(false)} disabled={loadingPagamento}>
-               Voltar
-            </Button>
-            <Button onClick={confirmarPagamento} disabled={loadingPagamento}>
-              {loadingPagamento && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar Pagamento
+            <Button variant="outline" onClick={() => setShowPagamento(false)} disabled={loadingPagamento}>Voltar</Button>
+            <Button onClick={confirmarPagamento} disabled={loadingPagamento || !metodoPagamento || (metodoPagamento === "Dinheiro" && troco < 0)}>
+              {loadingPagamento && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Confirmar Venda
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Recibo */}
+      {/* Recibo */}
       <Dialog open={showRecibo} onOpenChange={setShowRecibo}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-center">Recibo da Venda</DialogTitle>
-          </DialogHeader>
-
-          {recibo ? (
-            <div className="space-y-4 text-sm font-mono border p-4 rounded bg-slate-50">
-              <div className="text-center pb-2 border-b border-dashed">
-                <p className="font-bold uppercase">QG Blackout</p>
-                <p>Recibo de Venda</p>
-                <p className="text-xs text-muted-foreground">{recibo.data}</p>
-                <p className="text-xs text-muted-foreground">ID: {recibo.idTransacao}</p>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle className="text-center">Venda Realizada!</DialogTitle></DialogHeader>
+          {recibo && (
+            <div className="border p-4 rounded-md bg-white text-black font-mono text-sm shadow-sm">
+              <div className="text-center border-b pb-2 mb-2 border-dashed border-gray-300">
+                <p className="font-bold">QG BLACKOUT</p>
+                <p className="text-xs">{recibo.data}</p>
+                <p className="text-xs">ID: {recibo.idTransacao}</p>
               </div>
-
-              <div>
-                <p className="font-bold">Cliente:</p>
-                <p>{recibo.cliente.nome || "Consumidor Final"}</p>
-                <p>{recibo.cliente.documento}</p>
+              <div className="mb-2"><p><strong>Cliente:</strong> {recibo.cliente.nome || "Não informado"}</p></div>
+              <table className="w-full mb-2">
+                <tbody>
+                  {recibo.itens.map((item, i) => (
+                    <tr key={i}>
+                      <td className="align-top">{item.quantidade}x</td>
+                      <td className="align-top px-1">{item.nome.substring(0, 18)}</td>
+                      <td className="text-right align-top">{(item.preco * item.quantidade).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="border-t pt-2 border-dashed border-gray-300 space-y-1">
+                <div className="flex justify-between"><span>Subtotal</span><span>{recibo.subtotal.toFixed(2)}</span></div>
+                {recibo.valorDesconto > 0 && <div className="flex justify-between"><span>Desc.</span><span>-{recibo.valorDesconto.toFixed(2)}</span></div>}
+                <div className="flex justify-between font-bold text-base mt-2"><span>TOTAL</span><span>{recibo.total.toFixed(2)}</span></div>
               </div>
-
-              <div className="border-b border-dashed pb-2">
-                <p className="font-bold mb-1">Itens:</p>
-                {recibo.itens.map((item) => (
-                  <div key={item.id} className="flex justify-between">
-                    <span>{item.quantidade}x {item.nome.substring(0, 20)}</span>
-                    <span>{(item.preco * item.quantidade).toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-1 pt-2">
-                <div className="flex justify-between"><span>Subtotal:</span><span>{recibo.subtotal.toFixed(2)}</span></div>
-                {recibo.valorDesconto > 0 && (
-                   <div className="flex justify-between"><span>Desconto:</span><span>-{recibo.valorDesconto.toFixed(2)}</span></div>
-                )}
-                <div className="flex justify-between font-bold text-base mt-2 pt-2 border-t border-dashed">
-                   <span>TOTAL:</span><span>R$ {recibo.total.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div className="pt-2 text-xs text-center border-t border-dashed mt-2">
-                 Pagamento via {recibo.metodoPagamento}
-                 {recibo.metodoPagamento === "Dinheiro" && (
-                    <span> (Troco: {recibo.troco.toFixed(2)})</span>
-                 )}
+              <div className="mt-4 text-center text-xs">
+                Pagamento: {recibo.metodoPagamento}
+                {recibo.troco > 0 && <span className="block">Troco: R$ {recibo.troco.toFixed(2)}</span>}
               </div>
             </div>
-          ) : null}
-
-          <DialogFooter>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowRecibo(false)}>Fechar</Button>
             <Button onClick={() => window.print()}>Imprimir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Nota Fiscal (Visualização simulada) */}
-      <Dialog open={showNota} onOpenChange={setShowNota}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nota Fiscal Eletrônica</DialogTitle>
-          </DialogHeader>
-          {notaFiscal && (
-            <div className="space-y-4 border p-4 rounded text-sm">
-               <div className="text-center">
-                  <h3 className="font-bold">DANFE Simplificado</h3>
-                  <p className="text-xs break-all">{notaFiscal.chave}</p>
-               </div>
-               <Separator />
-               <div className="grid grid-cols-2 gap-2">
-                  <div>
-                     <span className="font-bold block">Emitente</span>
-                     QG Blackout LTDA
-                  </div>
-                  <div>
-                     <span className="font-bold block">Destinatário</span>
-                     {notaFiscal.cliente.nome}<br/>
-                     {notaFiscal.cliente.documento}
-                  </div>
-               </div>
-               <Separator />
-               <div>
-                  <div className="flex justify-between font-bold bg-muted p-1">
-                     <span>Valor Total</span>
-                     <span>R$ {notaFiscal.total.toFixed(2)}</span>
-                  </div>
-               </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNota(false)}>Fechar</Button>
-          </DialogFooter>
+      {/* Selecionar Cliente */}
+      <Dialog open={showSelecionarCliente} onOpenChange={setShowSelecionarCliente}>
+        <DialogContent className="max-w-md h-[500px] flex flex-col">
+          <DialogHeader><DialogTitle>Selecionar Cliente</DialogTitle></DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar por nome ou documento..." className="pl-9" value={buscaCliente} onChange={(e) => setBuscaCliente(e.target.value)} />
+          </div>
+          <div className="flex-1 overflow-y-auto border rounded-md mt-2">
+            {clientesFiltrados.length === 0 ? <div className="p-4 text-center text-muted-foreground">Nenhum cliente encontrado.</div> : (
+              <div className="divide-y">
+                {clientesFiltrados.map((c) => (
+                  <button key={c.id || c.documento} className="w-full text-left p-3 hover:bg-muted transition-colors flex justify-between items-center" onClick={() => selecionarCliente(c)}>
+                    <div><p className="font-medium text-sm">{c.nome}</p><p className="text-xs text-muted-foreground">{c.documento} • {c.tipo}</p></div>
+                    <CheckCircle className={`w-4 h-4 ${cliente.id === c.id ? "text-primary" : "text-transparent"}`} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
-      {/* Cadastro de cliente */}
+      {/* Cadastro Cliente */}
       <Dialog open={showCadastroCliente} onOpenChange={setShowCadastroCliente}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cadastrar cliente</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <Label>Nome *</Label>
-            <Input value={novoCliente.nome} onChange={(e)=>setNovoCliente({...novoCliente,nome:e.target.value})} placeholder="Nome completo" />
-
-            <Label>Tipo *</Label>
-            <Select value={novoCliente.tipo || undefined} onValueChange={(v)=>setNovoCliente({...novoCliente,tipo:v})}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="PF">Pessoa Física</SelectItem>
-                <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Label>CPF/CNPJ *</Label>
-            <Input
-              value={novoCliente.documento}
-              onChange={(e)=>{
-                const val = e.target.value
-                const fmt = novoCliente.tipo === "PF" ? formatCPF(val) : novoCliente.tipo === "PJ" ? formatCNPJ(val) : val
-                setNovoCliente({...novoCliente, documento: fmt})
-              }}
-              placeholder="Digite apenas números"
-            />
-
-            <Label>Telefone</Label>
-            <Input value={novoCliente.telefone} onChange={(e)=>setNovoCliente({...novoCliente,telefone:e.target.value})} placeholder="(11) 90000-0000" />
-
-            <Label>E-mail</Label>
-            <Input value={novoCliente.email} onChange={(e)=>setNovoCliente({...novoCliente,email:e.target.value})} placeholder="email@exemplo.com" />
+          <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2"><Label>Nome Completo *</Label><Input value={novoCliente.nome} onChange={(e) => setNovoCliente({...novoCliente, nome: e.target.value})} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2"><Label>Tipo *</Label><Select value={novoCliente.tipo || undefined} onValueChange={(v) => setNovoCliente({...novoCliente, tipo: v})}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent><SelectItem value="PF">Pessoa Física</SelectItem><SelectItem value="PJ">Pessoa Jurídica</SelectItem></SelectContent></Select></div>
+              <div className="grid gap-2"><Label>Documento *</Label><Input value={novoCliente.documento} onChange={(e) => setNovoCliente({...novoCliente, documento: e.target.value})} /></div>
+            </div>
+            <div className="grid gap-2"><Label>Telefone</Label><Input value={novoCliente.telefone} onChange={(e) => setNovoCliente({...novoCliente, telefone: e.target.value})} /></div>
+            <div className="grid gap-2"><Label>Email</Label><Input value={novoCliente.email} onChange={(e) => setNovoCliente({...novoCliente, email: e.target.value})} /></div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={()=>setShowCadastroCliente(false)} disabled={loadingCadastro}>Cancelar</Button>
-            <Button onClick={cadastrarCliente} disabled={loadingCadastro}>
-               {loadingCadastro && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-               Salvar
-            </Button>
+            <Button variant="outline" onClick={() => setShowCadastroCliente(false)}>Cancelar</Button>
+            <Button onClick={cadastrarCliente} disabled={loadingCadastro}>{loadingCadastro ? <Loader2 className="w-4 h-4 animate-spin" /> : "Salvar Cliente"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Selecionar cliente */}
-      <Dialog open={showSelecionarCliente} onOpenChange={setShowSelecionarCliente}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Selecionar cliente</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Input placeholder="Buscar por nome, CPF/CNPJ..." value={buscaCliente} onChange={(e)=>setBuscaCliente(e.target.value)} />
-              <Search className="w-5 h-5 text-muted-foreground" />
+      {/* Nota Fiscal */}
+      <Dialog open={showNota} onOpenChange={setShowNota}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Nota Fiscal (Visualização)</DialogTitle></DialogHeader>
+          {notaFiscal && (
+            <div className="border p-4 text-xs font-mono bg-yellow-50/50 space-y-2">
+              <p className="font-bold border-b pb-1">DANFE SIMPLIFICADO</p>
+              <p>Chave: {notaFiscal.chave}</p>
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div><span className="font-bold block">Emitente:</span> QG Blackout</div>
+                <div><span className="font-bold block">Destinatário:</span> {notaFiscal.cliente.nome}</div>
+              </div>
+              <div className="flex justify-between font-bold text-lg pt-4"><span>TOTAL</span><span>R$ {notaFiscal.total.toFixed(2)}</span></div>
             </div>
-
-            <div className="space-y-2 max-h-72 overflow-auto">
-              {clientesFiltrados.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhum cliente encontrado.</p>
-              )}
-              {clientesFiltrados.map((c)=>(
-                <div key={c.id || c.documento} className="flex items-center justify-between border rounded p-3 hover:bg-accent cursor-pointer" onClick={()=>selecionarCliente(c)}>
-                  <div className="text-sm">
-                    <p className="font-medium">{c.nome}</p>
-                    <p className="text-muted-foreground text-xs">{c.documento} • {c.tipo}</p>
-                  </div>
-                  <Button size="sm" variant="ghost">Selecionar</Button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={()=>setShowSelecionarCliente(false)}>Fechar</Button>
-          </DialogFooter>
+          )}
+          <DialogFooter><Button onClick={() => setShowNota(false)}>Fechar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </main>
