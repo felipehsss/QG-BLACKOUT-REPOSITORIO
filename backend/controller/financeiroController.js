@@ -1,19 +1,29 @@
 import * as financeiroModel from "../model/financeiroModel.js";
 
-// ... listar, buscarPorId, listarPorLoja permanecem iguais ...
 export const listar = async (req, res, next) => {
   try {
     const registros = await financeiroModel.getAll();
     res.json(registros);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-export const buscarPorId = async (req, res, next) => { /* ... igual ... */ };
-export const listarPorLoja = async (req, res, next) => { /* ... igual ... */ };
+export const buscarPorId = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const registro = await financeiroModel.getById(id);
+    if (!registro) return res.status(404).json({ message: "Não encontrado" });
+    res.json(registro);
+  } catch (err) { next(err); }
+};
 
-// Criar manual (Atualizado com categoria e forma de pagamento)
+export const listarPorLoja = async (req, res, next) => {
+  try {
+    const { loja_id } = req.params;
+    const registros = await financeiroModel.getByLojaId(loja_id);
+    res.json(registros);
+  } catch (err) { next(err); }
+};
+
 export const criar = async (req, res, next) => {
   try {
     const { loja_id, tipo, categoria_id, origem, referencia_id, descricao, valor, forma_pagamento, data_movimento } = req.body;
@@ -24,7 +34,7 @@ export const criar = async (req, res, next) => {
 
     const id = await financeiroModel.createMovimento({
       loja_id,
-      tipo, // 'Entrada' ou 'Saída'
+      tipo, 
       categoria_id: categoria_id || null,
       origem,
       referencia_id: referencia_id ?? null,
@@ -35,22 +45,32 @@ export const criar = async (req, res, next) => {
     });
 
     res.status(201).json({ message: "Movimentação criada com sucesso", id });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// ... atualizar e deletar permanecem iguais ... 
-export const atualizar = async (req, res, next) => { /* ... igual ... */ };
-export const deletar = async (req, res, next) => { /* ... igual ... */ };
+export const atualizar = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const linhas = await financeiroModel.updateMovimento(id, req.body);
+    if (!linhas) return res.status(404).json({ message: "Não encontrado" });
+    res.json({ message: "Atualizado com sucesso" });
+  } catch (err) { next(err); }
+};
 
-// --- NOVOS ENDPOINTS DE RELATÓRIO ---
+export const deletar = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const deletado = await financeiroModel.deleteMovimento(id);
+    if (!deletado) return res.status(404).json({ message: "Não encontrado" });
+    res.json({ message: "Removido com sucesso" });
+  } catch (err) { next(err); }
+};
+
+// --- RELATÓRIOS ---
 
 export const relatorioKPIs = async (req, res, next) => {
   try {
     const { inicio, fim } = req.query;
-    if(!inicio || !fim) return res.status(400).json({message: "Informe data inicio e fim"});
-    
     const dados = await financeiroModel.getKPIs(inicio, fim);
     res.json(dados);
   } catch (err) { next(err); }
@@ -58,8 +78,17 @@ export const relatorioKPIs = async (req, res, next) => {
 
 export const relatorioCategorias = async (req, res, next) => {
   try {
-    const { tipo, inicio, fim } = req.query; // tipo = 'Entrada' ou 'Saída'
+    const { tipo, inicio, fim } = req.query; 
     const dados = await financeiroModel.getReportPorCategoria(tipo || "Saída", inicio, fim);
+    res.json(dados);
+  } catch (err) { next(err); }
+};
+
+export const relatorioFormasPagamento = async (req, res, next) => {
+  try {
+    const { tipo, inicio, fim } = req.query;
+    // Padrão 'Entrada' pois geralmente queremos saber como recebemos dinheiro
+    const dados = await financeiroModel.getReportFormasPagamento(tipo || "Entrada", inicio, fim);
     res.json(dados);
   } catch (err) { next(err); }
 };

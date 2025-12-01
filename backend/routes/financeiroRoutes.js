@@ -6,9 +6,10 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-// Relatórios (DEVEM VIR ANTES DAS ROTAS COM :id)
+// Relatórios
 router.get("/dashboard/kpis", financeiroController.relatorioKPIs);
 router.get("/dashboard/categorias", financeiroController.relatorioCategorias);
+router.get("/dashboard/formas-pagamento", financeiroController.relatorioFormasPagamento); // <--- NOVA ROTA
 router.get("/dashboard/anual", financeiroController.relatorioAnual);
 
 // CRUD

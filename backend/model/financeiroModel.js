@@ -6,7 +6,6 @@ const table = "financeiro";
 export async function getAll() {
   const connection = await db.getConnection();
   try {
-    // Traz o nome da categoria junto
     const sql = `
       SELECT f.*, c.nome as nome_categoria 
       FROM ${table} f
@@ -40,9 +39,8 @@ export async function deleteMovimento(id) {
   return await db.deleteRecord(table, `financeiro_id = ${id}`);
 }
 
-// --- NOVAS FUNÇÕES PARA RELATÓRIOS (DASHBOARD) ---
+// --- RELATÓRIOS DASHBOARD ---
 
-// 1. KPIs (Resumo Total)
 export async function getKPIs(dataInicio, dataFim) {
   const connection = await db.getConnection();
   try {
@@ -61,7 +59,6 @@ export async function getKPIs(dataInicio, dataFim) {
   }
 }
 
-// 2. Relatório por Categoria (Para gráfico de Pizza/Rosca)
 export async function getReportPorCategoria(tipo, dataInicio, dataFim) {
   const connection = await db.getConnection();
   try {
@@ -79,7 +76,23 @@ export async function getReportPorCategoria(tipo, dataInicio, dataFim) {
   }
 }
 
-// 3. Relatório Mensal (Para gráfico de Barras)
+// NOVO: Relatório por Forma de Pagamento
+export async function getReportFormasPagamento(tipo, dataInicio, dataFim) {
+  const connection = await db.getConnection();
+  try {
+    const sql = `
+      SELECT forma_pagamento, SUM(valor) as total
+      FROM ${table}
+      WHERE tipo = ? AND data_movimento BETWEEN ? AND ?
+      GROUP BY forma_pagamento
+    `;
+    const [rows] = await connection.execute(sql, [tipo, dataInicio, dataFim]);
+    return rows;
+  } finally {
+    connection.release();
+  }
+}
+
 export async function getReportMensal(ano) {
   const connection = await db.getConnection();
   try {
