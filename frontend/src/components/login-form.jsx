@@ -73,7 +73,13 @@ export function LoginForm({ className, ...props }) {
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
+
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="email">E-mail</FieldLabel>
+
                 <FieldLabel htmlFor="email" className="text-white">E-mail</FieldLabel>
+
                 <Input
                   id="email"
                   type="email"
@@ -114,10 +120,12 @@ export function LoginForm({ className, ...props }) {
           </form>
         </CardContent>
       </Card>
-      <FieldDescription className="px-6 text-center text-gray-300">
+
+      <FieldDescription className="px-6 text-center">
         Ao clicar em entrar, você concorda com nossos{" "}
-        <a href="#" className="hover:text-white">Termos de Serviço</a> e{" "}
-        <a href="#" className="hover:text-white">Política de Privacidade</a>.
+        <a href="#">Termos de Serviço</a> e{" "}
+        <a href="#">Política de Privacidade</a>.
+
       </FieldDescription>
     </div>
   );
