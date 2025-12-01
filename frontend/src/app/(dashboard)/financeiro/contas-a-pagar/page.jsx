@@ -7,7 +7,6 @@ import {
   Plus, 
   Search, 
   Filter, 
-  FileText, 
   AlertCircle, 
   CheckCircle2, 
   CalendarClock,
@@ -17,7 +16,6 @@ import {
   ArrowDownRight
 } from "lucide-react";
 
-// Componentes UI (Shadcn)
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,10 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-// Gráficos
 import {
   ResponsiveContainer,
   BarChart,
@@ -48,7 +44,6 @@ import {
   CartesianGrid
 } from "recharts";
 
-// Serviços
 import { 
   readAll as listarContas, 
   deleteRecord as deletarConta, 
@@ -57,66 +52,55 @@ import {
 import { readAll as listarFornecedores } from "@/services/fornecedorService";
 import { readAll as listarLojas } from "@/services/lojaService";
 
-// Componentes Internos
 import { ContasPagarTable } from "@/components/financeiro/contas-pagar-table";
 import { ContaPagarForm } from "@/components/financeiro/conta-pagar-form";
 
-// --- Utilitários ---
 const formatCurrency = (val) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-// Cores baseadas no tema (CSS Variables) para o Recharts
 const getThemeColor = (variable) => {
   if (typeof window !== "undefined") {
     return `hsl(${getComputedStyle(document.documentElement).getPropertyValue(variable)})`;
   }
-  return "#000"; // Fallback
+  return "#000";
 };
 
 export default function ContasAPagarPage() {
   const { token } = useAuth();
   
-  // Dados
   const [contas, setContas] = useState([]);
   const [fornecedores, setFornecedores] = useState([]);
   const [lojas, setLojas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filtros
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("todos");
 
-  // Modal
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingConta, setEditingConta] = useState(null);
 
-  // Cores dinâmicas para gráficos
   const [chartColors, setChartColors] = useState({
     primary: "#000",
     destructive: "#ef4444",
-    success: "#22c55e",
-    warning: "#eab308",
+    success: "hsl(142.1 76.2% 36.3%)",
+    warning: "hsl(47.9 95.8% 53.1%)",
     muted: "#94a3b8"
   });
 
   useEffect(() => {
-    // Carrega cores do tema atual para os gráficos
     setChartColors({
       primary: getThemeColor("--primary"),
       destructive: getThemeColor("--destructive"),
-      success: "hsl(142.1 76.2% 36.3%)", // Green-600
-      warning: "hsl(47.9 95.8% 53.1%)",  // Yellow-500
+      success: "hsl(142.1 76.2% 36.3%)",
+      warning: "hsl(47.9 95.8% 53.1%)",
       muted: getThemeColor("--muted-foreground")
     });
   }, []);
 
-  // --- Helper para tratar respostas da API ---
   const normalizeData = (res) => Array.isArray(res) ? res : (res?.data || []);
 
-  // --- Carregamento de Dados ---
   const fetchData = async () => {
     if (!token) return;
-    
     try {
       setIsLoading(true);
       const [contasRes, fornecedoresRes, lojasRes] = await Promise.all([
@@ -129,12 +113,10 @@ export default function ContasAPagarPage() {
       const listaLojas = normalizeData(lojasRes);
       const listaContas = normalizeData(contasRes);
 
-      // Mapeamento Robusto (Lida com String vs Number e Estrutura dos Services)
-      // O service retorna { id, nome } já normalizado
       const fornecedorMap = new Map();
       listaFornecedores.forEach(f => {
-        fornecedorMap.set(String(f.id), f.nome); // Chave como string
-        fornecedorMap.set(Number(f.id), f.nome); // Chave como number (garantia)
+        fornecedorMap.set(String(f.id), f.nome);
+        fornecedorMap.set(Number(f.id), f.nome);
       });
 
       const lojaMap = new Map();
@@ -144,18 +126,13 @@ export default function ContasAPagarPage() {
       });
 
       const contasEnriquecidas = listaContas.map(c => {
-        // Lógica de Vencimento
         const hoje = new Date();
         hoje.setHours(0, 0, 0, 0);
-        
-        // Ajuste de fuso horário simples para data YYYY-MM-DD
         const dataVenc = c.data_vencimento ? new Date(c.data_vencimento) : null;
-        
         const isVencido = c.status === 'Pendente' && dataVenc && dataVenc < hoje;
 
         return {
           ...c,
-          // Busca no mapa ou usa o próprio ID se não achar (fallback melhor que 'Desconhecido')
           fornecedor_nome: fornecedorMap.get(c.fornecedor_id) || "Fornecedor Removido",
           loja_nome: lojaMap.get(c.loja_id) || "Loja Externa",
           status_real: isVencido ? 'Vencido' : c.status
@@ -167,7 +144,7 @@ export default function ContasAPagarPage() {
       setLojas(listaLojas);
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao carregar dados financeiros.");
+      toast.error("Erro ao carregar dados.");
     } finally {
       setIsLoading(false);
     }
@@ -175,10 +152,8 @@ export default function ContasAPagarPage() {
 
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // --- Lógica de Filtro ---
   const filteredData = useMemo(() => {
     return contas.filter(conta => {
       const searchLower = searchTerm.toLowerCase();
@@ -194,7 +169,6 @@ export default function ContasAPagarPage() {
     });
   }, [contas, searchTerm, statusFilter]);
 
-  // --- KPIs e Gráficos ---
   const kpis = useMemo(() => {
     const totalPendente = contas
       .filter(c => c.status_real === 'Pendente')
@@ -212,7 +186,6 @@ export default function ContasAPagarPage() {
   }, [contas]);
 
   const chartsData = useMemo(() => {
-    // 1. Distribuição por Status
     const statusCount = contas.reduce((acc, curr) => {
       const st = curr.status_real || 'Pendente';
       if (!acc[st]) acc[st] = 0;
@@ -225,7 +198,6 @@ export default function ContasAPagarPage() {
       value: statusCount[key]
     }));
 
-    // 2. Top 5 Fornecedores (Gastos)
     const fornecedorGastos = contas.reduce((acc, curr) => {
       const nome = curr.fornecedor_nome;
       if (!acc[nome]) acc[nome] = 0;
@@ -238,7 +210,6 @@ export default function ContasAPagarPage() {
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 5);
 
-    // 3. Fluxo de Vencimentos
     const timelineMap = contas.reduce((acc, curr) => {
       if(!curr.data_vencimento) return acc;
       const data = new Date(curr.data_vencimento).toISOString().split('T')[0];
@@ -258,12 +229,11 @@ export default function ContasAPagarPage() {
     return { pieData, barData, areaData };
   }, [contas]);
 
-  // --- Handlers ---
   const handleDelete = async (conta) => {
-    // eslint-disable-next-line no-restricted-globals
     if (!confirm("Tem certeza que deseja excluir esta conta?")) return;
     try {
-      await deletarConta(conta.conta_pagar_id, token);
+      // CORREÇÃO: Usar conta.id
+      await deletarConta(conta.id, token);
       toast.success("Conta excluída.");
       fetchData();
     } catch (err) {
@@ -272,10 +242,10 @@ export default function ContasAPagarPage() {
   };
 
   const handlePagar = async (conta) => {
-    // eslint-disable-next-line no-restricted-globals
     if (!confirm(`Confirmar pagamento de ${formatCurrency(conta.valor)}?`)) return;
     try {
-      await marcarComoPago(conta.conta_pagar_id, token);
+      // CORREÇÃO: Usar conta.id
+      await marcarComoPago(conta.id, token);
       toast.success("Conta paga com sucesso!");
       fetchData();
     } catch (err) {
@@ -296,8 +266,6 @@ export default function ContasAPagarPage() {
 
   return (
     <div className="flex flex-col gap-8 p-8 max-w-[1600px] mx-auto">
-      
-      {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
@@ -316,7 +284,6 @@ export default function ContasAPagarPage() {
 
       <Separator />
 
-      {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -369,14 +336,11 @@ export default function ContasAPagarPage() {
         </Card>
       </div>
 
-      {/* Seção de Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
-        
-        {/* Gráfico 1: Barras - Top Fornecedores */}
         <Card className="col-span-1 lg:col-span-4">
           <CardHeader>
             <CardTitle>Maiores Credores</CardTitle>
-            <CardDescription>Top 5 fornecedores por volume financeiro</CardDescription>
+            <CardDescription>Top 5 fornecedores por volume</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {chartsData.barData.length > 0 ? (
@@ -405,11 +369,10 @@ export default function ContasAPagarPage() {
           </CardContent>
         </Card>
 
-        {/* Gráfico 2: Donut - Status */}
         <Card className="col-span-1 lg:col-span-3">
           <CardHeader>
-            <CardTitle>Status das Contas</CardTitle>
-            <CardDescription>Distribuição por situação</CardDescription>
+            <CardTitle>Status</CardTitle>
+            <CardDescription>Distribuição financeira</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {chartsData.pieData.length > 0 ? (
@@ -447,7 +410,6 @@ export default function ContasAPagarPage() {
           </CardContent>
         </Card>
 
-        {/* Gráfico 3: Área - Cronograma de Vencimentos */}
         <Card className="col-span-1 lg:col-span-7">
           <CardHeader>
             <CardTitle>Fluxo de Vencimentos</CardTitle>
@@ -490,7 +452,6 @@ export default function ContasAPagarPage() {
         </Card>
       </div>
 
-      {/* Tabela de Dados */}
       <Card>
         <CardHeader>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -534,7 +495,6 @@ export default function ContasAPagarPage() {
         </CardContent>
       </Card>
 
-      {/* Formulário Modal */}
       <ContaPagarForm 
         open={isFormOpen}
         setOpen={setIsFormOpen}

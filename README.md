@@ -1,0 +1,165 @@
+⚡ QG Blackout — Sistema de Gestão e PDV
+
+Monorepo oficial do ecossistema QG Blackout: um sistema completo de ERP + PDV com API central, interface administrativa e interface operacional moderna.
+
+📘 Visão Geral
+
+Este repositório reúne todos os componentes do sistema, integrados para oferecer uma solução robusta, escalável e fácil de manter:
+
+Backend (API): núcleo do sistema — regras de negócio, autenticação, comunicação com MySQL.
+
+Frontend Admin: interface administrativa completa para cadastros e configurações.
+
+Frontend QGB: interface visual moderna com dashboards operacionais.
+
+🗂 Estrutura do Repositório
+Pasta	Descrição	Tecnologias
+/backend	API REST que gerencia todo o sistema	Node.js, Express, MySQL, JWT
+/frontend	Painel administrativo (gestão)	Next.js, React 19, Shadcn/ui
+/frontend-qgb	Interface operacional (visual)	Next.js, DaisyUI, Recharts
+/db	Scripts SQL e backups	MySQL
+/documentacao	Documentos e diagramas do projeto	Markdown
+🛠 Tecnologias Utilizadas
+🔹 Backend (/backend)
+
+Node.js
+
+Express.js
+
+MySQL
+
+Autenticação JWT + bcrypt
+
+Uploads com Multer
+
+🔹 Frontend Admin (/frontend)
+
+Next.js (App Router)
+
+React 19
+
+Tailwind + Shadcn/ui
+
+React Hook Form, Zod, react-imask
+
+Tabelas com TanStack
+
+Drag & Drop (Dnd-kit)
+
+🔹 Frontend QGB (/frontend-qgb)
+
+Next.js
+
+TypeScript (suporte)
+
+Tailwind + DaisyUI + Shadcn/ui
+
+Gráficos com Recharts
+
+⚙️ Pré-requisitos
+
+Antes de iniciar, instale:
+
+Node.js 18+
+
+MySQL (local ou remoto)
+
+Git
+
+🚀 Instalação e Execução
+1️⃣ Configurar a Base de Dados
+
+Crie o schema (ex.: qg_db) no MySQL.
+
+Importe o arquivo mais recente de /db (ex.: Dump20251201/...).
+
+2️⃣ Iniciar o Backend
+cd backend
+npm install
+
+
+Configurar o ambiente:
+
+Duplique .env.example → renomeie para .env
+
+Preencha com suas credenciais MySQL (DB_HOST, DB_USER, DB_PASS, etc.)
+
+Iniciar:
+
+npm run dev
+
+
+Servidor disponível em algo como http://localhost:3001.
+
+3️⃣ Iniciar o Frontend Admin
+cd frontend
+npm install
+npm run dev
+
+
+Acesso: http://localhost:3000
+
+4️⃣ Iniciar o Frontend QGB
+cd frontend-qgb
+npm install
+npm run dev
+
+
+Acesso: http://localhost:3001
+ (ou outra porta caso haja conflito)
+
+📂 Funcionalidades do Sistema
+🔐 Autenticação
+
+Login seguro
+
+Gestão de sessões com JWT
+
+🧾 Cadastros Gerais
+
+Clientes
+
+Fornecedores
+
+Funcionários
+
+Lojas
+
+Produtos
+
+📦 Gestão de Estoque
+
+Inventário
+
+Produtos de fornecedores
+
+Solicitações de reposição
+
+💳 Ponto de Venda (PDV)
+
+Abertura e fecho de caixa
+
+Registro de vendas
+
+Pagamentos
+
+💰 Financeiro
+
+Contas a pagar
+
+Fluxo de caixa
+
+Registros financeiros
+
+📊 Relatórios e Dashboards
+
+Vendas
+
+Caixas
+
+Gráficos financeiros (via Recharts no QGB)
+
+📝 Licença
+
+Este software é proprietário e desenvolvido exclusivamente para QG Blackout.
+Cópia, modificação, distribuição ou uso não autorizado são terminantemente proibidos.

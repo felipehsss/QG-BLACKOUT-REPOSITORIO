@@ -35,13 +35,25 @@ import {
 } from "@/services/contaPagarService";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Lista de Categorias Padrão (Isso deve bater com a lógica do seu Backend)
+const CATEGORIAS = [
+  "Fornecedores",
+  "Salário",
+  "Operacional", // Água, Luz, Aluguel
+  "Impostos",
+  "Marketing",
+  "Manutenção",
+  "Outros"
+];
+
 // Schema de validação
 const formSchema = z.object({
   descricao: z.string().min(3, "Descrição obrigatória"),
-  valor: z.coerce.number().min(0.01, "Informe um valor válido"), // coerce converte string pra number
+  valor: z.coerce.number().min(0.01, "Informe um valor válido"),
   data_vencimento: z.string().min(1, "Informe a data de vencimento"),
-  fornecedor_id: z.string().min(1, "Selecione um fornecedor"),
+  fornecedor_id: z.string().optional(), // Opcional pois pode ser conta de luz (sem fornecedor cadastrado)
   loja_id: z.string().min(1, "Selecione uma loja"),
+  categoria: z.string().min(1, "Selecione uma categoria"), // <--- NOVO CAMPO
   status: z.enum(["Pendente", "Pago"]).default("Pendente"),
 });
 
@@ -57,6 +69,7 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
       data_vencimento: "",
       fornecedor_id: "",
       loja_id: "",
+      categoria: "", // <--- Default vazio
       status: "Pendente",
     },
   });
@@ -67,8 +80,9 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
         descricao: initialData.descricao || "",
         valor: initialData.valor || "",
         data_vencimento: initialData.data_vencimento ? initialData.data_vencimento.split('T')[0] : "",
-        fornecedor_id: String(initialData.fornecedor_id || ""),
+        fornecedor_id: initialData.fornecedor_id ? String(initialData.fornecedor_id) : "0",
         loja_id: String(initialData.loja_id || ""),
+        categoria: initialData.categoria || "", // <--- Carrega categoria existente
         status: initialData.status || "Pendente",
       });
     } else {
@@ -78,6 +92,7 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
         data_vencimento: "",
         fornecedor_id: "",
         loja_id: "",
+        categoria: "",
         status: "Pendente",
       });
     }
@@ -89,7 +104,8 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
       const payload = {
         ...data,
         valor: parseFloat(data.valor),
-        fornecedor_id: parseInt(data.fornecedor_id),
+        // Se fornecedor for vazio ou "0", envia null
+        fornecedor_id: (data.fornecedor_id && data.fornecedor_id !== "0") ? parseInt(data.fornecedor_id) : null,
         loja_id: parseInt(data.loja_id),
       };
 
@@ -104,6 +120,7 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
       form.reset();
     } catch (err) {
       console.error("Erro ao salvar conta a pagar:", err);
+      alert("Erro ao salvar. Verifique os dados.");
     } finally {
       setIsSubmitting(false);
     }
@@ -117,7 +134,7 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
             {initialData ? "Editar Conta" : "Nova Conta a Pagar"}
           </DialogTitle>
           <DialogDescription>
-            Preencha os detalhes da conta abaixo.
+            Preencha os detalhes da conta para controle financeiro.
           </DialogDescription>
         </DialogHeader>
 
@@ -133,7 +150,7 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
                   <FormItem className="col-span-2">
                     <FormLabel>Descrição</FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: Boleto Aluguel" {...field} />
+                      <Input placeholder="Ex: Boleto Aluguel, Compra de Estoque..." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -170,23 +187,23 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
                 )}
               />
 
-              {/* Fornecedor */}
+              {/* --- CAMPO DE CATEGORIA (NOVO) --- */}
               <FormField
                 control={form.control}
-                name="fornecedor_id"
+                name="categoria"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fornecedor</FormLabel>
+                    <FormLabel>Categoria</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Selecione..." />
+                          <SelectValue placeholder="Classifique a despesa" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {fornecedores.map((f) => (
-                          <SelectItem key={f.fornecedor_id} value={String(f.fornecedor_id)}>
-                            {f.nome || f.razao_social}
+                        {CATEGORIAS.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -213,6 +230,33 @@ export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, f
                         {lojas.map((l) => (
                           <SelectItem key={l.loja_id} value={String(l.loja_id)}>
                             {l.nome_fantasia || l.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Fornecedor (Opcional) */}
+              <FormField
+                control={form.control}
+                name="fornecedor_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fornecedor (Opcional)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="0">Sem Fornecedor</SelectItem>
+                        {fornecedores.map((f) => (
+                          <SelectItem key={f.fornecedor_id} value={String(f.fornecedor_id)}>
+                            {f.nome || f.razao_social}
                           </SelectItem>
                         ))}
                       </SelectContent>

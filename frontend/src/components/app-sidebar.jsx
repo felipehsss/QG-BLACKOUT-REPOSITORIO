@@ -102,6 +102,10 @@ const data = {
       icon: PiggyBank,
       items: [
         {
+          title: "Dashboard Financeiro",
+          url: "/financeiro/dashboard",
+        },
+        {
           title: "Contas a Pagar",
           url: "/financeiro/contas-a-pagar",
         },

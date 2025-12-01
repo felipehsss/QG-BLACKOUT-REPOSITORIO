@@ -1,94 +1,100 @@
-// financeiroController.js
 import * as financeiroModel from "../model/financeiroModel.js";
 
-// Listar todas as movimentações
 export const listar = async (req, res, next) => {
   try {
     const registros = await financeiroModel.getAll();
     res.json(registros);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// Buscar movimentação por ID
 export const buscarPorId = async (req, res, next) => {
   try {
     const { id } = req.params;
     const registro = await financeiroModel.getById(id);
-    if (!registro) {
-      return res.status(404).json({ message: "Registro financeiro não encontrado" });
-    }
+    if (!registro) return res.status(404).json({ message: "Não encontrado" });
     res.json(registro);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// Listar movimentações por loja
 export const listarPorLoja = async (req, res, next) => {
   try {
     const { loja_id } = req.params;
     const registros = await financeiroModel.getByLojaId(loja_id);
     res.json(registros);
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
-// Criar novo registro financeiro
 export const criar = async (req, res, next) => {
   try {
-    const { loja_id, tipo, origem, referencia_id, descricao, valor } = req.body;
+    const { loja_id, tipo, categoria_id, origem, referencia_id, descricao, valor, forma_pagamento, data_movimento } = req.body;
 
-    if (!loja_id || !tipo || !origem || !valor) {
-      return res.status(400).json({
-        message: "Campos obrigatórios: loja_id, tipo, origem e valor",
-      });
+    if (!loja_id || !tipo || !valor) {
+      return res.status(400).json({ message: "Campos obrigatórios faltando." });
     }
 
     const id = await financeiroModel.createMovimento({
       loja_id,
-      tipo,
+      tipo, 
+      categoria_id: categoria_id || null,
       origem,
       referencia_id: referencia_id ?? null,
       descricao,
       valor,
+      forma_pagamento: forma_pagamento || "Outros",
+      data_movimento: data_movimento || new Date()
     });
 
-    res.status(201).json({ message: "Movimentação financeira criada com sucesso", id });
-  } catch (err) {
-    next(err);
-  }
+    res.status(201).json({ message: "Movimentação criada com sucesso", id });
+  } catch (err) { next(err); }
 };
 
-// Atualizar movimentação
 export const atualizar = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const dados = req.body;
-
-    const linhas = await financeiroModel.updateMovimento(id, dados);
-    if (!linhas) {
-      return res.status(404).json({ message: "Movimentação não encontrada" });
-    }
-
-    res.json({ message: "Movimentação atualizada com sucesso" });
-  } catch (err) {
-    next(err);
-  }
+    const linhas = await financeiroModel.updateMovimento(id, req.body);
+    if (!linhas) return res.status(404).json({ message: "Não encontrado" });
+    res.json({ message: "Atualizado com sucesso" });
+  } catch (err) { next(err); }
 };
 
-// Deletar movimentação
 export const deletar = async (req, res, next) => {
   try {
     const { id } = req.params;
     const deletado = await financeiroModel.deleteMovimento(id);
-    if (!deletado) {
-      return res.status(404).json({ message: "Movimentação não encontrada" });
-    }
-    res.json({ message: "Movimentação removida com sucesso" });
-  } catch (err) {
-    next(err);
-  }
+    if (!deletado) return res.status(404).json({ message: "Não encontrado" });
+    res.json({ message: "Removido com sucesso" });
+  } catch (err) { next(err); }
+};
+
+// --- RELATÓRIOS ---
+
+export const relatorioKPIs = async (req, res, next) => {
+  try {
+    const { inicio, fim } = req.query;
+    const dados = await financeiroModel.getKPIs(inicio, fim);
+    res.json(dados);
+  } catch (err) { next(err); }
+};
+
+export const relatorioCategorias = async (req, res, next) => {
+  try {
+    const { tipo, inicio, fim } = req.query; 
+    const dados = await financeiroModel.getReportPorCategoria(tipo || "Saída", inicio, fim);
+    res.json(dados);
+  } catch (err) { next(err); }
+};
+export const relatorioFormasPagamento = async (req, res, next) => {
+  try {
+    const { tipo, inicio, fim } = req.query;
+    const dados = await financeiroModel.getReportFormasPagamento(tipo || "Entrada", inicio, fim);
+    res.json(dados);
+  } catch (err) { next(err); }
+};
+
+export const relatorioAnual = async (req, res, next) => {
+  try {
+    const { ano } = req.query;
+    const dados = await financeiroModel.getReportMensal(ano || new Date().getFullYear());
+    res.json(dados);
+  } catch (err) { next(err); }
 };

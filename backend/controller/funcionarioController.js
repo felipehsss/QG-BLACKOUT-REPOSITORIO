@@ -4,7 +4,6 @@ import * as funcionarioModel from "../model/funcionarioModel.js";
 
 const SECRET = process.env.JWT_SECRET || "chaveSecreta123";
 
-// ... listar e buscarPorId permanecem iguais ...
 export const listar = async (req, res, next) => {
   try {
     const funcionarios = await funcionarioModel.getAll();
@@ -29,7 +28,17 @@ export const buscarPorId = async (req, res, next) => {
 
 export const criar = async (req, res, next) => {
   try {
-    const { nome_completo, email, cpf, senha, telefone_contato, data_admissao, loja_id, perfil_id } = req.body;
+    const { 
+      nome_completo, 
+      email, 
+      cpf, 
+      senha, 
+      telefone_contato, 
+      data_admissao, 
+      loja_id, 
+      perfil_id,
+      salario // <--- Novo campo
+    } = req.body;
 
     if (!email || !senha) {
       return res.status(400).json({ message: "E-mail e senha são obrigatórios" });
@@ -53,7 +62,8 @@ export const criar = async (req, res, next) => {
       perfil_id: Number(perfil_id),
       senha_hash,
       is_ativo: 1, // Padrão ativo ao criar
-      foto: req.file ? req.file.filename : null // <--- Foto
+      foto: req.file ? req.file.filename : null,
+      salario: salario ? parseFloat(salario) : null // <--- Tratamento do salário
     };
 
     const id = await funcionarioModel.createFuncionario(novoFuncionario);
@@ -88,6 +98,11 @@ export const atualizar = async (req, res, next) => {
       dados.is_ativo = String(dados.is_ativo) === "true" || dados.is_ativo === true ? 1 : 0;
     }
 
+    // Tratamento do salário na atualização
+    if (dados.salario !== undefined) {
+      dados.salario = dados.salario ? parseFloat(dados.salario) : null;
+    }
+
     const linhas = await funcionarioModel.updateFuncionario(id, dados);
     if (!linhas) {
       return res.status(404).json({ message: "Funcionário não encontrado" });
@@ -112,7 +127,6 @@ export const deletar = async (req, res, next) => {
   }
 };
 
-// ... login permanece igual ...
 export const login = async (req, res, next) => {
   try {
     const { email, senha } = req.body;
