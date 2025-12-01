@@ -8,14 +8,16 @@ import {
   Search, 
   Filter, 
   FileText, 
-  TrendingDown, 
   AlertCircle, 
   CheckCircle2, 
   CalendarClock,
-  DollarSign
+  DollarSign,
+  Loader2,
+  ArrowUpRight,
+  ArrowDownRight
 } from "lucide-react";
 
-// Componentes UI
+// Componentes UI (Shadcn)
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 // Gráficos
 import {
@@ -45,7 +48,7 @@ import {
   CartesianGrid
 } from "recharts";
 
-// Serviços e Componentes Internos
+// Serviços
 import { 
   readAll as listarContas, 
   deleteRecord as deletarConta, 
@@ -54,6 +57,7 @@ import {
 import { readAll as listarFornecedores } from "@/services/fornecedorService";
 import { readAll as listarLojas } from "@/services/lojaService";
 
+// Componentes Internos
 import { ContasPagarTable } from "@/components/financeiro/contas-pagar-table";
 import { ContaPagarForm } from "@/components/financeiro/conta-pagar-form";
 
@@ -61,12 +65,12 @@ import { ContaPagarForm } from "@/components/financeiro/conta-pagar-form";
 const formatCurrency = (val) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-const STATUS_COLORS = {
-  'Pendente': '#fbbf24', // Amber
-  'Pago': '#22c55e',     // Green
-  'Vencido': '#ef4444',  // Red
-  'Cancelado': '#94a3b8' // Slate
+// Cores baseadas no tema (CSS Variables) para o Recharts
+const getThemeColor = (variable) => {
+  if (typeof window !== "undefined") {
+    return `hsl(${getComputedStyle(document.documentElement).getPropertyValue(variable)})`;
+  }
+  return "#000"; // Fallback
 };
 
 export default function ContasAPagarPage() {
@@ -86,8 +90,33 @@ export default function ContasAPagarPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingConta, setEditingConta] = useState(null);
 
+  // Cores dinâmicas para gráficos
+  const [chartColors, setChartColors] = useState({
+    primary: "#000",
+    destructive: "#ef4444",
+    success: "#22c55e",
+    warning: "#eab308",
+    muted: "#94a3b8"
+  });
+
+  useEffect(() => {
+    // Carrega cores do tema atual para os gráficos
+    setChartColors({
+      primary: getThemeColor("--primary"),
+      destructive: getThemeColor("--destructive"),
+      success: "hsl(142.1 76.2% 36.3%)", // Green-600
+      warning: "hsl(47.9 95.8% 53.1%)",  // Yellow-500
+      muted: getThemeColor("--muted-foreground")
+    });
+  }, []);
+
+  // --- Helper para tratar respostas da API ---
+  const normalizeData = (res) => Array.isArray(res) ? res : (res?.data || []);
+
   // --- Carregamento de Dados ---
   const fetchData = async () => {
+    if (!token) return;
+    
     try {
       setIsLoading(true);
       const [contasRes, fornecedoresRes, lojasRes] = await Promise.all([
@@ -96,23 +125,46 @@ export default function ContasAPagarPage() {
         listarLojas(token)
       ]);
 
-      // Mapeamento para garantir que temos nomes em vez de apenas IDs
-      const fornecedorMap = new Map(fornecedoresRes.map(f => [f.fornecedor_id, f.nome || f.razao_social]));
-      const lojaMap = new Map(lojasRes.map(l => [l.loja_id, l.nome || l.nome_fantasia]));
+      const listaFornecedores = normalizeData(fornecedoresRes);
+      const listaLojas = normalizeData(lojasRes);
+      const listaContas = normalizeData(contasRes);
 
-      const contasEnriquecidas = (Array.isArray(contasRes) ? contasRes : []).map(c => ({
-        ...c,
-        fornecedor_nome: fornecedorMap.get(c.fornecedor_id) || 'Desconhecido',
-        loja_nome: lojaMap.get(c.loja_id) || 'N/A',
-        // Calcula status dinâmico se estiver pendente mas data passou
-        status_real: (c.status === 'Pendente' && new Date(c.data_vencimento) < new Date().setHours(0,0,0,0)) 
-          ? 'Vencido' 
-          : c.status
-      }));
+      // Mapeamento Robusto (Lida com String vs Number e Estrutura dos Services)
+      // O service retorna { id, nome } já normalizado
+      const fornecedorMap = new Map();
+      listaFornecedores.forEach(f => {
+        fornecedorMap.set(String(f.id), f.nome); // Chave como string
+        fornecedorMap.set(Number(f.id), f.nome); // Chave como number (garantia)
+      });
+
+      const lojaMap = new Map();
+      listaLojas.forEach(l => {
+        lojaMap.set(String(l.id), l.nome);
+        lojaMap.set(Number(l.id), l.nome);
+      });
+
+      const contasEnriquecidas = listaContas.map(c => {
+        // Lógica de Vencimento
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        
+        // Ajuste de fuso horário simples para data YYYY-MM-DD
+        const dataVenc = c.data_vencimento ? new Date(c.data_vencimento) : null;
+        
+        const isVencido = c.status === 'Pendente' && dataVenc && dataVenc < hoje;
+
+        return {
+          ...c,
+          // Busca no mapa ou usa o próprio ID se não achar (fallback melhor que 'Desconhecido')
+          fornecedor_nome: fornecedorMap.get(c.fornecedor_id) || "Fornecedor Removido",
+          loja_nome: lojaMap.get(c.loja_id) || "Loja Externa",
+          status_real: isVencido ? 'Vencido' : c.status
+        };
+      });
 
       setContas(contasEnriquecidas);
-      setFornecedores(fornecedoresRes);
-      setLojas(lojasRes);
+      setFornecedores(listaFornecedores);
+      setLojas(listaLojas);
     } catch (error) {
       console.error(error);
       toast.error("Erro ao carregar dados financeiros.");
@@ -122,15 +174,17 @@ export default function ContasAPagarPage() {
   };
 
   useEffect(() => {
-    if (token) fetchData();
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // --- Lógica de Filtro e Dados Derivados ---
+  // --- Lógica de Filtro ---
   const filteredData = useMemo(() => {
     return contas.filter(conta => {
+      const searchLower = searchTerm.toLowerCase();
       const matchesSearch = 
-        conta.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conta.fornecedor_nome?.toLowerCase().includes(searchTerm.toLowerCase());
+        (conta.descricao || "").toLowerCase().includes(searchLower) ||
+        (conta.fornecedor_nome || "").toLowerCase().includes(searchLower);
       
       const matchesStatus = statusFilter === "todos" 
         ? true 
@@ -140,7 +194,7 @@ export default function ContasAPagarPage() {
     });
   }, [contas, searchTerm, statusFilter]);
 
-  // --- KPIs e Gráficos (Memoizados) ---
+  // --- KPIs e Gráficos ---
   const kpis = useMemo(() => {
     const totalPendente = contas
       .filter(c => c.status_real === 'Pendente')
@@ -184,30 +238,33 @@ export default function ContasAPagarPage() {
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 5);
 
-    // 3. Linha do Tempo (Vencimentos)
-    // Agrupa por data (YYYY-MM-DD)
+    // 3. Fluxo de Vencimentos
     const timelineMap = contas.reduce((acc, curr) => {
       if(!curr.data_vencimento) return acc;
-      const data = curr.data_vencimento.split('T')[0];
+      const data = new Date(curr.data_vencimento).toISOString().split('T')[0];
       if (!acc[data]) acc[data] = 0;
       acc[data] += Number(curr.valor);
       return acc;
     }, {});
 
     const areaData = Object.keys(timelineMap)
-      .map(date => ({ date, valor: timelineMap[date], displayDate: new Date(date).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}) }))
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(-15); // Últimos 15 registros de data para não poluir
+      .map(date => ({ 
+        date, 
+        valor: timelineMap[date], 
+        displayDate: new Date(date).toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}) 
+      }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     return { pieData, barData, areaData };
   }, [contas]);
 
   // --- Handlers ---
   const handleDelete = async (conta) => {
+    // eslint-disable-next-line no-restricted-globals
     if (!confirm("Tem certeza que deseja excluir esta conta?")) return;
     try {
       await deletarConta(conta.conta_pagar_id, token);
-      toast.success("Conta excluída com sucesso.");
+      toast.success("Conta excluída.");
       fetchData();
     } catch (err) {
       toast.error("Erro ao excluir conta.");
@@ -215,78 +272,99 @@ export default function ContasAPagarPage() {
   };
 
   const handlePagar = async (conta) => {
+    // eslint-disable-next-line no-restricted-globals
     if (!confirm(`Confirmar pagamento de ${formatCurrency(conta.valor)}?`)) return;
     try {
       await marcarComoPago(conta.conta_pagar_id, token);
-      toast.success("Conta marcada como paga!");
+      toast.success("Conta paga com sucesso!");
       fetchData();
     } catch (err) {
       toast.error("Erro ao atualizar status.");
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-muted-foreground text-sm">Carregando financeiro...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-8 p-8 max-w-[1600px] mx-auto">
+      
       {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            <DollarSign className="h-8 w-8 text-primary" /> Contas a Pagar
+            Contas a Pagar
           </h1>
           <p className="text-muted-foreground mt-1">
-            Gestão completa de despesas e obrigações financeiras.
+            Controle de despesas, vencimentos e fornecedores.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => { setEditingConta(null); setIsFormOpen(true); }}>
+          <Button onClick={() => { setEditingConta(null); setIsFormOpen(true); }} className="bg-primary hover:bg-primary/90">
             <Plus className="mr-2 h-4 w-4" /> Nova Conta
           </Button>
         </div>
       </div>
 
+      <Separator />
+
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-amber-500">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">A Pagar (Pendente)</CardTitle>
-            <CalendarClock className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">A Pagar (Pendente)</CardTitle>
+            <CalendarClock className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(kpis.totalPendente)}</div>
-            <p className="text-xs text-muted-foreground">Previsão de saída</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-red-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Vencido</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{formatCurrency(kpis.totalVencido)}</div>
-            <p className="text-xs text-muted-foreground">Requer atenção imediata</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pago</CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(kpis.totalPago)}</div>
-            <p className="text-xs text-muted-foreground">Total liquidado</p>
+            <div className="text-2xl font-bold text-warning">{formatCurrency(kpis.totalPendente)}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+              <ArrowUpRight className="w-3 h-3 mr-1"/> Previsão de saída
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Geral</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Vencido</CardTitle>
+            <AlertCircle className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{formatCurrency(kpis.totalVencido)}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+              <AlertCircle className="w-3 h-3 mr-1"/> Atenção necessária
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pago</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{formatCurrency(kpis.totalPago)}</div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center">
+              <ArrowDownRight className="w-3 h-3 mr-1"/> Total liquidado
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Geral</CardTitle>
+            <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(kpis.totalGeral)}</div>
-            <p className="text-xs text-muted-foreground">Volume total registrado</p>
+            <p className="text-xs text-muted-foreground mt-1">Volume total registrado</p>
           </CardContent>
         </Card>
       </div>
@@ -297,55 +375,75 @@ export default function ContasAPagarPage() {
         {/* Gráfico 1: Barras - Top Fornecedores */}
         <Card className="col-span-1 lg:col-span-4">
           <CardHeader>
-            <CardTitle>Top Gastos por Fornecedor</CardTitle>
-            <CardDescription>Onde o dinheiro está sendo alocado</CardDescription>
+            <CardTitle>Maiores Credores</CardTitle>
+            <CardDescription>Top 5 fornecedores por volume financeiro</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartsData.barData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 12}} />
-                <Tooltip 
-                  formatter={(value) => formatCurrency(value)}
-                  cursor={{fill: 'transparent'}}
-                />
-                <Bar dataKey="valor" fill="#8884d8" radius={[0, 4, 4, 0]}>
-                  {chartsData.barData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {chartsData.barData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartsData.barData} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    width={120} 
+                    tick={{fontSize: 12, fill: "hsl(var(--muted-foreground))"}} 
+                    interval={0}
+                  />
+                  <Tooltip 
+                    formatter={(value) => formatCurrency(value)}
+                    cursor={{fill: 'hsl(var(--muted)/0.3)'}}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
+                  />
+                  <Bar dataKey="valor" fill={chartColors.primary} radius={[0, 4, 4, 0]} barSize={24} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Sem dados suficientes</div>
+            )}
           </CardContent>
         </Card>
 
         {/* Gráfico 2: Donut - Status */}
         <Card className="col-span-1 lg:col-span-3">
           <CardHeader>
-            <CardTitle>Composição por Status</CardTitle>
-            <CardDescription>Distribuição do valor monetário</CardDescription>
+            <CardTitle>Status das Contas</CardTitle>
+            <CardDescription>Distribuição por situação</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={chartsData.pieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {chartsData.pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#8884d8'} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
+            {chartsData.pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={chartsData.pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    dataKey="value"
+                    stroke="hsl(var(--background))"
+                    strokeWidth={2}
+                  >
+                    {chartsData.pieData.map((entry, index) => {
+                      let color = chartColors.muted;
+                      if(entry.name === 'Pago') color = chartColors.success;
+                      if(entry.name === 'Pendente') color = chartColors.warning;
+                      if(entry.name === 'Vencido') color = chartColors.destructive;
+                      return <Cell key={`cell-${index}`} fill={color} />;
+                    })}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value) => formatCurrency(value)} 
+                    contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--popover))' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle"/>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Sem dados suficientes</div>
+            )}
           </CardContent>
         </Card>
 
@@ -353,24 +451,41 @@ export default function ContasAPagarPage() {
         <Card className="col-span-1 lg:col-span-7">
           <CardHeader>
             <CardTitle>Fluxo de Vencimentos</CardTitle>
-            <CardDescription>Valores a pagar por data de vencimento</CardDescription>
+            <CardDescription>Valores a pagar previstos por data</CardDescription>
           </CardHeader>
           <CardContent className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartsData.areaData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="displayDate" />
-                <YAxis tickFormatter={(val) => `R$${val/1000}k`} />
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <Area type="monotone" dataKey="valor" stroke="#ef4444" fillOpacity={1} fill="url(#colorValor)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            {chartsData.areaData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartsData.areaData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorValor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={chartColors.primary} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={chartColors.primary} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis 
+                    dataKey="displayDate" 
+                    tick={{fontSize: 12, fill: "hsl(var(--muted-foreground))"}} 
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    tickFormatter={(val) => `R$${(val/1000).toFixed(0)}k`} 
+                    tick={{fontSize: 12, fill: "hsl(var(--muted-foreground))"}} 
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    formatter={(value) => formatCurrency(value)} 
+                    contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--popover))' }}
+                  />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <Area type="monotone" dataKey="valor" stroke={chartColors.primary} fillOpacity={1} fill="url(#colorValor)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground text-sm">Sem dados de vencimento</div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -380,23 +495,22 @@ export default function ContasAPagarPage() {
         <CardHeader>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <CardTitle>Listagem de Contas</CardTitle>
-              <CardDescription>Gerencie os registros individuais abaixo.</CardDescription>
+              <CardTitle>Registros</CardTitle>
+              <CardDescription>Lista completa de obrigações.</CardDescription>
             </div>
             
-            {/* Filtros da Tabela */}
-            <div className="flex gap-2 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar fornecedor ou descrição..."
+                  placeholder="Filtrar por fornecedor..."
                   className="pl-8"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[140px]">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
