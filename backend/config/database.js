@@ -18,6 +18,18 @@ async function getConnection() {
   return await pool.getConnection();
 }
 
+// Executa uma query SQL bruta (Custom Query)
+// Esta é a função que estava faltando
+async function readWithQuery(sql, params = []) {
+  const connection = await getConnection();
+  try {
+    const [rows] = await connection.execute(sql, params);
+    return rows;
+  } finally {
+    connection.release();
+  }
+}
+
 // Adicionado params = []
 async function readAll(table, where = null, params = []) {
   const connection = await getConnection();
@@ -87,4 +99,5 @@ async function deleteRecord(table, where, params = []) {
   }
 }
 
-export { create, readAll, read, update, deleteRecord, getConnection };
+// Não esqueça de exportar a nova função aqui
+export { create, readAll, read, readWithQuery, update, deleteRecord, getConnection };

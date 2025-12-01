@@ -1,180 +1,250 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Table, TableHeader, TableRow, TableHead, TableCell, TableBody } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Check, X, Eye, Clock, Truck, PackageCheck } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Check, X, Eye, Clock, Truck, PackageCheck, MapPin, Archive } from "lucide-react"
 import { toast } from "sonner"
+// Importamos tudo do serviço
+import * as solicitacaoService from "@/services/solicitacaoService"
 
-// MOCK DE DADOS (Simulando o que viria de uma API /api/requerimentos)
-const requerimentosMock = [
-  {
-    id: "REQ-001",
-    loja: "QG Blackout - Centro",
-    data: "29/11/2025 10:30",
-    status: "Pendente",
-    itens: [
-      { nome: "Pastilha de Freio Bosch", qtd: 10, codigo: "PF-001" },
-      { nome: "Óleo 5w30", qtd: 20, codigo: "OL-530" }
-    ],
-    obs: "Urgência para cliente VIP."
-  },
-  {
-    id: "REQ-002",
-    loja: "QG Blackout - Zona Norte",
-    data: "28/11/2025 15:45",
-    status: "Aprovado",
-    itens: [
-      { nome: "Lâmpada H4", qtd: 50, codigo: "LP-H4" }
-    ],
-    obs: "Reposição mensal."
-  },
-  {
-    id: "REQ-003",
-    loja: "QG Blackout - Shopping",
-    data: "28/11/2025 09:00",
-    status: "Rejeitado",
-    itens: [
-      { nome: "Pneu 175/70 R13", qtd: 4, codigo: "PN-13" }
-    ],
-    obs: "Sem estoque na matriz no momento."
-  }
-]
+// Componente simples de Timeline para visualizar o status
+const TimelineStatus = ({ status }) => {
+  const steps = [
+    { id: 'Pendente', label: 'Solicitado', icon: Clock },
+    { id: 'Em Trânsito', label: 'Em Trânsito', icon: Truck },
+    { id: 'Concluída', label: 'Entregue', icon: MapPin },
+  ];
+
+  const currentIndex = steps.findIndex(s => s.id === status);
+  const isRejected = status === 'Rejeitada';
+
+  if(isRejected) return (
+    <div className="text-red-600 font-bold flex items-center justify-center p-4 bg-red-50 rounded-lg">
+        <X className="mr-2"/> Pedido Recusado pela Matriz
+    </div>
+  )
+
+  return (
+    <div className="flex items-center justify-between w-full px-4 py-6">
+      {steps.map((step, index) => {
+        // Lógica: se o status atual for 'Concluída', todos os passos anteriores ficam ativos
+        const isActive = index <= currentIndex || (status === 'Concluída'); 
+        const isCurrent = index === currentIndex;
+        
+        return (
+          <div key={step.id} className="flex flex-col items-center relative z-10 w-1/3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 
+              ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-muted-foreground/30'}
+              ${isCurrent ? 'ring-4 ring-primary/20 scale-110' : ''}
+            `}>
+              <step.icon className="w-5 h-5" />
+            </div>
+            <span className={`text-xs mt-2 font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+              {step.label}
+            </span>
+            {/* Linha conectora entre as bolinhas */}
+            {index < steps.length - 1 && (
+              <div className={`absolute top-5 left-1/2 w-full h-[2px] -z-10 
+                ${index < currentIndex ? 'bg-primary' : 'bg-muted-foreground/20'}
+              `} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function RequerimentosPage() {
-  const [requerimentos, setRequerimentos] = useState(requerimentosMock)
+  const [requerimentos, setRequerimentos] = useState([])
   const [selectedReq, setSelectedReq] = useState(null)
   const [loadingAction, setLoadingAction] = useState(false)
 
-  const handleStatusChange = (id, novoStatus) => {
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      // Chama o serviço para buscar a lista
+      const data = await solicitacaoService.getSolicitacoes();
+      setRequerimentos(data);
+    } catch (error) {
+      toast.error("Erro ao carregar dados.");
+    }
+  };
+
+  // Função centralizada para lidar com as ações dos botões
+  const handleAction = async (action, id) => {
     setLoadingAction(true)
-    // Aqui você chamaria a API: await apiService.put(`/requerimentos/${id}`, { status: novoStatus })
-    
-    setTimeout(() => {
-      setRequerimentos(prev => prev.map(r => r.id === id ? { ...r, status: novoStatus } : r))
-      toast.success(`Requerimento ${novoStatus === 'Aprovado' ? 'aprovado' : 'rejeitado'} com sucesso.`)
-      setSelectedReq(null)
+    try {
+      if (action === 'despachar') {
+        // CORREÇÃO: Chama a nova função 'despacharSolicitacao'
+        await solicitacaoService.despacharSolicitacao(id);
+        toast.success("Caminhão despachado! Estoque saiu da Matriz.");
+      } else if (action === 'receber') {
+        // CORREÇÃO: Chama a nova função 'receberSolicitacao'
+        await solicitacaoService.receberSolicitacao(id);
+        toast.success("Mercadoria recebida e adicionada ao estoque local.");
+      } else if (action === 'rejeitar') {
+        await solicitacaoService.rejeitarSolicitacao(id);
+        toast.info("Pedido rejeitado.");
+      }
+      
+      // Atualiza a lista e fecha o modal
+      await fetchData();
+      setSelectedReq(null);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Erro na operação");
+    } finally {
       setLoadingAction(false)
-    }, 600)
+    }
   }
 
   const getStatusBadge = (status) => {
     switch(status) {
-      case "Pendente": return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1"/> Pendente</Badge>
-      case "Aprovado": return <Badge className="bg-green-600 hover:bg-green-700"><Truck className="w-3 h-3 mr-1"/> Em Separação</Badge>
-      case "Rejeitado": return <Badge variant="destructive"><X className="w-3 h-3 mr-1"/> Negado</Badge>
+      case "Pendente": return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200"><Clock className="w-3 h-3 mr-1"/> Aguardando Aprovação</Badge>
+      case "Em Trânsito": return <Badge className="bg-blue-600 hover:bg-blue-700 animate-pulse"><Truck className="w-3 h-3 mr-1"/> Em Trânsito</Badge>
+      case "Concluída": return <Badge className="bg-green-600 hover:bg-green-700"><Check className="w-3 h-3 mr-1"/> Recebido</Badge>
+      case "Rejeitada": return <Badge variant="destructive"><X className="w-3 h-3 mr-1"/> Cancelado</Badge>
       default: return <Badge>{status}</Badge>
     }
   }
 
+  const formatDate = (d) => d ? new Date(d).toLocaleString('pt-BR') : "-";
+
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Pedidos das Filiais</h1>
-        <p className="text-muted-foreground">Gerenciamento de solicitações de reposição de estoque.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Logística de Reposição</h1>
+        <p className="text-muted-foreground">Controle de transferências de estoque entre Matriz e Filiais.</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-         {/* Cards de KPI */}
+      <div className="grid gap-6 md:grid-cols-4">
          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Pendentes</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold text-yellow-600">{requerimentos.filter(r => r.status === "Pendente").length}</div></CardContent>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{requerimentos.filter(r => r.status === "Pendente").length}</div></CardContent>
          </Card>
          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Aprovados (Hoje)</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold text-green-600">{requerimentos.filter(r => r.status === "Aprovado").length}</div></CardContent>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-blue-600">Em Trânsito</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold text-blue-700">{requerimentos.filter(r => r.status === "Em Trânsito").length}</div></CardContent>
          </Card>
          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Requisições</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-green-600">Entregues</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold text-green-700">{requerimentos.filter(r => r.status === "Concluída").length}</div></CardContent>
+         </Card>
+         <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle></CardHeader>
             <CardContent><div className="text-2xl font-bold">{requerimentos.length}</div></CardContent>
          </Card>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Solicitações</CardTitle>
-          <CardDescription>Clique em visualizar para aprovar ou rejeitar.</CardDescription>
+          <CardTitle>Painel de Rastreio</CardTitle>
+          <CardDescription>Acompanhe o status de cada solicitação.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Filial Solicitante</TableHead>
-                <TableHead>Data/Hora</TableHead>
+                <TableHead>ID Rastreio</TableHead>
+                <TableHead>Destino</TableHead>
+                <TableHead>Data Pedido</TableHead>
                 <TableHead>Itens</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
+                <TableHead>Status Logístico</TableHead>
+                <TableHead className="text-right">Detalhes</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {requerimentos.map((req) => (
-                <TableRow key={req.id}>
-                  <TableCell className="font-mono font-medium">{req.id}</TableCell>
-                  <TableCell>{req.loja}</TableCell>
-                  <TableCell>{req.data}</TableCell>
-                  <TableCell>{req.itens.length} itens</TableCell>
+                <TableRow key={req.solicitacao_id}>
+                  <TableCell className="font-mono text-xs">TRACK-{req.solicitacao_id.toString().padStart(4, '0')}</TableCell>
+                  <TableCell className="font-medium">{req.loja_nome}</TableCell>
+                  <TableCell>{formatDate(req.data_solicitacao)}</TableCell>
+                  <TableCell>{req.itens ? req.itens.length : 0} volumes</TableCell>
                   <TableCell>{getStatusBadge(req.status)}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => setSelectedReq(req)}>
-                      <Eye className="w-4 h-4 mr-2" /> Visualizar
+                      <Eye className="w-4 h-4 mr-2" /> Ver
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
+              {requerimentos.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                    Nenhuma solicitação encontrada.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* Modal de Detalhes / Aprovação */}
+      {/* Modal de Detalhes Logísticos */}
       <Dialog open={!!selectedReq} onOpenChange={() => setSelectedReq(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>Detalhes do Pedido {selectedReq?.id}</DialogTitle>
-            <div className="text-sm text-muted-foreground pt-1">
-               Solicitado por: <span className="font-medium text-foreground">{selectedReq?.loja}</span> em {selectedReq?.data}
+            <DialogTitle>Rastreamento #{selectedReq?.solicitacao_id}</DialogTitle>
+            <div className="text-sm text-muted-foreground">
+               Destino: <span className="font-bold text-foreground">{selectedReq?.loja_nome}</span>
             </div>
           </DialogHeader>
           
           {selectedReq && (
-            <div className="space-y-4">
-               <div className="border rounded-md p-4 bg-muted/20">
-                  <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
-                    <PackageCheck className="w-4 h-4" /> Itens Solicitados
-                  </h4>
-                  <ul className="space-y-2 text-sm">
-                     {selectedReq.itens.map((item, idx) => (
-                        <li key={idx} className="flex justify-between border-b last:border-0 pb-1 last:pb-0 border-dashed border-gray-300">
-                           <span>{item.nome} <span className="text-xs text-muted-foreground">({item.codigo})</span></span>
-                           <span className="font-bold">x{item.qtd}</span>
-                        </li>
-                     ))}
-                  </ul>
+            <div className="space-y-6">
+               {/* Timeline Visual */}
+               <div className="bg-slate-50 rounded-lg border p-2">
+                  <TimelineStatus status={selectedReq.status} />
                </div>
 
-               {selectedReq.obs && (
-                  <div className="bg-yellow-50 p-3 rounded border border-yellow-100 text-sm text-yellow-900">
-                     <strong>Observação da Loja:</strong> {selectedReq.obs}
+               {/* Lista de Itens */}
+               <div className="border rounded-md">
+                  <div className="bg-muted px-4 py-2 text-xs font-semibold uppercase tracking-wider flex items-center">
+                    <Archive className="w-3 h-3 mr-2"/> Conteúdo da Carga
                   </div>
-               )}
+                  <div className="p-2 max-h-[200px] overflow-y-auto">
+                    <ul className="space-y-1 text-sm">
+                        {selectedReq.itens && selectedReq.itens.map((item, idx) => (
+                            <li key={idx} className="flex justify-between items-center px-2 py-1 hover:bg-slate-50 rounded">
+                                <span className="text-muted-foreground">{item.sku}</span>
+                                <span className="flex-1 mx-4 truncate font-medium">{item.produto_nome}</span>
+                                <span className="font-bold bg-slate-200 px-2 py-0.5 rounded text-xs">x{item.quantidade_solicitada}</span>
+                            </li>
+                        ))}
+                    </ul>
+                  </div>
+               </div>
 
-               <div className="flex items-center justify-between pt-4">
-                  <div className="text-sm font-medium">Ação necessária:</div>
-                  {selectedReq.status === "Pendente" ? (
-                    <div className="flex gap-2">
-                        <Button variant="outline" className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" onClick={() => handleStatusChange(selectedReq.id, "Rejeitado")} disabled={loadingAction}>
-                           <X className="w-4 h-4 mr-2" /> Rejeitar
+               {/* Ações Logísticas (Botões) */}
+               <div className="flex justify-end gap-2 pt-2 border-t">
+                  {selectedReq.status === "Pendente" && (
+                    <>
+                        <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleAction('rejeitar', selectedReq.solicitacao_id)} disabled={loadingAction}>
+                           <X className="w-4 h-4 mr-2"/> Recusar
                         </Button>
-                        <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleStatusChange(selectedReq.id, "Aprovado")} disabled={loadingAction}>
-                           <Check className="w-4 h-4 mr-2" /> Aprovar Pedido
+                        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => handleAction('despachar', selectedReq.solicitacao_id)} disabled={loadingAction}>
+                           <Truck className="w-4 h-4 mr-2"/> Aprovar e Despachar
                         </Button>
-                    </div>
-                  ) : (
-                    <Badge variant="outline">Pedido já processado ({selectedReq.status})</Badge>
+                    </>
+                  )}
+
+                  {selectedReq.status === "Em Trânsito" && (
+                    <Button className="bg-green-600 hover:bg-green-700 text-white w-full" onClick={() => handleAction('receber', selectedReq.solicitacao_id)} disabled={loadingAction}>
+                        <PackageCheck className="w-4 h-4 mr-2"/> Confirmar Recebimento (Check-in)
+                    </Button>
+                  )}
+
+                  {selectedReq.status === "Concluída" && (
+                     <div className="text-green-700 flex items-center text-sm font-medium bg-green-50 px-3 py-2 rounded-md w-full justify-center">
+                        <Check className="w-4 h-4 mr-2"/> Processo Logístico Finalizado
+                     </div>
                   )}
                </div>
             </div>
