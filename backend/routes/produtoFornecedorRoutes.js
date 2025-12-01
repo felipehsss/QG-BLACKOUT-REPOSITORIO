@@ -17,5 +17,6 @@ router.get("/produto/:produtoId", pfController.listarFornecedores);
 
 // GET /api/produtos-fornecedores/fornecedor/:fornecedorId (Listar produtos de um fornecedor)
 router.get("/fornecedor/:fornecedorId", pfController.listarProdutos);
+router.get("/preco/:fornecedorId/:produtoId", pfController.buscarPreco);
 
 export default router;

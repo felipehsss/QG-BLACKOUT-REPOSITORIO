@@ -1,5 +1,6 @@
 // backend/controller/produtoFornecedorController.js
 import * as pfModel from "../model/produtoFornecedorModel.js";
+import * as db from "../config/database.js";
 
 /**
  * Linka um produto a um fornecedor ou atualiza o custo.
@@ -59,6 +60,41 @@ export const listarProdutos = async (req, res, next) => {
     const { fornecedorId } = req.params;
     const produtos = await pfModel.getProdutosPorFornecedor(fornecedorId);
     res.json(produtos);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Função corrigida e simplificada usando readWithQuery
+export const buscarPreco = async (req, res, next) => {
+  try {
+    const { fornecedorId, produtoId } = req.params;
+    
+    // 1. Tenta achar o preço específico desse fornecedor
+    const sqlEspecifico = `
+      SELECT preco_custo 
+      FROM produtos_fornecedores 
+      WHERE fornecedor_id = ? AND produto_id = ?
+    `;
+    
+    // Usamos readWithQuery que já trata a conexão
+    const especifico = await db.readWithQuery(sqlEspecifico, [fornecedorId, produtoId]);
+
+    if (especifico && especifico.length > 0) {
+      return res.json({ preco: Number(especifico[0].preco_custo), fonte: "tabela_fornecedor" });
+    }
+
+    // 2. Se não achar, busca o último custo geral do produto (fallback)
+    const sqlGeral = "SELECT preco_custo FROM produtos WHERE produto_id = ?";
+    const geral = await db.readWithQuery(sqlGeral, [produtoId]);
+
+    if (geral && geral.length > 0) {
+      return res.json({ preco: Number(geral[0].preco_custo), fonte: "cadastro_produto" });
+    }
+
+    // 3. Se não tiver nada, retorna 0
+    res.json({ preco: 0, fonte: "nenhum" });
+
   } catch (err) {
     next(err);
   }

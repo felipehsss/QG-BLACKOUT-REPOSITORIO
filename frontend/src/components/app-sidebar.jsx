@@ -9,7 +9,7 @@ import {
   LayoutDashboard,
   Package,
   SquareTerminal,
-  Settings2,
+  Settings2,ShoppingCart
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -123,25 +123,13 @@ const data = {
       ],
     },
     {
-      title: "Settings",
+      title: "Compras",
       url: "#",
-      icon: Settings2,
+      icon: ShoppingCart,
       items: [
         {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
+          title: "Pedidos de Compra",
+          url: "/compras",
         },
       ],
     },

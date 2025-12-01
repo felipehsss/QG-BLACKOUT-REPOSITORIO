@@ -28,6 +28,7 @@ import pagamentoContaRoutes from "./routes/pagamentoContaRoutes.js";
 import perfilRoutes from "./routes/perfilRoutes.js";
 import produtoFornecedorRoutes from "./routes/produtoFornecedorRoutes.js";
 import solicitacaoRoutes from "./routes/solicitacaoRoutes.js";
+import compraRoutes from "./routes/compraRoutes.js";
 
 
 // Middlewares globais
@@ -64,7 +65,7 @@ app.use("/api/pagamentos-conta", pagamentoContaRoutes);
 app.use("/api/perfis", perfilRoutes);
 app.use("/api/produto-fornecedor", produtoFornecedorRoutes);
 app.use("/api/solicitacoes", solicitacaoRoutes);
-
+app.use("/api/compras", compraRoutes);
 // Middleware de erro (sempre o último)
 app.use(errorHandler);
 
