@@ -1,26 +1,17 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { format } from "date-fns"
-import { CalendarIcon, Loader2, Save } from "lucide-react"
-
-import { useAuth } from "@/contexts/AuthContext"
-import { create as criarConta, update as atualizarConta } from "@/services/contaPagarService"
-import { toast } from "sonner"
-
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -28,141 +19,175 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+} from "@/components/ui/select";
+import {
+  create as createConta,
+  update as updateConta,
+} from "@/services/contaPagarService";
+import { useAuth } from "@/contexts/AuthContext";
 
+// Lista de Categorias Padrão (Isso deve bater com a lógica do seu Backend)
+const CATEGORIAS = [
+  "Fornecedores",
+  "Salário",
+  "Operacional", // Água, Luz, Aluguel
+  "Impostos",
+  "Marketing",
+  "Manutenção",
+  "Outros"
+];
+
+// Schema de validação
 const formSchema = z.object({
-  descricao: z.string().min(3, "Descrição muito curta"),
-  valor: z.string().refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
-    message: "Valor inválido",
-  }),
-  data_vencimento: z.date({ required_error: "Data obrigatória" }),
-  fornecedor_id: z.string({ required_error: "Fornecedor obrigatório" }),
-  loja_id: z.string({ required_error: "Loja obrigatória" }),
-  categoria: z.string().min(1, "Categoria obrigatória"),
-  status: z.enum(["Pendente", "Pago", "Atrasada"]).default("Pendente"),
-})
+  descricao: z.string().min(3, "Descrição obrigatória"),
+  valor: z.coerce.number().min(0.01, "Informe um valor válido"),
+  data_vencimento: z.string().min(1, "Informe a data de vencimento"),
+  fornecedor_id: z.string().optional(), // Opcional pois pode ser conta de luz (sem fornecedor cadastrado)
+  loja_id: z.string().min(1, "Selecione uma loja"),
+  categoria: z.string().min(1, "Selecione uma categoria"), // <--- NOVO CAMPO
+  status: z.enum(["Pendente", "Pago"]).default("Pendente"),
+});
 
-export function ContaPagarForm({ 
-  open, 
-  setOpen, 
-  initialData, 
-  onSuccess, 
-  lojas = [], 
-  fornecedores = [] 
-}) {
-  const { token } = useAuth()
-  const [loading, setLoading] = useState(false)
+export function ContaPagarForm({ open, setOpen, onSuccess, initialData = null, fornecedores = [], lojas = [] }) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { token } = useAuth();
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       descricao: "",
       valor: "",
-      data_vencimento: new Date(),
+      data_vencimento: "",
       fornecedor_id: "",
       loja_id: "",
-      categoria: "Fornecedores",
-      status: "Pendente"
+      categoria: "", // <--- Default vazio
+      status: "Pendente",
     },
-  })
+  });
 
   useEffect(() => {
-    if (open) {
-      if (initialData) {
-        form.reset({
-          descricao: initialData.descricao,
-          valor: String(initialData.valor),
-          data_vencimento: initialData.data_vencimento ? new Date(initialData.data_vencimento) : new Date(),
-          fornecedor_id: initialData.fornecedor_id ? String(initialData.fornecedor_id) : "",
-          loja_id: initialData.loja_id ? String(initialData.loja_id) : "",
-          categoria: initialData.categoria || "Outros",
-          status: initialData.status || "Pendente"
-        })
-      } else {
-        form.reset({
-          descricao: "",
-          valor: "",
-          data_vencimento: new Date(),
-          fornecedor_id: "",
-          loja_id: "",
-          categoria: "Fornecedores",
-          status: "Pendente"
-        })
-      }
+    if (initialData) {
+      form.reset({
+        descricao: initialData.descricao || "",
+        valor: initialData.valor || "",
+        data_vencimento: initialData.data_vencimento ? initialData.data_vencimento.split('T')[0] : "",
+        fornecedor_id: initialData.fornecedor_id ? String(initialData.fornecedor_id) : "0",
+        loja_id: String(initialData.loja_id || ""),
+        categoria: initialData.categoria || "", // <--- Carrega categoria existente
+        status: initialData.status || "Pendente",
+      });
+    } else {
+      form.reset({
+        descricao: "",
+        valor: "",
+        data_vencimento: "",
+        fornecedor_id: "",
+        loja_id: "",
+        categoria: "",
+        status: "Pendente",
+      });
     }
-  }, [initialData, open, form])
+  }, [initialData, form, open]);
 
-  const onSubmit = async (values) => {
-    setLoading(true)
+  const onSubmit = async (data) => {
+    setIsSubmitting(true);
     try {
       const payload = {
-        ...values,
-        valor: parseFloat(values.valor),
-        loja_id: Number(values.loja_id),
-        fornecedor_id: Number(values.fornecedor_id),
-        data_vencimento: format(values.data_vencimento, "yyyy-MM-dd"),
+        ...data,
+        valor: parseFloat(data.valor),
+        // Se fornecedor for vazio ou "0", envia null
+        fornecedor_id: (data.fornecedor_id && data.fornecedor_id !== "0") ? parseInt(data.fornecedor_id) : null,
+        loja_id: parseInt(data.loja_id),
+      };
+
+      if (initialData && initialData.conta_pagar_id) {
+        await updateConta(initialData.conta_pagar_id, payload, token);
+      } else {
+        await createConta(payload, token);
       }
 
-      // CORREÇÃO: Usar .id, não .conta_pagar_id
-      if (initialData?.id) {
-        await atualizarConta(initialData.id, payload, token)
-        toast.success("Conta atualizada!")
-      } else {
-        await criarConta(payload, token)
-        toast.success("Conta criada!")
-      }
-      onSuccess()
-    } catch (error) {
-      console.error(error)
-      toast.error("Erro ao salvar.")
+      onSuccess?.();
+      setOpen(false);
+      form.reset();
+    } catch (err) {
+      console.error("Erro ao salvar conta a pagar:", err);
+      alert("Erro ao salvar. Verifique os dados.");
     } finally {
-      setLoading(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{initialData ? "Editar Conta" : "Nova Conta"}</DialogTitle>
-          <DialogDescription>Detalhes da obrigação financeira.</DialogDescription>
+          <DialogTitle>
+            {initialData ? "Editar Conta" : "Nova Conta a Pagar"}
+          </DialogTitle>
+          <DialogDescription>
+            Preencha os detalhes da conta para controle financeiro.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            
             <div className="grid grid-cols-2 gap-4">
+              {/* Descrição */}
               <FormField
                 control={form.control}
                 name="descricao"
                 render={({ field }) => (
                   <FormItem className="col-span-2">
                     <FormLabel>Descrição</FormLabel>
-                    <FormControl><Input placeholder="Ex: Compra de material" {...field} /></FormControl>
+                    <FormControl>
+                      <Input placeholder="Ex: Boleto Aluguel, Compra de Estoque..." {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Valor */}
               <FormField
                 control={form.control}
                 name="valor"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Valor (R$)</FormLabel>
-                    <FormControl><Input type="number" step="0.01" {...field} /></FormControl>
+                    <FormControl>
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Vencimento */}
+              <FormField
+                control={form.control}
+                name="data_vencimento"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Vencimento</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* --- CAMPO DE CATEGORIA (NOVO) --- */}
               <FormField
                 control={form.control}
                 name="categoria"
@@ -170,34 +195,16 @@ export function ContaPagarForm({
                   <FormItem>
                     <FormLabel>Categoria</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Classifique a despesa" />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
-                        <SelectItem value="Fornecedores">Fornecedores</SelectItem>
-                        <SelectItem value="Aluguel">Aluguel</SelectItem>
-                        <SelectItem value="Salários">Salários</SelectItem>
-                        <SelectItem value="Impostos">Impostos</SelectItem>
-                        <SelectItem value="Serviços">Serviços</SelectItem>
-                        <SelectItem value="Outros">Outros</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="fornecedor_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fornecedor</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {fornecedores.map((f) => (
-                          <SelectItem key={String(f.id)} value={String(f.id)}>{f.nome}</SelectItem>
+                        {CATEGORIAS.map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -205,6 +212,8 @@ export function ContaPagarForm({
                   </FormItem>
                 )}
               />
+
+              {/* Loja */}
               <FormField
                 control={form.control}
                 name="loja_id"
@@ -212,10 +221,16 @@ export function ContaPagarForm({
                   <FormItem>
                     <FormLabel>Loja</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         {lojas.map((l) => (
-                          <SelectItem key={String(l.id)} value={String(l.id)}>{l.nome}</SelectItem>
+                          <SelectItem key={l.loja_id} value={String(l.loja_id)}>
+                            {l.nome_fantasia || l.nome}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -223,38 +238,35 @@ export function ContaPagarForm({
                   </FormItem>
                 )}
               />
-            </div>
 
-            <div className="grid grid-cols-2 gap-4">
+              {/* Fornecedor (Opcional) */}
               <FormField
                 control={form.control}
-                name="data_vencimento"
+                name="fornecedor_id"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Vencimento</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            {field.value ? format(field.value, "dd/MM/yyyy") : <span>Selecione</span>}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => date < new Date("1900-01-01")}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                  <FormItem>
+                    <FormLabel>Fornecedor (Opcional)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="0">Sem Fornecedor</SelectItem>
+                        {fornecedores.map((f) => (
+                          <SelectItem key={f.fornecedor_id} value={String(f.fornecedor_id)}>
+                            {f.nome || f.razao_social}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Status */}
               <FormField
                 control={form.control}
                 name="status"
@@ -262,11 +274,14 @@ export function ContaPagarForm({
                   <FormItem>
                     <FormLabel>Status</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Status atual" />
+                        </SelectTrigger>
+                      </FormControl>
                       <SelectContent>
                         <SelectItem value="Pendente">Pendente</SelectItem>
                         <SelectItem value="Pago">Pago</SelectItem>
-                        <SelectItem value="Atrasada">Atrasada</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -275,13 +290,17 @@ export function ContaPagarForm({
               />
             </div>
 
-            <DialogFooter>
-              <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={loading} className="bg-primary">{loading && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>} Salvar</Button>
+            <DialogFooter className="pt-4">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Salvando..." : "Salvar"}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

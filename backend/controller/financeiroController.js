@@ -83,11 +83,9 @@ export const relatorioCategorias = async (req, res, next) => {
     res.json(dados);
   } catch (err) { next(err); }
 };
-
 export const relatorioFormasPagamento = async (req, res, next) => {
   try {
     const { tipo, inicio, fim } = req.query;
-    // Padrão 'Entrada' pois geralmente queremos saber como recebemos dinheiro
     const dados = await financeiroModel.getReportFormasPagamento(tipo || "Entrada", inicio, fim);
     res.json(dados);
   } catch (err) { next(err); }

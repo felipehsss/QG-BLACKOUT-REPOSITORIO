@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { DateRangePicker } from "@/components/date-range-picker";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-// CORREÇÃO: LabelList adicionado aos imports
 import { 
   Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis, 
   Pie, PieChart, Label, Cell, LabelList 
@@ -66,7 +65,7 @@ export default function FinanceiroDashboard() {
       const [kpiRes, catRes, payRes, anualRes] = await Promise.all([
         getDashboardKPIs(inicio, fim, token),
         getDashboardCategorias('Saída', inicio, fim, token),
-        getDashboardFormasPagamento('Entrada', inicio, fim, token), // Entradas por forma de pgto
+        getDashboardFormasPagamento('Entrada', inicio, fim, token),
         getDashboardAnual(anoAtual, token)
       ]);
 
@@ -167,7 +166,7 @@ export default function FinanceiroDashboard() {
       {/* --- GRÁFICOS PRINCIPAIS --- */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         
-        {/* 1. GRÁFICO DE ÁREA (Evolução Financeira) - "O Gráfico em Linha Realista" */}
+        {/* 1. GRÁFICO DE ÁREA (Evolução Financeira) */}
         <Card className="col-span-4 lg:col-span-4 shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
