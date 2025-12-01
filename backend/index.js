@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
+
 // Configuração para obter __dirname em módulos ES6
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,9 @@ import financeiroRoutes from "./routes/financeiroRoutes.js";
 import pagamentoContaRoutes from "./routes/pagamentoContaRoutes.js";
 import perfilRoutes from "./routes/perfilRoutes.js";
 import produtoFornecedorRoutes from "./routes/produtoFornecedorRoutes.js";
+import solicitacaoRoutes from "./routes/solicitacaoRoutes.js";
+import compraRoutes from "./routes/compraRoutes.js";
+
 
 // Middlewares globais
 import errorHandler from "./middlewares/errorHandler.js";
@@ -60,7 +64,8 @@ app.use("/api/financeiro", financeiroRoutes);
 app.use("/api/pagamentos-conta", pagamentoContaRoutes);
 app.use("/api/perfis", perfilRoutes);
 app.use("/api/produto-fornecedor", produtoFornecedorRoutes);
-
+app.use("/api/solicitacoes", solicitacaoRoutes);
+app.use("/api/compras", compraRoutes);
 // Middleware de erro (sempre o último)
 app.use(errorHandler);
 

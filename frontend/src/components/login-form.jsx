@@ -61,10 +61,10 @@ export function LoginForm({ className, ...props }) {
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
+      <Card className="border-none bg-transparent shadow-none">
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Bem-vindo de volta</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl text-white">Bem-vindo de volta</CardTitle>
+          <CardDescription className="text-gray-300">
             Faça login com sua conta
           </CardDescription>
         </CardHeader>
@@ -73,9 +73,13 @@ export function LoginForm({ className, ...props }) {
           <form onSubmit={handleSubmit}>
             <FieldGroup>
               <Field>
+
               </Field>
               <Field>
                 <FieldLabel htmlFor="email">E-mail</FieldLabel>
+
+                <FieldLabel htmlFor="email" className="text-white">E-mail</FieldLabel>
+
                 <Input
                   id="email"
                   type="email"
@@ -87,10 +91,10 @@ export function LoginForm({ className, ...props }) {
               </Field>
               <Field>
                 <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Senha</FieldLabel>
+                  <FieldLabel htmlFor="password" className="text-white">Senha</FieldLabel>
                   <a
                     href="#"
-                    className="ml-auto text-sm underline-offset-4 hover:underline"
+                    className="ml-auto text-sm text-gray-300 underline-offset-4 hover:text-white hover:underline"
                   >
                     Esqueceu sua senha?
                   </a>
@@ -116,10 +120,12 @@ export function LoginForm({ className, ...props }) {
           </form>
         </CardContent>
       </Card>
+
       <FieldDescription className="px-6 text-center">
         Ao clicar em entrar, você concorda com nossos{" "}
         <a href="#">Termos de Serviço</a> e{" "}
         <a href="#">Política de Privacidade</a>.
+
       </FieldDescription>
     </div>
   );

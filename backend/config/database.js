@@ -8,7 +8,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: 3306,
+  port: 3307,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -16,6 +16,18 @@ const pool = mysql.createPool({
 
 async function getConnection() {
   return await pool.getConnection();
+}
+
+// Executa uma query SQL bruta (Custom Query)
+// Esta é a função que estava faltando
+async function readWithQuery(sql, params = []) {
+  const connection = await getConnection();
+  try {
+    const [rows] = await connection.execute(sql, params);
+    return rows;
+  } finally {
+    connection.release();
+  }
 }
 
 // Adicionado params = []
@@ -87,4 +99,5 @@ async function deleteRecord(table, where, params = []) {
   }
 }
 
-export { create, readAll, read, update, deleteRecord, getConnection };
+// Não esqueça de exportar a nova função aqui
+export { create, readAll, read, readWithQuery, update, deleteRecord, getConnection };

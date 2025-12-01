@@ -33,3 +33,7 @@ export async function updateConta(id, data) {
 export async function deleteConta(id) {
   return await db.deleteRecord(table, `conta_pagar_id = ${id}`);
 }
+
+export async function getByFornecedorId(fornecedorId) {
+  return await db.read(table, `fornecedor_id = ${fornecedorId}`);
+}

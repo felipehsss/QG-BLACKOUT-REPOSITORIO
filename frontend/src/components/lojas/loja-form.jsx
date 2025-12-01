@@ -1,192 +1,175 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  create as createLoja,
-  update as updateLoja,
-} from "@/services/lojaService";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { create, update } from "@/services/lojaService";
 import { toast } from "sonner";
+import { MaskedInput } from "@/components/ui/masked-input";
 
-const formSchema = z.object({
-  nome: z.string().min(3, "Nome obrigatório"),
-  endereco: z.string().optional(),
-  email: z.string().email("Email inválido").optional().or(z.literal("")),
-  telefone: z.string().optional(),
-});
+// Formatações manuais simples se precisar
+const formatCNPJ = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5").slice(0, 18);
+const formatPhone = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d{5})(\d{4})/, "($1) $2-$3").slice(0, 15);
 
-export function LojaForm({ open, setOpen, onSuccess, initialData = null }) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function LojaForm({ loja, onSuccess, onCancel }) {
   const { token } = useAuth();
-
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      nome: "",
-      endereco: "",
-      email: "",
-      telefone: "",
-    },
+  const [loading, setLoading] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    nome: "",
+    cnpj: "",
+    endereco: "",
+    telefone: "",
+    email: "",
+    is_matriz: false,
+    is_ativo: true
   });
 
   useEffect(() => {
-    if (initialData) {
-      form.reset({
-        nome: initialData.nome ?? "",
-        endereco: initialData.endereco ?? "",
-        email: initialData.email ?? "",
-        telefone: initialData.telefone ?? "",
+    if (loja) {
+      setFormData({
+        nome: loja.nome || "",
+        cnpj: loja.cnpj || "",
+        endereco: loja.endereco || "",
+        telefone: loja.telefone || "",
+        email: loja.email || "",
+        is_matriz: !!loja.is_matriz,
+        is_ativo: loja.is_ativo !== undefined ? !!loja.is_ativo : true,
       });
     }
-  }, [initialData, form]);
+  }, [loja]);
 
-  const onSubmit = async (data) => {
-    setIsSubmitting(true);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleMaskChange = (field, formatter) => (e) => {
+    const val = formatter(e.target.value);
+    setFormData(prev => ({ ...prev, [field]: val }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!token) return;
+    setLoading(true);
+
     try {
+      // Limpa máscaras antes de enviar
       const payload = {
-        ...data,
-        email: data.email?.trim() || null,
-        telefone: data.telefone?.trim() || null,
-        endereco: data.endereco?.trim() || null,
+        ...formData,
+        cnpj: formData.cnpj.replace(/\D/g, ""),
+        telefone: formData.telefone.replace(/\D/g, "")
       };
 
-      if (initialData && (initialData.id ?? initialData.loja_id)) {
-        const id = initialData.id ?? initialData.loja_id;
-        await updateLoja(id, payload, token);
+      if (loja) {
+        await update(loja.id || loja.loja_id, payload, token);
         toast.success("Loja atualizada com sucesso!");
       } else {
-        await createLoja(payload, token);
+        await create(payload, token);
         toast.success("Loja criada com sucesso!");
       }
-
       onSuccess?.();
-      setOpen(false);
-      form.reset();
-    } catch (err) {
-      const errorMessage = err.message || "Erro ao salvar loja.";
-      console.error("Erro ao salvar loja:", err);
-      toast.error(errorMessage);
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao salvar loja.");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>
-            {initialData ? "Editar Loja" : "Adicionar Loja"}
-          </DialogTitle>
-          <DialogDescription>
-            {initialData
-              ? "Altere os dados da loja."
-              : "Preencha os dados da nova loja."}
-          </DialogDescription>
-        </DialogHeader>
+    <form onSubmit={handleSubmit} className="space-y-4 py-2">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2 col-span-2 md:col-span-1">
+          <Label htmlFor="nome">Nome da Loja *</Label>
+          <Input 
+            id="nome" name="nome" 
+            value={formData.nome} onChange={handleChange} 
+            required placeholder="Ex: QG Blackout - Centro" 
+          />
+        </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="nome"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome da loja" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <div className="space-y-2 col-span-2 md:col-span-1">
+          <Label htmlFor="cnpj">CNPJ</Label>
+          <Input 
+            id="cnpj" name="cnpj" 
+            value={formData.cnpj} onChange={handleMaskChange("cnpj", formatCNPJ)} 
+            placeholder="00.000.000/0001-00" 
+          />
+        </div>
+
+        <div className="space-y-2 col-span-2">
+          <Label htmlFor="endereco">Endereço</Label>
+          <Input 
+            id="endereco" name="endereco" 
+            value={formData.endereco} onChange={handleChange} 
+            placeholder="Rua, Número, Bairro, Cidade - UF" 
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="telefone">Telefone</Label>
+          <Input 
+            id="telefone" name="telefone" 
+            value={formData.telefone} onChange={handleMaskChange("telefone", formatPhone)} 
+            placeholder="(00) 00000-0000" 
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input 
+            id="email" name="email" type="email"
+            value={formData.email} onChange={handleChange} 
+            placeholder="loja@qgblackout.com.br" 
+          />
+        </div>
+
+        <div className="flex items-center space-x-2 pt-4">
+            <Checkbox 
+                id="is_matriz" 
+                checked={formData.is_matriz}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_matriz: checked }))}
             />
+            <Label htmlFor="is_matriz" className="cursor-pointer">É a Loja Matriz?</Label>
+        </div>
 
-            <FormField
-              control={form.control}
-              name="endereco"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Endereço</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Rua, nº, bairro, cidade" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div className="flex items-center space-x-2 pt-4">
+            <Label>Status:</Label>
+            <Select 
+                value={formData.is_ativo ? "true" : "false"}
+                onValueChange={(val) => setFormData(prev => ({ ...prev, is_ativo: val === "true" }))}
+            >
+                <SelectTrigger className="w-[120px]">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="true">Ativa</SelectItem>
+                    <SelectItem value="false">Inativa</SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+      </div>
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="contato@loja.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="telefone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Telefone</FormLabel>
-                  <FormControl>
-                    <Input placeholder="(11) 99999-9999" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setOpen(false);
-                  setTimeout(() => form.reset(), 200);
-                }}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting
-                  ? "Salvando..."
-                  : initialData
-                  ? "Salvar alterações"
-                  : "Salvar"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+      <div className="flex justify-end gap-2 mt-6">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+          Cancelar
+        </Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? "Salvando..." : (loja ? "Salvar Alterações" : "Cadastrar Loja")}
+        </Button>
+      </div>
+    </form>
   );
 }

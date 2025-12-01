@@ -1,17 +1,18 @@
-// frontend/src/services/estoqueService.js
-import apiService from './apiService'; // (Caminho baseado nos seus outros services)
+import { apiService } from './apiService';
 
-const API_URL = '/estoque';
+const ENDPOINT = '/estoque';
 
 /**
  * Busca todo o estoque, com nomes de produtos e lojas
  */
-export const getEstoqueCompleto = async () => {
+export const getEstoqueCompleto = async (token) => {
   try {
-    const response = await apiService.get(API_URL);
-    return response.data;
+    const res = await apiService.get(ENDPOINT, token);
+    // O apiService já retorna o corpo da resposta. 
+    // Se o backend retorna um array direto, 'res' é o array.
+    return Array.isArray(res) ? res : (res.data || []);
   } catch (error) {
-    console.error('Erro ao buscar estoque completo:', error.response?.data || error.message);
+    console.error('Erro ao buscar estoque completo:', error);
     throw error;
   }
 };
@@ -20,42 +21,35 @@ export const getEstoqueCompleto = async () => {
  * Dá entrada em produtos (adiciona ou soma a quantidade)
  * @param {object} data - { produto_id, loja_id, quantidade }
  */
-export const darEntradaEstoque = async (data) => {
+export const darEntradaEstoque = async (data, token) => {
   try {
-    const response = await apiService.post(API_URL, data);
-    return response.data;
+    return await apiService.post(ENDPOINT, data, token);
   } catch (error) {
-    console.error('Erro ao dar entrada no estoque:', error.response?.data || error.message);
+    console.error('Erro ao dar entrada no estoque:', error);
     throw error;
   }
 };
 
 /**
  * Busca a quantidade de um produto específico em uma loja específica
- * @param {number} produtoId 
- * @param {number} lojaId 
  */
-export const getEstoquePorItemELoja = async (produtoId, lojaId) => {
+export const getEstoquePorItemELoja = async (produtoId, lojaId, token) => {
   try {
-    const response = await apiService.get(`${API_URL}/produto/${produtoId}/loja/${lojaId}`);
-    return response.data;
+    return await apiService.get(`${ENDPOINT}/produto/${produtoId}/loja/${lojaId}`, token);
   } catch (error) {
-    console.error('Erro ao buscar estoque do item:', error.response?.data || error.message);
+    console.error('Erro ao buscar estoque do item:', error);
     throw error;
   }
 };
 
 /**
  * Ajusta manualmente o estoque para um valor específico
- * @param {number} estoqueId - ID da *linha* de estoque (não do produto)
- * @param {object} data - { quantidade }
  */
-export const ajustarEstoque = async (estoqueId, data) => {
+export const ajustarEstoque = async (estoqueId, data, token) => {
   try {
-    const response = await apiService.put(`${API_URL}/${estoqueId}`, data);
-    return response.data;
+    return await apiService.put(`${ENDPOINT}/${estoqueId}`, data, token);
   } catch (error) {
-    console.error('Erro ao ajustar estoque:', error.response?.data || error.message);
+    console.error('Erro ao ajustar estoque:', error);
     throw error;
   }
 };

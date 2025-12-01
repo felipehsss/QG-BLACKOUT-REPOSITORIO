@@ -1,57 +1,33 @@
-import { Geist, Geist_Mono } from "next/font/google"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SidebarProvider } from "@/components/ui/sidebar"
-import { SiteHeader } from "@/components/site-header" // importa o header
+// src/app/layout.jsx
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext"; // Importe o AuthProvider
+import { Toaster } from "@/components/ui/sonner"; // Importante para feedback
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-})
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-})
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "QG Brightness Dashboard",
-  description: "Painel administrativo da loja",
-}
+  title: "QG Brightness",
+  description: "Sistema de Gestão",
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <SidebarProvider>
-            {/* Flex container ocupando a tela inteira */}
-            <div className="flex min-h-screen w-screen">
-              {/* Sidebar fixa */}
-              <AppSidebar />
-
-              {/* Área principal */}
-              <div className="flex flex-col flex-1">
-                {/* Header no topo */}
-                <SiteHeader />
-
-                {/* Conteúdo da página ocupa o restante */}
-                <main className="flex-1 p-6">
-                  {children}
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
-        </ThemeProvider>
+      <body className={`${inter.className} antialiased`}>
+        <AuthProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            {children}
+            <Toaster />
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
-  )
+  );
 }

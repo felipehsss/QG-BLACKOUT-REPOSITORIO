@@ -49,3 +49,7 @@ export const remove = (id, token) => {
 export const getRelatorioVendas = (token) => {
   return apiService.get(`${ENDPOINT}/relatorio`, token);
 };
+
+export const readByCliente = (clienteId, token) => {
+  return apiService.get(`${ENDPOINT}/cliente/${clienteId}`, token);
+};

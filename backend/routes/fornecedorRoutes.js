@@ -14,5 +14,5 @@ router.get("/:id", fornecedorController.buscarPorId);
 router.post("/", fornecedorController.criar);
 router.put("/:id", fornecedorController.atualizar);
 router.delete("/:id", fornecedorController.deletar);
-
+router.get("/:id/relatorio", fornecedorController.obterRelatorio); // Adicione antes do router.get("/:id") genérico se houver conflito, ou use um path específico
 export default router;

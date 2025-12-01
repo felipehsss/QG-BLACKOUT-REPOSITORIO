@@ -1,131 +1,132 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, Search, Users } from "lucide-react";
-import { toast } from "sonner";
-import * as funcionarioService from "@/services/funcionarioService";
-
-// Importamos os componentes novos que criamos
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FuncionariosTable } from "@/components/funcionarios/funcionarios-table";
 import { FuncionarioForm } from "@/components/funcionarios/funcionario-form";
+import { readAll, deleteRecord } from "@/services/funcionarioService";
+// 1. Importar o Contexto de Autenticação
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function FuncionariosPage() {
-  const { token } = useAuth();
-  const [funcionarios, setFuncionarios] = useState([]);
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  // Estados para controlar o Modal de Adicionar/Editar
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingFuncionario, setEditingFuncionario] = useState(null);
 
-  // Carrega dados ao iniciar
-  useEffect(() => {
-    if (token) {
-      loadData();
-    }
-  }, [token]);
+  // 2. Obter o token do hook useAuth
+  const { token } = useAuth();
 
   const loadData = async () => {
+    // Só tenta carregar se tiver token
+    if (!token) return;
+
     setLoading(true);
     try {
-      const data = await funcionarioService.readAll(token);
-      setFuncionarios(data || []);
+      // 3. Passar o token para a função do serviço
+      const funcionarios = await readAll(token); 
+      setData(funcionarios || []);
     } catch (error) {
-      console.error(error);
-      toast.error("Erro ao carregar funcionários.");
+      console.error("Erro ao carregar funcionários:", error);
+      // Não alertar erro se for apenas questão de token carregando
     } finally {
       setLoading(false);
     }
   };
 
-  // Função chamada ao clicar em "Adicionar"
-  const handleAdd = () => {
-    setEditingFuncionario(null); // Garante que não há dados antigos
-    setIsDialogOpen(true);       // Abre o modal
+  // Carrega dados ao abrir a página ou quando o token mudar
+  useEffect(() => {
+    loadData();
+  }, [token]); // Adicionado token como dependência
+
+  const handleCreate = () => {
+    setEditingFuncionario(null);
+    setIsDialogOpen(true);
   };
 
-  // Função chamada ao clicar em "Editar" na tabela
   const handleEdit = (funcionario) => {
     setEditingFuncionario(funcionario);
     setIsDialogOpen(true);
   };
 
-  // Função chamada ao clicar em "Excluir" na tabela
   const handleDelete = async (id) => {
-    try {
-      await funcionarioService.deleteRecord(id, token);
-      toast.success("Funcionário excluído com sucesso!");
-      loadData(); // Recarrega a lista
-    } catch (error) {
-      toast.error("Erro ao excluir funcionário.");
+    if (confirm("Tem certeza que deseja excluir este funcionário?")) {
+      try {
+        // 4. Passar o token para excluir
+        await deleteRecord(id, token); 
+        alert("Funcionário excluído com sucesso!");
+        loadData();
+      } catch (error) {
+        console.error("Erro ao excluir:", error);
+        alert("Erro ao excluir funcionário.");
+      }
     }
   };
 
-  // Função chamada quando o formulário salva com sucesso
-  const handleSuccess = () => {
+  const handleFormSuccess = () => {
     setIsDialogOpen(false);
     loadData();
   };
 
-  // Filtro de busca
-  const filteredData = funcionarios.filter((f) =>
-    f.nome_completo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <div className="flex flex-col gap-6 p-6">
-      
-      {/* Cabeçalho da Página */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Users className="h-8 w-8" /> Funcionários
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Funcionários</h1>
           <p className="text-muted-foreground">
-            Gerencie sua equipe, acessos e perfis.
+            Gerencie o time de colaboradores da sua empresa.
           </p>
         </div>
-        
-        {/* BOTÃO DE ADICIONAR - Agora funciona! */}
-        <Button onClick={handleAdd} size="lg">
-          <Plus className="mr-2 h-5 w-5" /> Novo Funcionário
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={loadData} disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+          <Button onClick={handleCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Novo Funcionário
+          </Button>
+        </div>
       </div>
 
-      {/* Barra de Busca */}
-      <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome ou email..."
-          className="pl-10"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
-
-      {/* Tabela de Funcionários (O componente que criamos antes) */}
-      {loading ? (
-        <div className="text-center py-10">Carregando...</div>
-      ) : (
+      <div className="rounded-md border bg-card p-4">
         <FuncionariosTable 
-          data={filteredData} 
+          data={data} 
           onEdit={handleEdit} 
           onDelete={handleDelete} 
         />
-      )}
+      </div>
 
-      {/* Modal de Formulário (Controlado por esta página) */}
-      <FuncionarioForm
-        open={isDialogOpen}
-        setOpen={setIsDialogOpen}
-        initialData={editingFuncionario}
-        onSuccess={handleSuccess}
-      />
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingFuncionario ? "Editar Funcionário" : "Cadastrar Novo Funcionário"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingFuncionario 
+                ? "Faça as alterações necessárias e clique em Atualizar." 
+                : "Preencha os campos abaixo para adicionar um colaborador ao sistema."}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {/* O formulário já vai pegar o token internamente via useAuth também */}
+            <FuncionarioForm
+              funcionario={editingFuncionario}
+              onSuccess={handleFormSuccess}
+              onCancel={() => setIsDialogOpen(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

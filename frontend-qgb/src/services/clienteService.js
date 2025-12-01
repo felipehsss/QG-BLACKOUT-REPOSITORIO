@@ -15,6 +15,7 @@ const normalize = (item) => ({
   razao_social: item.razao_social ?? null,
   nome_fantasia: item.nome_fantasia ?? null,
   inscricao_estadual: item.inscricao_estadual ?? null,
+  foto: item.foto ?? null, // Adicionado para retornar a foto se existir
   raw: item,
 });
 
@@ -43,6 +44,12 @@ export const readById = async (id, token) => {
 };
 
 export const create = (data, token) => {
+  // CORREÇÃO: Se for FormData, passa direto para a API
+  if (data instanceof FormData) {
+    return apiService.post(ENDPOINT, data, token);
+  }
+
+  // Se for JSON normal, faz o tratamento de nulos
   const safe = ensureNulls({
     nome: data.nome ?? null,
     telefone: data.telefone ?? null,
@@ -59,6 +66,12 @@ export const create = (data, token) => {
 };
 
 export const update = (id, data, token) => {
+  // CORREÇÃO: Se for FormData, passa direto para a API
+  if (data instanceof FormData) {
+    return apiService.put(`${ENDPOINT}/${id}`, data, token);
+  }
+
+  // Se for JSON normal, faz o tratamento de nulos
   const safe = ensureNulls({
     nome: data.nome ?? null,
     telefone: data.telefone ?? null,

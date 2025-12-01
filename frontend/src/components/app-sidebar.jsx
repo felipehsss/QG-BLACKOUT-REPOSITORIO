@@ -1,22 +1,19 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import {
-  AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
   GalleryVerticalEnd,
-  Map,
-  PieChart,
-  Settings2,
-  SquareTerminal,PiggyBank,ChartLine,
+  PiggyBank, 
+  ChartLine,
+  LayoutDashboard,
+  Package,
+  SquareTerminal,
+  Settings2,ShoppingCart
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
@@ -26,7 +23,7 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// This is sample data.
+// ... (Mantenha seus dados 'data' exatamente como estavam) ...
 const data = {
   user: {
     name: "shadcn",
@@ -39,14 +36,24 @@ const data = {
       logo: GalleryVerticalEnd,
       plan: "Enterprise",
     },
-    
   ],
   navMain: [
+    {
+      title: "Principal",
+      url: "/",
+      icon: LayoutDashboard,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/",
+        },
+      ],
+    },
     {
       title: "Cadastros",
       url: "#",
       icon: SquareTerminal,
-      isActive: true,
+      isActive: false,
       items: [
         {
           title: "Clientes",
@@ -68,6 +75,25 @@ const data = {
           title: "Funcionarios",
           url: "/cadastros/funcionarios",
         },
+        {
+          title: "Lojas",
+          url: "/cadastros/lojas",
+        },
+      ],
+    },
+    {
+      title: "Gestão de Estoque",
+      url: "#",
+      icon: Package,
+      items: [
+        {
+          title: "Estoque",
+          url: "/produtos/estoque", 
+        },
+        {
+          title: "Requerimentos & Envios",
+          url: "/produtos/requerimento", 
+        },
       ],
     },
     {
@@ -83,7 +109,6 @@ const data = {
           title: "Fluxo de Caixa",
           url: "/financeiro/fluxo-caixa",
         },
-       
       ],
     },
     {
@@ -95,53 +120,54 @@ const data = {
           title: "Vendas",
           url: "/relatorios/vendas",
         },
-        
-      
       ],
     },
     {
-      title: "Settings",
+      title: "Compras",
       url: "#",
-      icon: Settings2,
+      icon: ShoppingCart,
       items: [
         {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
+          title: "Pedidos de Compra",
+          url: "/compras",
         },
       ],
     },
   ],
-  
 }
 
-export function AppSidebar({
-  ...props
-}) {
+export function AppSidebar({ ...props }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
+        {/* 1. LOGO DA EMPRESA - AJUSTADA PARA PREENCHER */}
+        <div className="flex justify-center  group-data-[collapsible=icon]:hidden">
+           {/* Aumentei a altura para h-24 (96px) e coloquei w-full.
+              A imagem vai tentar preencher esse espaço mantendo a proporção.
+           */}
+           <div className="relative h-16 w-full"> 
+             <Image 
+                src="/logo/1.svg" 
+                alt="QG Blackout"
+                fill
+                className="object-contain" // Garante que a logo apareça inteira
+                priority
+             />
+           </div>
+        </div>
+
+        {/* 2. SELETOR DE FILIAL/TIME */}
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
+      
       <SidebarContent>
         <NavMain items={data.navMain} />
-        
       </SidebarContent>
+      
       <SidebarFooter>
-        <NavUser user={data.user} />
+        {/* <NavUser user={data.user} /> */}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  );
+  )
 }
