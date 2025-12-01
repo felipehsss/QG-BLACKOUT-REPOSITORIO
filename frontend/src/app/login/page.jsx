@@ -14,7 +14,7 @@ export default function LoginPage() {
       <div className="flex w-full max-w-sm flex-col gap-6">
         <a href="#" className="grid justify-items-center gap-2 self-center font-medium text-white"> 
           <div className="rounded-lg bg-white p-2">
-            <img src="/imgs/logo.png" alt="QG-BLACKOUT Logo" className="size-18"/>
+            <img src="/logo/1.svg" alt="QG-BLACKOUT Logo" className="size-18"/>
           </div>
           AUTO PEÇAS
         </a>

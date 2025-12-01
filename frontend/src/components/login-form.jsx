@@ -76,9 +76,8 @@ export function LoginForm({ className, ...props }) {
 
               </Field>
               <Field>
-                <FieldLabel htmlFor="email">E-mail</FieldLabel>
 
-                <FieldLabel htmlFor="email" className="text-white">E-mail</FieldLabel>
+                <FieldLabel htmlFor="email" className="text-white">Email</FieldLabel>
 
                 <Input
                   id="email"

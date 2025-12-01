@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTheme } from "next-themes";
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -49,6 +50,7 @@ import { formatCPF, formatCNPJ, formatPhone } from "@/lib/utils";
 
 export function ClientesTable({ data = [], onEdit, onDelete, onViewHistory }) {
   // Estado para controlar o cliente que está sendo visualizado (Detalhes)
+  const { theme } = useTheme();
   const [clienteSelecionado, setClienteSelecionado] = useState(null);
 
   const defaultOnEdit = (c) => console.log("Editar cliente:", c);
@@ -56,11 +58,17 @@ export function ClientesTable({ data = [], onEdit, onDelete, onViewHistory }) {
     if (confirm(`Confirma exclusão de "${c.nome}" ?`)) console.log("Excluir:", c);
   };
 
-  const chartConfig = {
-    clientes: { label: "Clientes" },
-    pf: { label: "Pessoa Física", color: "hsl(0 84.2% 60.2%)" },
-    pj: { label: "Pessoa Jurídica", color: "hsl(var(--primary))" },
-  };
+  const chartConfig = useMemo(() => {
+    const isDark = theme === 'dark';
+    return {
+      clientes: { label: "Clientes" },
+      pf: { label: "Pessoa Física", color: "hsl(0 84.2% 60.2%)" }, // Vermelho
+      pj: { 
+        label: "Pessoa Jurídica", 
+        color: isDark ? "hsl(0 0% 98%)" : "hsl(240 10% 3.9%)" // Branco para dark, Preto para light
+      },
+    };
+  }, [theme]);
 
   const summary = useMemo(() => {
     const pfCount = data.filter((c) => c.tipo_cliente === "PF").length;
@@ -74,7 +82,7 @@ export function ClientesTable({ data = [], onEdit, onDelete, onViewHistory }) {
         { name: "pj", value: pjCount, fill: chartConfig.pj.color },
       ].filter((item) => item.value > 0),
     };
-  }, [data]);
+  }, [data, chartConfig]);
 
   // Função auxiliar para renderizar linhas de detalhes no modal local
   const DetailRow = ({ icon: Icon, label, value }) => (
