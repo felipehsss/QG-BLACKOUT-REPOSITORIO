@@ -27,100 +27,56 @@ export const buscarPorId = async (req, res, next) => {
 
 // Criar nova venda completa
 export const criar = async (req, res, next) => {
-  // ADICIONADO: cliente_id no destructuring
   const { loja_id, sessao_id, funcionario_id, cliente_id, valor_total, status_venda, itens, pagamentos } = req.body;
 
-  // Validação
-  if (!loja_id || !sessao_id || !funcionario_id || !valor_total || !Array.isArray(itens) || !Array.isArray(pagamentos)) {
-    return res.status(400).json({
-      message: "Campos obrigatórios: loja_id, sessao_id, funcionario_id, valor_total, itens (array) e pagamentos (array)",
-    });
-  }
-
-  if (itens.length === 0) {
-    return res.status(400).json({ message: "A venda deve ter pelo menos um item." });
-  }
-
-  if (pagamentos.length === 0) {
-    return res.status(400).json({ message: "A venda deve ter pelo menos um pagamento." });
-  }
+  // ... validações (iguais ao seu arquivo original) ...
 
   const connection = await getConnection();
 
   try {
     await connection.beginTransaction();
 
-    // 1. Criar a venda
-    // CORREÇÃO: Adicionado cliente_id no INSERT
+    // 1. Criar a venda (Igual ao seu)
     const sqlVenda = `
       INSERT INTO vendas (loja_id, sessao_id, funcionario_id, cliente_id, valor_total, status_venda)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
     const [vendaResult] = await connection.execute(sqlVenda, [
-      loja_id,
-      sessao_id,
-      funcionario_id,
-      cliente_id || null, // Salva null se não tiver cliente
-      valor_total,
-      status_venda ?? "Concluída",
+      loja_id, sessao_id, funcionario_id, cliente_id || null, valor_total, status_venda ?? "Concluída",
     ]);
     const novaVendaId = vendaResult.insertId;
 
-    // 2. Inserir itens e dar baixa no estoque
-    const sqlItem = `
-      INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario_momento, subtotal)
-      VALUES (?, ?, ?, ?, ?)
-    `;
-    const sqlEstoque = `
-      UPDATE estoque SET quantidade = quantidade - ?
-      WHERE produto_id = ? AND loja_id = ?
-    `;
+    // 2. Itens e Estoque (Igual ao seu) ... (Código omitido para brevidade, mantenha o seu loop) ...
+    // REPLIQUE O LOOP DE ITENS AQUI
 
-    for (const item of itens) {
-      await connection.execute(sqlItem, [
-        novaVendaId,
-        item.produto_id,
-        item.quantidade,
-        item.preco_unitario_momento,
-        item.subtotal,
-      ]);
-
-      const [estoqueResult] = await connection.execute(sqlEstoque, [
-        item.quantidade,
-        item.produto_id,
-        loja_id,
-      ]);
-
-      if (estoqueResult.affectedRows === 0) {
-        throw new Error(`Estoque indisponível para produto ID ${item.produto_id} na loja ID ${loja_id}.`);
-      }
+    // 3. Inserir pagamentos e definir forma principal
+    const sqlPagamento = "INSERT INTO pagamentos_venda (venda_id, metodo_pagamento, valor_pago) VALUES (?, ?, ?)";
+    
+    let formaPagamentoPrincipal = "Misto";
+    if (pagamentos.length === 1) {
+      formaPagamentoPrincipal = pagamentos[0].metodo_pagamento;
     }
 
-    // 3. Inserir pagamentos
-    const sqlPagamento = `
-      INSERT INTO pagamentos_venda (venda_id, metodo_pagamento, valor_pago)
-      VALUES (?, ?, ?)
-    `;
     for (const pgto of pagamentos) {
-      await connection.execute(sqlPagamento, [
-        novaVendaId,
-        pgto.metodo_pagamento,
-        pgto.valor_pago,
-      ]);
+      await connection.execute(sqlPagamento, [novaVendaId, pgto.metodo_pagamento, pgto.valor_pago]);
     }
 
-    // 4. Inserir no financeiro
+    // 4. AUTOMAÇÃO FINANCEIRA ATUALIZADA
+    // Insere no financeiro com Categoria ID 1 (Vendas) e forma de pagamento correta
     const sqlFinanceiro = `
-      INSERT INTO financeiro (loja_id, tipo, origem, referencia_id, descricao, valor)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO financeiro (loja_id, tipo, categoria_id, origem, referencia_id, descricao, valor, forma_pagamento, data_movimento)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
+    
     await connection.execute(sqlFinanceiro, [
       loja_id,
-      "receita", 
+      "Entrada",           // Tipo padronizado
+      1,                   // ID 1 = Vendas de Produtos (conforme SQL do passo 1)
       "Venda",
       novaVendaId,
-      `Venda Concluída ID ${novaVendaId}`,
+      `Venda #${novaVendaId} - Cliente: ${cliente_id ? cliente_id : "Balcão"}`,
       valor_total,
+      formaPagamentoPrincipal
     ]);
 
     await connection.commit();
@@ -194,7 +150,7 @@ export const listarPorCliente = async (req, res, next) => {
   const connection = await getConnection();
   try {
     const { id } = req.params;
-    
+
     // Agora que a coluna existe, este SQL funcionará
     const sql = `
       SELECT v.venda_id, v.data_venda, v.valor_total, v.status_venda
@@ -202,7 +158,7 @@ export const listarPorCliente = async (req, res, next) => {
       WHERE v.cliente_id = ?
       ORDER BY v.data_venda DESC
     `;
-    
+
     const [vendas] = await connection.execute(sql, [id]);
     res.json(vendas);
   } catch (err) {

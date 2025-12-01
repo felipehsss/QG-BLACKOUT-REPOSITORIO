@@ -27,11 +27,13 @@ export function FuncionarioForm({
     cpf: funcionario?.cpf || "",
     telefone_contato: funcionario?.telefone_contato || "",
     
-    // CORREÇÃO 1: Adicionando e formatando a Data de Admissão
-    // O input type="date" precisa do formato YYYY-MM-DD
+    // Data de Admissão formatada
     data_admissao: funcionario?.data_admissao 
       ? new Date(funcionario.data_admissao).toISOString().split('T')[0] 
       : "",
+
+    // Novo campo de Salário
+    salario: funcionario?.salario || "",
 
     loja_id: funcionario?.loja_id ? funcionario.loja_id.toString() : "", 
     perfil_id: funcionario?.perfil_id ? funcionario.perfil_id.toString() : "",
@@ -151,7 +153,6 @@ export function FuncionarioForm({
           />
         </div>
 
-        {/* CORREÇÃO 2: Novo campo de Data de Admissão */}
         <div className="space-y-2">
           <Label htmlFor="data_admissao">Data de Admissão</Label>
           <Input
@@ -159,6 +160,21 @@ export function FuncionarioForm({
             name="data_admissao"
             type="date"
             value={formData.data_admissao}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* Campo Salário Adicionado */}
+        <div className="space-y-2">
+          <Label htmlFor="salario">Salário (R$)</Label>
+          <Input
+            id="salario"
+            name="salario"
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="0,00"
+            value={formData.salario}
             onChange={handleChange}
           />
         </div>

@@ -29,7 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, MapPin, Calendar, UserCheck, Briefcase } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, MapPin, Calendar, UserCheck, Briefcase, Banknote } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -83,6 +83,11 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const formatCurrency = (value) => {
+    if (!value) return "R$ 0,00";
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   return (
@@ -150,7 +155,6 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
                     <TableCell className="font-medium">{func.nome_completo}</TableCell>
                     <TableCell className="hidden md:table-cell">{func.email}</TableCell>
                     <TableCell className="hidden md:table-cell">
-                        {/* Lógica simples para mostrar nome do perfil baseada no ID, ideal seria vir do backend */}
                         {func.perfil_id === 1 ? "Admin" : func.perfil_id === 2 ? "Gerente" : "Vendedor"}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{formatDate(func.data_admissao)}</TableCell>
@@ -225,6 +229,8 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
                             <DetailRow icon={Briefcase} label="Loja ID" value={selectedFuncionario.loja_id} />
                             <DetailRow icon={Briefcase} label="Perfil ID" value={selectedFuncionario.perfil_id} />
                             <DetailRow icon={Calendar} label="Admissão" value={formatDate(selectedFuncionario.data_admissao)} />
+                            {/* Visualização do Salário */}
+                            <DetailRow icon={Banknote} label="Salário Base" value={formatCurrency(selectedFuncionario.salario)} />
                         </div>
                     </div>
                 </div>

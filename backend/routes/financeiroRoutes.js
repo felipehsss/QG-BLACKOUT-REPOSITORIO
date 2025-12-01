@@ -1,14 +1,17 @@
-// financeiroRoutes.js
 import express from "express";
 import * as financeiroController from "../controller/financeiroController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
-// Todas as rotas exigem autenticação
 router.use(authMiddleware);
 
-// CRUD financeiro
+// Relatórios (DEVEM VIR ANTES DAS ROTAS COM :id)
+router.get("/dashboard/kpis", financeiroController.relatorioKPIs);
+router.get("/dashboard/categorias", financeiroController.relatorioCategorias);
+router.get("/dashboard/anual", financeiroController.relatorioAnual);
+
+// CRUD
 router.get("/", financeiroController.listar);
 router.get("/:id", financeiroController.buscarPorId);
 router.get("/loja/:loja_id", financeiroController.listarPorLoja);
