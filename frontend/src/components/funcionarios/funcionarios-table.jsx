@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -29,13 +29,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, MapPin, Calendar, UserCheck, Briefcase, Banknote } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, Eye, Mail, Phone, Calendar, UserCheck, Briefcase, Banknote, Wallet, Calculator } from "lucide-react";
 import {
   ChartContainer,
-  ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
 } from "@/components/ui/chart";
 
 export function FuncionariosTable({ data = [], onEdit, onDelete }) {
@@ -52,15 +49,29 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
     inativos: { label: "Inativos", color: "hsl(0 84.2% 60.2%)" },
   };
 
+  // Helper de formatação monetária
+  const formatCurrency = (value) => {
+    if (!value && value !== 0) return "R$ 0,00";
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
+
   const summary = useMemo(() => {
     const total = data.length;
-    const ativos = data.filter(f => f.is_ativo).length;
+    // Filtra apenas ativos para cálculo financeiro real
+    const funcionariosAtivos = data.filter(f => f.is_ativo);
+    const ativos = funcionariosAtivos.length;
     const inativos = total - ativos;
+
+    // CÁLCULOS FINANCEIROS
+    const totalFolha = funcionariosAtivos.reduce((acc, curr) => acc + (Number(curr.salario) || 0), 0);
+    const mediaSalarial = ativos > 0 ? totalFolha / ativos : 0;
 
     return {
       total,
       ativos,
       inativos,
+      totalFolha,
+      mediaSalarial,
       chartData: [
         { name: "ativos", value: ativos, fill: chartConfig.ativos.color },
         { name: "inativos", value: inativos, fill: chartConfig.inativos.color },
@@ -85,47 +96,73 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
     return new Date(dateString).toLocaleDateString('pt-BR');
   };
 
-  const formatCurrency = (value) => {
-    if (!value) return "R$ 0,00";
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Resumo e Gráficos */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="p-4 flex flex-col justify-center">
-           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Total Funcionários</CardTitle></CardHeader>
-           <CardContent><div className="text-2xl font-bold">{summary.total}</div></CardContent>
+      {/* Resumo e Gráficos (DASHBOARD FINANCEIRO RH) */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {/* Card 1: Total Pessoas */}
+        <Card className="p-4 flex flex-col justify-center shadow-sm">
+           <CardHeader className="pb-2 p-0"><CardTitle className="text-sm font-medium text-muted-foreground">Colaboradores</CardTitle></CardHeader>
+           <CardContent className="p-0 pt-2"><div className="text-2xl font-bold">{summary.total}</div></CardContent>
         </Card>
-        <Card className="p-4 flex flex-col justify-center">
-           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Ativos</CardTitle></CardHeader>
-           <CardContent><div className="text-2xl font-bold text-green-600">{summary.ativos}</div></CardContent>
+
+        {/* Card 2: Custo Folha (NOVO) */}
+        <Card className="p-4 flex flex-col justify-center shadow-sm border-l-4 border-l-primary">
+           <CardHeader className="pb-2 p-0 flex flex-row items-center justify-between">
+             <CardTitle className="text-sm font-medium text-muted-foreground">Folha Mensal</CardTitle>
+             <Wallet className="h-4 w-4 text-primary opacity-70" />
+           </CardHeader>
+           <CardContent className="p-0 pt-2">
+             <div className="text-2xl font-bold">{formatCurrency(summary.totalFolha)}</div>
+             <p className="text-xs text-muted-foreground">Custo com ativos</p>
+           </CardContent>
         </Card>
-        <Card className="p-4 flex flex-col justify-center">
-           <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Inativos</CardTitle></CardHeader>
-           <CardContent><div className="text-2xl font-bold text-destructive">{summary.inativos}</div></CardContent>
+
+        {/* Card 3: Média Salarial (NOVO) */}
+        <Card className="p-4 flex flex-col justify-center shadow-sm">
+           <CardHeader className="pb-2 p-0 flex flex-row items-center justify-between">
+             <CardTitle className="text-sm font-medium text-muted-foreground">Média Salarial</CardTitle>
+             <Calculator className="h-4 w-4 text-muted-foreground opacity-70" />
+           </CardHeader>
+           <CardContent className="p-0 pt-2">
+             <div className="text-2xl font-bold">{formatCurrency(summary.mediaSalarial)}</div>
+           </CardContent>
         </Card>
         
-        {summary.chartData.length > 0 && (
-          <Card className="p-4 flex flex-col justify-center">
-            <CardHeader className="items-center pb-0"><CardTitle className="text-sm font-medium">Status</CardTitle></CardHeader>
-            <CardContent className="flex flex-1 items-center justify-center p-0">
-               <ChartContainer config={chartConfig} className="mx-auto aspect-square w-full max-w-[100px]">
-                 <PieChart>
-                    <Tooltip content={<ChartTooltipContent hideLabel />} />
-                    <Pie data={summary.chartData} dataKey="value" nameKey="name" innerRadius={25} strokeWidth={2}>
-                       {summary.chartData.map((e, i) => <Cell key={i} fill={e.fill} />)}
-                    </Pie>
-                 </PieChart>
-               </ChartContainer>
-            </CardContent>
-          </Card>
-        )}
+        {/* Card 4: Status (Pizza) */}
+        <Card className="p-4 flex flex-col justify-center col-span-2 md:col-span-1 lg:col-span-2">
+            <div className="flex items-center justify-between h-full">
+                <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Status da Equipe</p>
+                    <div className="flex gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-primary" />
+                            <span className="font-bold">{summary.ativos} Ativos</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-destructive/60" />
+                            <span className="text-muted-foreground">{summary.inativos} Inativos</span>
+                        </div>
+                    </div>
+                </div>
+                {summary.chartData.length > 0 && (
+                    <div className="h-[60px] w-[60px]">
+                        <ChartContainer config={chartConfig} className="aspect-square w-full">
+                            <PieChart>
+                                <Tooltip content={<ChartTooltipContent hideLabel />} />
+                                <Pie data={summary.chartData} dataKey="value" nameKey="name" innerRadius={20} strokeWidth={0}>
+                                    {summary.chartData.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                                </Pie>
+                            </PieChart>
+                        </ChartContainer>
+                    </div>
+                )}
+            </div>
+        </Card>
       </div>
 
       {/* Tabela */}
-      <div className="rounded-md border bg-card">
+      <div className="rounded-md border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -152,7 +189,12 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
                         <AvatarFallback>{func.nome_completo?.charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
                     </TableCell>
-                    <TableCell className="font-medium">{func.nome_completo}</TableCell>
+                    <TableCell className="font-medium">
+                        {func.nome_completo}
+                        {/* Opcional: mostrar salário pequeno abaixo do nome apenas para admin 
+                        <div className="text-xs text-muted-foreground md:hidden">{formatCurrency(func.salario)}</div>
+                        */}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">{func.email}</TableCell>
                     <TableCell className="hidden md:table-cell">
                         {func.perfil_id === 1 ? "Admin" : func.perfil_id === 2 ? "Gerente" : "Vendedor"}
@@ -211,9 +253,15 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
                         </Avatar>
                         <div className="text-center">
                             <h3 className="text-xl font-semibold">{selectedFuncionario.nome_completo}</h3>
-                            <Badge variant={selectedFuncionario.is_ativo ? "default" : "destructive"} className="mt-2">
-                                {selectedFuncionario.is_ativo ? "Colaborador Ativo" : "Inativo"}
-                            </Badge>
+                            <div className="flex justify-center gap-2 mt-2">
+                                <Badge variant={selectedFuncionario.is_ativo ? "default" : "destructive"}>
+                                    {selectedFuncionario.is_ativo ? "Colaborador Ativo" : "Inativo"}
+                                </Badge>
+                                {/* Badge de Salário no topo do card de detalhes */}
+                                <Badge variant="secondary" className="font-mono">
+                                    {formatCurrency(selectedFuncionario.salario)}
+                                </Badge>
+                            </div>
                         </div>
                     </div>
                     
@@ -229,7 +277,6 @@ export function FuncionariosTable({ data = [], onEdit, onDelete }) {
                             <DetailRow icon={Briefcase} label="Loja ID" value={selectedFuncionario.loja_id} />
                             <DetailRow icon={Briefcase} label="Perfil ID" value={selectedFuncionario.perfil_id} />
                             <DetailRow icon={Calendar} label="Admissão" value={formatDate(selectedFuncionario.data_admissao)} />
-                            {/* Visualização do Salário */}
                             <DetailRow icon={Banknote} label="Salário Base" value={formatCurrency(selectedFuncionario.salario)} />
                         </div>
                     </div>
