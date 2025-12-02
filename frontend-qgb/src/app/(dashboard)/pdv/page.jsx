@@ -22,7 +22,6 @@ import { useAuth } from "@/contexts/AuthContext"
 import * as clienteService from "@/services/clienteService"
 import * as produtoService from "@/services/produtoService"
 import * as vendaService from "@/services/vendaService"
-// pagamentoVendaService não é mais necessário diretamente pois a venda cria tudo junto
 
 // --- CONFIGURAÇÃO DA URL ---
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3080/api';
@@ -33,7 +32,7 @@ const formatCPF = (value) => value.replace(/\D/g, "").replace(/(\d{3})(\d)/, "$1
 const formatCNPJ = (value) => value.replace(/\D/g, "").replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2}\.\d{3})(\d)/, "$1.$2").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2").slice(0, 18)
 
 export default function PDVPage() {
-  const { token, user } = useAuth() // PEGAMOS O USER AQUI TAMBÉM
+  const { token, user } = useAuth()
 
   // --- Estados ---
   const [clientes, setClientes] = useState([])
@@ -52,9 +51,6 @@ export default function PDVPage() {
 
   const [showRecibo, setShowRecibo] = useState(false)
   const [recibo, setRecibo] = useState(null)
-
-  const [showNota, setShowNota] = useState(false)
-  const [notaFiscal, setNotaFiscal] = useState(null)
 
   const [busca, setBusca] = useState("")
   const [showCadastroCliente, setShowCadastroCliente] = useState(false)
@@ -95,6 +91,7 @@ export default function PDVPage() {
       const lista = await clienteService.readAll(token)
       const clientesFormatados = lista.map(c => ({
         ...c,
+        id: c.id_cliente || c.id, // Ajuste para pegar o ID correto
         documento: c.cpf || c.cnpj || "" 
       }))
       setClientes(clientesFormatados)
@@ -216,19 +213,18 @@ export default function PDVPage() {
     setLoadingPagamento(true)
 
     try {
-      // PREPARAÇÃO DO PAYLOAD CORRETO PARA O CONTROLLER
       const vendaPayload = {
-        // IDs obrigatórios - Usando fallback se user não tiver (ajuste conforme seu AuthContext real)
+        // IDs obrigatórios - Fallbacks seguros para evitar erro de BD
         loja_id: user?.loja_id || 1, 
-        sessao_id: user?.sessao_id || 1, // Se tiver sistema de sessão, use aqui. Senão 1 como fallback.
+        sessao_id: user?.sessao_id || 1, 
         funcionario_id: user?.id || user?.id_funcionario || 1,
         
         // Dados da venda
-        cliente_id: cliente.id, // O controller espera 'cliente_id'
+        cliente_id: cliente.id || null, // Envia null se não tiver ID selecionado
         valor_total: totalComDesconto,
         status_venda: "Concluída",
         
-        // Array de itens mapeado corretamente
+        // Itens mapeados
         itens: carrinho.map(item => ({
           produto_id: item.id,
           quantidade: item.quantidade,
@@ -236,7 +232,7 @@ export default function PDVPage() {
           subtotal: item.preco * item.quantidade
         })),
 
-        // Array de pagamentos (O controller exige isso aqui dentro)
+        // Pagamentos
         pagamentos: [
           {
             metodo_pagamento: metodoPagamento,
@@ -245,10 +241,8 @@ export default function PDVPage() {
         ]
       }
 
-      // Envia tudo de uma vez para o endpoint /vendas
       const resVenda = await vendaService.create(vendaPayload, token)
       
-      // Se deu sucesso
       const idVenda = resVenda?.venda_id || resVenda?.id || (resVenda?.data && resVenda.data.id)
 
       const reciboData = {
@@ -271,7 +265,7 @@ export default function PDVPage() {
       setShowRecibo(true)
       toast.success("Venda finalizada com sucesso!")
       
-      // Limpa estado
+      // Resetar estado para nova venda
       setCarrinho([])
       setDescontoPercent(0)
       setMetodoPagamento("")
@@ -280,15 +274,11 @@ export default function PDVPage() {
 
     } catch (error) {
       console.error("Erro ao finalizar venda:", error)
-      // Exibe a mensagem exata que vem do backend
       toast.error(error.message || "Falha ao registrar venda.")
     } finally {
       setLoadingPagamento(false)
     }
   }
-
-  // ... (Restante do código de UI e Modais permanece igual)
-  // Vou manter o render igual ao anterior para brevidade, já que a lógica crítica estava acima.
 
   const produtosFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase()
@@ -314,7 +304,7 @@ export default function PDVPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Frente de Caixa (PDV)</h1>
-          <p className="text-muted-foreground">Registar vendas e emitir comprovantes</p>
+          <p className="text-muted-foreground">Registrar vendas e emitir comprovantes</p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" onClick={() => setShowCadastroCliente(true)}>
@@ -324,9 +314,9 @@ export default function PDVPage() {
             <User className="w-4 h-4 mr-2" /> Buscar Cliente
           </Button>
           <Button variant="destructive" size="sm" onClick={() => {
-             setCarrinho([]); 
-             setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" });
-             toast.info("Venda limpa.");
+              setCarrinho([]); 
+              setCliente({ id: null, nome: "", documento: "", tipo: "", telefone: "", email: "" });
+              toast.info("Venda limpa.");
           }}>
             <XCircle className="w-4 h-4 mr-2" /> Limpar Venda
           </Button>
