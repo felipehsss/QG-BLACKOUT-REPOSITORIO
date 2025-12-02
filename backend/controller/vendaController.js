@@ -25,28 +25,54 @@ export const buscarPorId = async (req, res, next) => {
   }
 };
 
-// Criar nova venda completa (COM DESCONTO DE ESTOQUE)
+// Criar nova venda completa (COM VALIDAÇÃO DE ESTOQUE E SESSÃO)
 export const criar = async (req, res, next) => {
   const { loja_id, sessao_id, funcionario_id, cliente_id, valor_total, status_venda, itens, pagamentos } = req.body;
 
-  // Validação básica
+  // 1. Validação básica de dados
   if (!loja_id || !itens || itens.length === 0 || !pagamentos) {
     return res.status(400).json({ message: "Dados incompletos para finalizar a venda." });
   }
+
+  // 2. Correção do Erro 'sessao_id cannot be null'
+  // Se não vier sessao_id, tentamos usar 1 (padrão) ou lançamos erro.
+  // O ideal é obrigar o usuário a abrir o caixa no frontend.
+  const idSessaoFinal = sessao_id ? sessao_id : 1; 
+  // DICA: Se quiser bloquear quem não abriu caixa, descomente a linha abaixo:
+  // if (!sessao_id) return res.status(400).json({ message: "É necessário abrir o caixa antes de realizar vendas." });
 
   const connection = await getConnection();
 
   try {
     await connection.beginTransaction();
 
-    // 1. Criar a venda
+    // 3. Verificar Estoque ANTES de vender
+    // Isso resolve o problema de 'comprar com estoque zero'
+    const sqlVerificaEstoque = "SELECT quantidade, nome FROM produtos p JOIN estoque e ON p.produto_id = e.produto_id WHERE e.produto_id = ? AND e.loja_id = ?";
+    
+    for (const item of itens) {
+      const [rows] = await connection.execute(sqlVerificaEstoque, [item.produto_id, loja_id]);
+      
+      if (rows.length === 0) {
+        throw new Error(`Produto ID ${item.produto_id} não cadastrado no estoque desta loja.`);
+      }
+
+      const estoqueAtual = Number(rows[0].quantidade);
+      const qtdSolicitada = Number(item.quantidade);
+
+      if (estoqueAtual < qtdSolicitada) {
+        throw new Error(`Estoque insuficiente para o produto "${rows[0].nome}". Disponível: ${estoqueAtual}, Solicitado: ${qtdSolicitada}`);
+      }
+    }
+
+    // 4. Criar a venda
     const sqlVenda = `
       INSERT INTO vendas (loja_id, sessao_id, funcionario_id, cliente_id, valor_total, status_venda)
       VALUES (?, ?, ?, ?, ?, ?)
     `;
     const [vendaResult] = await connection.execute(sqlVenda, [
       loja_id, 
-      sessao_id || null, 
+      idSessaoFinal, // Usando o ID tratado
       funcionario_id, 
       cliente_id || null, 
       valor_total, 
@@ -54,17 +80,15 @@ export const criar = async (req, res, next) => {
     ]);
     const novaVendaId = vendaResult.insertId;
 
-    // 2. Inserir Itens e Atualizar Estoque
+    // 5. Inserir Itens e Baixar Estoque
     const sqlItem = `
       INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario_momento, subtotal)
       VALUES (?, ?, ?, ?, ?)
     `;
-    
-    const sqlVerificaEstoque = "SELECT quantidade FROM estoque WHERE produto_id = ? AND loja_id = ?";
     const sqlAtualizaEstoque = "UPDATE estoque SET quantidade = quantidade - ? WHERE produto_id = ? AND loja_id = ?";
 
     for (const item of itens) {
-      // A. Inserir o item na tabela itens_venda
+      // A. Inserir item
       await connection.execute(sqlItem, [
         novaVendaId,
         item.produto_id,
@@ -73,24 +97,12 @@ export const criar = async (req, res, next) => {
         item.subtotal
       ]);
 
-      // B. Descontar do Estoque (Se o item existir no estoque dessa loja)
-      const [rows] = await connection.execute(sqlVerificaEstoque, [item.produto_id, loja_id]);
-      
-      if (rows.length > 0) {
-        // Item existe no estoque, prosseguir com o desconto
-        await connection.execute(sqlAtualizaEstoque, [item.quantidade, item.produto_id, loja_id]);
-      } else {
-        // Opcional: Se o item não existe no estoque, você pode decidir se:
-        // 1. Ignora (permite venda sem controle de estoque) - Comportamento atual
-        // 2. Cria o registro com estoque negativo (se seu negócio permitir)
-        // 3. Bloqueia a venda (lançando um erro aqui)
-        // console.warn(`Produto ${item.produto_id} não encontrado no estoque da loja ${loja_id}. Venda realizada sem baixa.`);
-      }
+      // B. Baixar estoque (Já validamos que existe quantidade suficiente no passo 3)
+      await connection.execute(sqlAtualizaEstoque, [item.quantidade, item.produto_id, loja_id]);
     }
 
-    // 3. Inserir pagamentos e definir forma principal
+    // 6. Inserir pagamentos
     const sqlPagamento = "INSERT INTO pagamentos_venda (venda_id, metodo_pagamento, valor_pago) VALUES (?, ?, ?)";
-    
     let formaPagamentoPrincipal = "Misto";
     if (pagamentos.length === 1) {
       formaPagamentoPrincipal = pagamentos[0].metodo_pagamento;
@@ -100,20 +112,19 @@ export const criar = async (req, res, next) => {
       await connection.execute(sqlPagamento, [novaVendaId, pgto.metodo_pagamento, pgto.valor_pago]);
     }
 
-    // 4. Automação Financeira (Lançar no fluxo de caixa)
+    // 7. Lançar no Financeiro
     const sqlFinanceiro = `
       INSERT INTO financeiro (loja_id, tipo, categoria_id, origem, referencia_id, descricao, valor, forma_pagamento, data_movimento)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
     
-    // categoria_id = 1 (Assumindo que 1 seja "Vendas" ou "Receita de Vendas")
     await connection.execute(sqlFinanceiro, [
       loja_id,
       "Entrada",          
-      1,                   
+      1, // Categoria 1 = Vendas
       "Venda",
       novaVendaId,
-      `Venda #${novaVendaId} - Cliente ID: ${cliente_id || "Avulso"}`,
+      `Venda #${novaVendaId} - Cliente: ${cliente_id ? "Cadastrado" : "Avulso"}`,
       valor_total,
       formaPagamentoPrincipal
     ]);
@@ -123,13 +134,15 @@ export const criar = async (req, res, next) => {
 
   } catch (err) {
     if (connection) await connection.rollback();
-    console.error("Erro ao realizar venda:", err);
-    next(err);
+    console.error("Erro ao realizar venda:", err.message);
+    // Retorna o erro específico (ex: estoque insuficiente) para o frontend mostrar no Toast
+    res.status(400).json({ message: err.message });
   } finally {
     if (connection) connection.release();
   }
 };
 
+// ... (Restante das funções: atualizar, deletar, getRelatorioVendas, listarPorCliente mantenha igual)
 // Atualizar venda
 export const atualizar = async (req, res, next) => {
   try {
@@ -155,7 +168,6 @@ export const deletar = async (req, res, next) => {
   }
 };
 
-// Gerar relatório de vendas (A query corrigida que fizemos antes)
 export const getRelatorioVendas = async (req, res, next) => {
   const connection = await getConnection();
   try {
@@ -184,7 +196,6 @@ export const getRelatorioVendas = async (req, res, next) => {
   }
 };
 
-// Listar vendas por cliente
 export const listarPorCliente = async (req, res, next) => {
   const connection = await getConnection();
   try {
