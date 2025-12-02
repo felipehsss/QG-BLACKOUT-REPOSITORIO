@@ -4,6 +4,16 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { Loader2 } from "lucide-react";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -14,10 +24,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MaskedInput } from "@/components/ui/masked-input";
+
 import { create as createFornecedor, update as updateFornecedor } from "@/services/fornecedorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { MaskedInput } from "@/components/ui/masked-input";
 import { cpfCnpjMask, phoneMask } from "../funcionarios/masks";
 
 const formSchema = z.object({
@@ -28,7 +39,7 @@ const formSchema = z.object({
   endereco: z.string().optional().or(z.literal("")),
 });
 
-export function FornecedorForm({ onSuccess, onCancel, initialData = null }) {
+export function FornecedorForm({ open, setOpen, onSuccess, initialData = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { token } = useAuth();
 
@@ -37,19 +48,28 @@ export function FornecedorForm({ onSuccess, onCancel, initialData = null }) {
     defaultValues: { nome: "", email: "", telefone: "", cnpj: "", endereco: "" },
   });
 
+  // Reseta o formulário quando abre/fecha ou quando muda os dados de edição
   useEffect(() => {
-    if (initialData) {
-      form.reset({
-        nome: initialData.nome ?? initialData.razao_social ?? "",
-        email: initialData.email ?? "",
-        telefone: initialData.telefone ?? "",
-        cnpj: initialData.cnpj ?? "",
-        endereco: initialData.endereco ?? "",
-      });
-    } else {
-      form.reset();
+    if (open) {
+      if (initialData) {
+        form.reset({
+          nome: initialData.nome ?? initialData.razao_social ?? "",
+          email: initialData.email ?? "",
+          telefone: initialData.telefone ?? "",
+          cnpj: initialData.cnpj ?? "",
+          endereco: initialData.endereco ?? "",
+        });
+      } else {
+        form.reset({
+          nome: "",
+          email: "",
+          telefone: "",
+          cnpj: "",
+          endereco: "",
+        });
+      }
     }
-  }, [initialData, form]);
+  }, [initialData, open, form]);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -70,6 +90,9 @@ export function FornecedorForm({ onSuccess, onCancel, initialData = null }) {
         await createFornecedor(payload, token);
         toast.success("Fornecedor criado!");
       }
+      
+      // Fecha o modal e chama o callback de sucesso
+      setOpen(false);
       onSuccess?.();
     } catch (err) {
       toast.error(err.message || "Erro ao salvar fornecedor.");
@@ -79,55 +102,116 @@ export function FornecedorForm({ onSuccess, onCancel, initialData = null }) {
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField control={form.control} name="nome" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Razão Social / Nome</FormLabel>
-            <FormControl><Input placeholder="Nome da empresa" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>
+            {initialData ? "Editar Fornecedor" : "Novo Fornecedor"}
+          </DialogTitle>
+          <DialogDescription>
+            Preencha os dados do fornecedor abaixo. Clique em salvar quando terminar.
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4">
-            <FormField control={form.control} name="cnpj" render={({ field }) => (
-            <FormItem>
-                <FormLabel>CNPJ</FormLabel>
-                <FormControl><MaskedInput placeholder="00.000.000/0001-00" {...field} mask={cpfCnpjMask} /></FormControl>
-                <FormMessage />
-            </FormItem>
-            )} />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Razão Social / Nome</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nome da empresa" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-            <FormField control={form.control} name="telefone" render={({ field }) => (
-            <FormItem>
-                <FormLabel>Telefone</FormLabel>
-                <FormControl><MaskedInput placeholder="(00) 00000-0000" {...field} mask={phoneMask} /></FormControl>
-                <FormMessage />
-            </FormItem>
-            )} />
-        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="cnpj"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CNPJ</FormLabel>
+                    <FormControl>
+                      <MaskedInput 
+                        placeholder="00.000.000/0001-00" 
+                        {...field} 
+                        mask={cpfCnpjMask} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        <FormField control={form.control} name="email" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Email</FormLabel>
-            <FormControl><Input placeholder="contato@empresa.com" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
+              <FormField
+                control={form.control}
+                name="telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <MaskedInput 
+                        placeholder="(00) 00000-0000" 
+                        {...field} 
+                        mask={phoneMask} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-        <FormField control={form.control} name="endereco" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Endereço</FormLabel>
-            <FormControl><Input placeholder="Rua, nº, bairro" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="contato@empresa.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
-          <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar"}</Button>
-        </div>
-      </form>
-    </Form>
+            <FormField
+              control={form.control}
+              name="endereco"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endereço</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Rua, nº, bairro" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setOpen(false)} 
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }

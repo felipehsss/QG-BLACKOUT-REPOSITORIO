@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"; // Importando Input
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"; // Importando Select
 import { ClientesTable } from "@/components/clientes/clientes-table";
 import { ClienteForm } from "@/components/clientes/cliente-form";
 import {
@@ -21,13 +29,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ShoppingBag } from "lucide-react";
+import { Loader2, ShoppingBag, Search, Filter } from "lucide-react"; // Ícones adicionais
 
 import {
   readAll as readClientes,
   deleteRecord as deleteCliente,
 } from "@/services/clienteService";
-import { readByCliente as readVendasCliente } from "@/services/vendaService"; // Importe o serviço de vendas
+import { readByCliente as readVendasCliente } from "@/services/vendaService"; 
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
@@ -38,6 +46,10 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState(null);
+
+  // Estados de Filtro
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("ALL"); // ALL, PF, PJ
 
   // Estados do Histórico
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -60,6 +72,25 @@ export default function ClientesPage() {
   useEffect(() => {
     fetchClientes();
   }, [token]);
+
+  // --- Lógica de Filtragem ---
+  const filteredClientes = clientes.filter((cliente) => {
+    // Normaliza para lowercase para busca insensível a maiúsculas/minúsculas
+    const term = searchTerm.toLowerCase();
+    
+    // Verifica se bate com algum campo principal
+    const matchesSearch = 
+      cliente.nome?.toLowerCase().includes(term) ||
+      cliente.email?.toLowerCase().includes(term) ||
+      cliente.cpf?.includes(term) ||
+      cliente.cnpj?.includes(term) ||
+      cliente.telefone?.includes(term);
+
+    // Verifica o tipo
+    const matchesType = filterType === "ALL" || cliente.tipo_cliente === filterType;
+
+    return matchesSearch && matchesType;
+  });
 
   // --- CRUD Operations ---
   const handleAdd = () => {
@@ -124,14 +155,40 @@ export default function ClientesPage() {
         <Button onClick={handleAdd}>Adicionar Cliente</Button>
       </div>
 
+      {/* --- BARRA DE FILTROS --- */}
+      <div className="flex flex-col md:flex-row gap-4 bg-card p-4 rounded-lg border shadow-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, email, CPF/CNPJ..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <div className="w-full md:w-[200px]">
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <SelectValue placeholder="Tipo" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Todos os Tipos</SelectItem>
+              <SelectItem value="PF">Pessoa Física</SelectItem>
+              <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       {/* Tabela Principal */}
-      {/* IMPORTANTE: Você precisa passar a prop onViewHistory para o componente ClientesTable funcionar se ele já tiver o botão, 
-          ou adicionar o botão no ClientesTable chamando esta função */}
       <ClientesTable
-        data={clientes}
+        data={filteredClientes} // Passamos a lista filtrada aqui
         onEdit={handleEdit}
         onDelete={handleDelete}
-        onViewHistory={handleViewHistory} // Passe a função aqui
+        onViewHistory={handleViewHistory}
       />
 
       {/* Modal de Cadastro/Edição */}

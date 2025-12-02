@@ -4,7 +4,19 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -13,40 +25,35 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { MaskedInput } from "@/components/ui/masked-input";
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+
 import { create as createCliente, update as updateCliente } from "@/services/clienteService";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { formatCPF, formatCNPJ, formatPhone } from "@/lib/utils";
 
-const formSchema = z
-  .object({
-    nome: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-    email: z.string().email("Email inválido.").optional().or(z.literal("")),
-    telefone: z.string().optional().or(z.literal("")),
-    endereco: z.string().optional().or(z.literal("")),
-    foto: z.any().optional(),
-    tipo_cliente: z.enum(["PF", "PJ"]),
-    cpf: z.string().optional(),
-    cnpj: z.string().optional(),
-    razao_social: z.string().optional(),
-    nome_fantasia: z.string().optional(),
-    inscricao_estadual: z.string().optional(),
-  });
+// Schema de validação
+const formSchema = z.object({
+  nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("E-mail inválido").optional().or(z.literal("")),
+  telefone: z.string().optional(),
+  endereco: z.string().optional(),
+  tipo_cliente: z.enum(["PF", "PJ"]),
+  // Campos condicionais (validamos no submit ou deixamos opcionais aqui)
+  cpf: z.string().optional(),
+  cnpj: z.string().optional(),
+  razao_social: z.string().optional(),
+  nome_fantasia: z.string().optional(),
+  inscricao_estadual: z.string().optional(),
+});
 
-export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
-  const [preview, setPreview] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function ClienteForm({ open, setOpen, initialData, onSuccess }) {
   const { token } = useAuth();
+  const [loading, setLoading] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -64,145 +71,259 @@ export function ClienteForm({ onSuccess, onCancel, initialData = null }) {
     },
   });
 
+  // Monitora o tipo de cliente para renderização condicional
+  const tipoCliente = form.watch("tipo_cliente");
+
+  // Reseta o formulário quando abre/fecha ou muda os dados iniciais
   useEffect(() => {
     if (initialData) {
       form.reset({
-        nome: initialData.nome ?? "",
-        email: initialData.email ?? "",
-        telefone: initialData.telefone ? formatPhone(initialData.telefone) : "",
-        endereco: initialData.endereco ?? "",
-        tipo_cliente: initialData.tipo_cliente ?? "PF",
-        cpf: initialData.cpf ? formatCPF(initialData.cpf) : "",
-        cnpj: initialData.cnpj ? formatCNPJ(initialData.cnpj) : "",
-        razao_social: initialData.razao_social ?? "",
-        nome_fantasia: initialData.nome_fantasia ?? "",
-        inscricao_estadual: initialData.inscricao_estadual ?? "",
-        foto: undefined,
+        nome: initialData.nome || "",
+        email: initialData.email || "",
+        telefone: initialData.telefone || "",
+        endereco: initialData.endereco || "",
+        tipo_cliente: initialData.tipo_cliente || "PF",
+        cpf: initialData.cpf || "",
+        cnpj: initialData.cnpj || "",
+        razao_social: initialData.razao_social || "",
+        nome_fantasia: initialData.nome_fantasia || "",
+        inscricao_estadual: initialData.inscricao_estadual || "",
       });
-      setPreview(initialData.foto ? `http://localhost:3080/uploads/${initialData.foto}` : null);
     } else {
-      form.reset();
-      setPreview(null);
+      form.reset({
+        nome: "",
+        email: "",
+        telefone: "",
+        endereco: "",
+        tipo_cliente: "PF",
+        cpf: "",
+        cnpj: "",
+        razao_social: "",
+        nome_fantasia: "",
+        inscricao_estadual: "",
+      });
     }
-  }, [initialData, form]);
+  }, [initialData, open, form]);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      form.setValue("foto", file);
-      setPreview(URL.createObjectURL(file));
-    }
-  };
-
-  const onSubmit = async (data) => {
-    setIsSubmitting(true);
+  const onSubmit = async (values) => {
+    setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("nome", data.nome.trim());
-      if (data.email) formData.append("email", data.email.trim());
-      if (data.telefone) formData.append("telefone", data.telefone.replace(/\D/g, ""));
-      if (data.endereco) formData.append("endereco", data.endereco.trim());
-      formData.append("tipo_cliente", data.tipo_cliente);
-
-      if (data.tipo_cliente === "PF") {
-        if (data.cpf) formData.append("cpf", data.cpf.replace(/\D/g, ""));
+      // Limpeza de dados baseada no tipo (para não enviar CPF se for PJ e vice-versa)
+      const payload = { ...values };
+      if (payload.tipo_cliente === "PF") {
+        payload.cnpj = null;
+        payload.razao_social = null;
+        payload.nome_fantasia = null;
+        payload.inscricao_estadual = null;
       } else {
-        if (data.cnpj) formData.append("cnpj", data.cnpj.replace(/\D/g, ""));
-        if (data.razao_social) formData.append("razao_social", data.razao_social);
-        if (data.nome_fantasia) formData.append("nome_fantasia", data.nome_fantasia);
-        if (data.inscricao_estadual) formData.append("inscricao_estadual", data.inscricao_estadual);
+        payload.cpf = null;
       }
 
-      if (data.foto instanceof File) {
-        formData.append("foto", data.foto);
-      }
-
-      if (initialData && (initialData.id ?? initialData.id_cliente)) {
+      if (initialData) {
+        // Editar
         const id = initialData.id ?? initialData.id_cliente;
-        await updateCliente(id, formData, token);
-        toast.success("Cliente atualizado!");
+        await updateCliente(id, payload, token);
+        toast.success("Cliente atualizado com sucesso!");
       } else {
-        await createCliente(formData, token);
-        toast.success("Cliente criado!");
+        // Criar
+        await createCliente(payload, token);
+        toast.success("Cliente cadastrado com sucesso!");
       }
-
-      onSuccess?.();
-    } catch (err) {
-      toast.error(err.message || "Erro ao salvar cliente.");
+      
+      setOpen(false);
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Erro ao salvar cliente.");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        
-        <div className="flex flex-col items-center gap-4">
-          <Avatar className="w-24 h-24">
-            <AvatarImage src={preview} className="object-cover" />
-            <AvatarFallback>{initialData?.nome?.charAt(0) || "C"}</AvatarFallback>
-          </Avatar>
-          <Input type="file" accept="image/*" onChange={handleFileChange} className="w-full max-w-xs" />
-        </div>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {initialData ? "Editar Cliente" : "Novo Cliente"}
+          </DialogTitle>
+          <DialogDescription>
+            Preencha os dados abaixo. Clique em salvar quando terminar.
+          </DialogDescription>
+        </DialogHeader>
 
-        <FormField control={form.control} name="nome" render={({ field }) => (
-          <FormItem>
-            <FormLabel>Nome *</FormLabel>
-            <FormControl><Input placeholder="Nome completo" {...field} /></FormControl>
-            <FormMessage />
-          </FormItem>
-        )} />
-
-        <div className="grid grid-cols-2 gap-4">
-            <FormField control={form.control} name="telefone" render={({ field }) => (
-            <FormItem>
-                <FormLabel>Telefone</FormLabel>
-                <FormControl><MaskedInput placeholder="(11) 99999-9999" mask={formatPhone} {...field} /></FormControl>
-                <FormMessage />
-            </FormItem>
-            )} />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
-            <FormField control={form.control} name="tipo_cliente" render={({ field }) => (
-            <FormItem>
-                <FormLabel>Tipo</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="PF">Pessoa Física</SelectItem>
-                    <SelectItem value="PJ">Pessoa Jurídica</SelectItem>
-                </SelectContent>
-                </Select>
-                <FormMessage />
-            </FormItem>
-            )} />
-        </div>
+            {/* Tipo de Cliente */}
+            <FormField
+              control={form.control}
+              name="tipo_cliente"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Cliente</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="PF">Pessoa Física (CPF)</SelectItem>
+                      <SelectItem value="PJ">Pessoa Jurídica (CNPJ)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {form.watch("tipo_cliente") === "PF" && (
-            <FormField control={form.control} name="cpf" render={({ field }) => (
-            <FormItem>
-                <FormLabel>CPF</FormLabel>
-                <FormControl><MaskedInput placeholder="000.000.000-00" mask={formatCPF} {...field} /></FormControl>
-                <FormMessage />
-            </FormItem>
-            )} />
-        )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Nome Principal */}
+              <FormField
+                control={form.control}
+                name="nome"
+                render={({ field }) => (
+                  <FormItem className="col-span-2">
+                    <FormLabel>Nome Completo / Responsável</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nome do cliente" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-        {form.watch("tipo_cliente") === "PJ" && (
-            <FormField control={form.control} name="cnpj" render={({ field }) => (
-            <FormItem>
-                <FormLabel>CNPJ</FormLabel>
-                <FormControl><MaskedInput placeholder="00.000.000/0001-00" mask={formatCNPJ} {...field} /></FormControl>
-                <FormMessage />
-            </FormItem>
-            )} />
-        )}
+              {/* Condicional PF */}
+              {tipoCliente === "PF" && (
+                <FormField
+                  control={form.control}
+                  name="cpf"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CPF</FormLabel>
+                      <FormControl>
+                        <Input placeholder="000.000.000-00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Cancelar</Button>
-          <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar"}</Button>
-        </div>
-      </form>
-    </Form>
+              {/* Condicional PJ */}
+              {tipoCliente === "PJ" && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="cnpj"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CNPJ</FormLabel>
+                        <FormControl>
+                          <Input placeholder="00.000.000/0001-00" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="razao_social"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Razão Social</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Empresa Ltda" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="nome_fantasia"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nome Fantasia</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Nome da Loja" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="inscricao_estadual"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inscrição Estadual</FormLabel>
+                        <FormControl>
+                          <Input placeholder="IE..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl>
+                      <Input type="email" placeholder="cliente@email.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone</FormLabel>
+                    <FormControl>
+                      <Input placeholder="(00) 00000-0000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="endereco"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endereço</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Rua, Número, Bairro..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
