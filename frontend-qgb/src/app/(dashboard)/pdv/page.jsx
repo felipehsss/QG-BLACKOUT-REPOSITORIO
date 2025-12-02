@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Trash2, CheckCircle, User, Percent, XCircle, Search, FileText, PlusCircle, Loader2, Image as ImageIcon } from "lucide-react"
+import { Trash2, CheckCircle, User, Percent, XCircle, Search, PlusCircle, Loader2, Image as ImageIcon } from "lucide-react"
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem
 } from "@/components/ui/select"
@@ -75,8 +75,11 @@ export default function PDVPage() {
       
       const produtosFormatados = lista.map(p => ({
         ...p,
+        // Garante que pegamos o ID correto independentemente do formato do backend
         id: p.produto_id || p.id || p._id,
         preco: Number(p.preco_venda || p.preco || 0),
+        // Adicionamos a quantidade atual para mostrar no card (opcional, mas bom para debug)
+        estoque_atual: Number(p.quantidade || p.estoque || 0),
         fotoUrl: p.foto ? `${BASE_URL}/uploads/${p.foto}` : null
       }))
       setProdutos(produtosFormatados)
@@ -91,7 +94,7 @@ export default function PDVPage() {
       const lista = await clienteService.readAll(token)
       const clientesFormatados = lista.map(c => ({
         ...c,
-        id: c.id_cliente || c.id, // Ajuste para pegar o ID correto
+        id: c.id_cliente || c.id, 
         documento: c.cpf || c.cnpj || "" 
       }))
       setClientes(clientesFormatados)
@@ -213,23 +216,26 @@ export default function PDVPage() {
     setLoadingPagamento(true)
 
     try {
+      // 1. Garante que Loja ID seja um número válido
+      const lojaIdAtual = user?.loja_id ? Number(user.loja_id) : 1;
+
       const vendaPayload = {
-        // IDs obrigatórios - Fallbacks seguros para evitar erro de BD
-        loja_id: user?.loja_id || 1, 
-        sessao_id: user?.sessao_id || 1, 
+        // IDs obrigatórios
+        loja_id: lojaIdAtual, 
+        sessao_id: user?.sessao_id ? Number(user.sessao_id) : null, // Opcional no backend, mas bom enviar
         funcionario_id: user?.id || user?.id_funcionario || 1,
         
         // Dados da venda
-        cliente_id: cliente.id || null, // Envia null se não tiver ID selecionado
+        cliente_id: cliente.id || null, 
         valor_total: totalComDesconto,
         status_venda: "Concluída",
         
-        // Itens mapeados
+        // Itens mapeados - Garantindo que quantidade e preço sejam números
         itens: carrinho.map(item => ({
           produto_id: item.id,
-          quantidade: item.quantidade,
-          preco_unitario_momento: item.preco,
-          subtotal: item.preco * item.quantidade
+          quantidade: Number(item.quantidade),
+          preco_unitario_momento: Number(item.preco),
+          subtotal: Number(item.preco) * Number(item.quantidade)
         })),
 
         // Pagamentos
@@ -265,6 +271,9 @@ export default function PDVPage() {
       setShowRecibo(true)
       toast.success("Venda finalizada com sucesso!")
       
+      // 2. ATUALIZAÇÃO CRÍTICA: Recarregar produtos para atualizar o estoque visualmente
+      await carregarProdutos();
+
       // Resetar estado para nova venda
       setCarrinho([])
       setDescontoPercent(0)
@@ -274,7 +283,7 @@ export default function PDVPage() {
 
     } catch (error) {
       console.error("Erro ao finalizar venda:", error)
-      toast.error(error.message || "Falha ao registrar venda.")
+      toast.error(error.response?.data?.message || error.message || "Falha ao registrar venda.")
     } finally {
       setLoadingPagamento(false)
     }
@@ -380,7 +389,13 @@ export default function PDVPage() {
                     <div className="flex justify-between items-start gap-2">
                       <span className="font-medium text-sm leading-tight line-clamp-2" title={produto.nome}>{produto.nome}</span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground font-mono truncate">{produto.sku || produto.codigo || "—"}</span>
+                    <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-muted-foreground font-mono truncate">{produto.sku || produto.codigo || "—"}</span>
+                        {/* Exibição opcional de estoque para debug visual */}
+                        <span className={`text-[10px] font-bold ${produto.estoque_atual > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            Est: {produto.estoque_atual}
+                        </span>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-3 pt-2">
                     <div className="text-lg font-bold text-primary">R$ {produto.preco.toFixed(2)}</div>
