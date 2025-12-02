@@ -1,165 +1,151 @@
-⚡ QG Blackout — Sistema de Gestão e PDV
+# ⚡ QG Blackout — Sistema de Gestão e PDV
 
-Monorepo oficial do ecossistema QG Blackout: um sistema completo de ERP + PDV com API central, interface administrativa e interface operacional moderna.
+Monorepo oficial do ecossistema QG Blackout: um sistema completo de **ERP + PDV** com API central, interface administrativa e interface operacional moderna.
 
-📘 Visão Geral
+## 📘 Visão Geral
 
 Este repositório reúne todos os componentes do sistema, integrados para oferecer uma solução robusta, escalável e fácil de manter:
 
-Backend (API): núcleo do sistema — regras de negócio, autenticação, comunicação com MySQL.
+- **Backend (API)**: núcleo do sistema — regras de negócio, autenticação, comunicação com MySQL.
+- **Frontend Admin**: interface administrativa completa para cadastros e configurações.
+- **Frontend QGB**: interface visual moderna com dashboards operacionais.
 
-Frontend Admin: interface administrativa completa para cadastros e configurações.
+## 🗂 Estrutura do Repositório
 
-Frontend QGB: interface visual moderna com dashboards operacionais.
+| Pasta            | Descrição                                     | Tecnologias                                 |
+|------------------|-----------------------------------------------|---------------------------------------------|
+| `/backend`       | API REST que gerencia todo o sistema          | Node.js, Express, MySQL, JWT               |
+| `/frontend`      | Painel administrativo (gestão)               | Next.js, React 19, Shadcn/ui               |
+| `/frontend-qgb`  | Interface operacional (visual)               | Next.js, DaisyUI, Recharts                 |
+| `/db`            | Scripts SQL e backups                        | MySQL                                      |
+| `/documentacao`  | Documentos e diagramas do projeto            | Markdown                                   |
 
-🗂 Estrutura do Repositório
-Pasta	Descrição	Tecnologias
-/backend	API REST que gerencia todo o sistema	Node.js, Express, MySQL, JWT
-/frontend	Painel administrativo (gestão)	Next.js, React 19, Shadcn/ui
-/frontend-qgb	Interface operacional (visual)	Next.js, DaisyUI, Recharts
-/db	Scripts SQL e backups	MySQL
-/documentacao	Documentos e diagramas do projeto	Markdown
-🛠 Tecnologias Utilizadas
-🔹 Backend (/backend)
+## 🛠 Tecnologias Utilizadas
 
-Node.js
+### 🔹 Backend (/backend)
 
-Express.js
+- Node.js
+- Express.js
+- MySQL
+- Autenticação JWT + bcrypt
+- Uploads com Multer
 
-MySQL
+### 🔹 Frontend Admin (/frontend)
 
-Autenticação JWT + bcrypt
+- Next.js (App Router)
+- React 19
+- Tailwind + Shadcn/ui
+- React Hook Form, Zod, react-imask
+- Tabelas com TanStack
+- Drag & Drop (Dnd-kit)
 
-Uploads com Multer
+### 🔹 Frontend QGB (/frontend-qgb)
 
-🔹 Frontend Admin (/frontend)
+- Next.js
+- TypeScript (suporte)
+- Tailwind + DaisyUI + Shadcn/ui
+- Gráficos com Recharts
 
-Next.js (App Router)
+## ⚙️ Pré-requisitos
 
-React 19
+Antes de iniciar, instale os seguintes componentes:
 
-Tailwind + Shadcn/ui
+- **Node.js 18+**
+- **MySQL** (local ou remoto)
+- **Git**
 
-React Hook Form, Zod, react-imask
+## 🚀 Instalação e Execução
 
-Tabelas com TanStack
+### 1️⃣ Configurar a Base de Dados
 
-Drag & Drop (Dnd-kit)
+- Crie o schema no MySQL (ex.: `qg_db`).
+- Importe o arquivo mais recente de `/db` (ex.: `Dump20251201/...`).
 
-🔹 Frontend QGB (/frontend-qgb)
+### 2️⃣ Iniciar o Backend
 
-Next.js
+1. Navegue para o diretório `/backend`:
 
-TypeScript (suporte)
+    ```bash
+    cd backend
+    npm install
+    ```
 
-Tailwind + DaisyUI + Shadcn/ui
+2. Configure o ambiente:
 
-Gráficos com Recharts
+    - Duplique o arquivo `.env.example` e renomeie para `.env`.
+    - Preencha as credenciais MySQL (DB_HOST, DB_USER, DB_PASS, etc.).
 
-⚙️ Pré-requisitos
+3. Inicie o servidor:
 
-Antes de iniciar, instale:
+    ```bash
+    npm run dev
+    ```
 
-Node.js 18+
+O servidor estará disponível em `http://localhost:3001`.
 
-MySQL (local ou remoto)
+### 3️⃣ Iniciar o Frontend Admin
 
-Git
+1. Navegue para o diretório `/frontend`:
 
-🚀 Instalação e Execução
-1️⃣ Configurar a Base de Dados
+    ```bash
+    cd frontend
+    npm install
+    npm run dev
+    ```
 
-Crie o schema (ex.: qg_db) no MySQL.
+O painel administrativo estará disponível em `http://localhost:3000`.
 
-Importe o arquivo mais recente de /db (ex.: Dump20251201/...).
+### 4️⃣ Iniciar o Frontend QGB
 
-2️⃣ Iniciar o Backend
-cd backend
-npm install
+1. Navegue para o diretório `/frontend-qgb`:
 
+    ```bash
+    cd frontend-qgb
+    npm install
+    npm run dev
+    ```
 
-Configurar o ambiente:
+A interface operacional estará disponível em `http://localhost:3001` (ou outra porta, caso haja conflito).
 
-Duplique .env.example → renomeie para .env
+## 📂 Funcionalidades do Sistema
 
-Preencha com suas credenciais MySQL (DB_HOST, DB_USER, DB_PASS, etc.)
+### 🔐 Autenticação
 
-Iniciar:
+- Login seguro
+- Gestão de sessões com JWT
 
-npm run dev
+### 🧾 Cadastros Gerais
 
+- Clientes
+- Fornecedores
+- Funcionários
+- Lojas
+- Produtos
 
-Servidor disponível em algo como http://localhost:3001.
+### 📦 Gestão de Estoque
 
-3️⃣ Iniciar o Frontend Admin
-cd frontend
-npm install
-npm run dev
+- Inventário
+- Produtos de fornecedores
+- Solicitações de reposição
 
+### 💳 Ponto de Venda (PDV)
 
-Acesso: http://localhost:3000
+- Abertura e fecho de caixa
+- Registro de vendas
+- Pagamentos
 
-4️⃣ Iniciar o Frontend QGB
-cd frontend-qgb
-npm install
-npm run dev
+### 💰 Financeiro
 
+- Contas a pagar
+- Fluxo de caixa
+- Registros financeiros
 
-Acesso: http://localhost:3001
- (ou outra porta caso haja conflito)
+### 📊 Relatórios e Dashboards
 
-📂 Funcionalidades do Sistema
-🔐 Autenticação
+- Vendas
+- Caixas
+- Gráficos financeiros (via Recharts no QGB)
 
-Login seguro
+## 📝 Licença
 
-Gestão de sessões com JWT
-
-🧾 Cadastros Gerais
-
-Clientes
-
-Fornecedores
-
-Funcionários
-
-Lojas
-
-Produtos
-
-📦 Gestão de Estoque
-
-Inventário
-
-Produtos de fornecedores
-
-Solicitações de reposição
-
-💳 Ponto de Venda (PDV)
-
-Abertura e fecho de caixa
-
-Registro de vendas
-
-Pagamentos
-
-💰 Financeiro
-
-Contas a pagar
-
-Fluxo de caixa
-
-Registros financeiros
-
-📊 Relatórios e Dashboards
-
-Vendas
-
-Caixas
-
-Gráficos financeiros (via Recharts no QGB)
-
-📝 Licença
-
-Este software é proprietário e desenvolvido exclusivamente para QG Blackout.
-Cópia, modificação, distribuição ou uso não autorizado são terminantemente proibidos.
+Este software é **proprietário** e desenvolvido exclusivamente para o **QG Blackout**. Cópia, modificação, distribuição ou uso não autorizado são terminantemente proibidos.
