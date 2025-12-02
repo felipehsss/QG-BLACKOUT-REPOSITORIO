@@ -51,7 +51,7 @@ export const criar = async (req, res, next) => {
 
     // 3. Inserir pagamentos e definir forma principal
     const sqlPagamento = "INSERT INTO pagamentos_venda (venda_id, metodo_pagamento, valor_pago) VALUES (?, ?, ?)";
-    
+
     let formaPagamentoPrincipal = "Misto";
     if (pagamentos.length === 1) {
       formaPagamentoPrincipal = pagamentos[0].metodo_pagamento;
@@ -67,7 +67,7 @@ export const criar = async (req, res, next) => {
       INSERT INTO financeiro (loja_id, tipo, categoria_id, origem, referencia_id, descricao, valor, forma_pagamento, data_movimento)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
-    
+
     await connection.execute(sqlFinanceiro, [
       loja_id,
       "Entrada",           // Tipo padronizado
@@ -121,21 +121,35 @@ export const deletar = async (req, res, next) => {
   }
 };
 
-// Gerar relatório de vendas
+
+// ... imports existentes ...
+
+// Gerar relatório de vendas (ATUALIZADO)
+// backend/controller/vendaController.js
+
 export const getRelatorioVendas = async (req, res, next) => {
   const connection = await getConnection();
   try {
-    // Este SQL junta as tabelas de vendas e clientes para obter o nome do cliente.
+    // A query foi ajustada para sua estrutura de tabelas:
+    // 1. Usa 'preco_unitario_momento' da tabela itens_venda
+    // 2. Faz JOIN com clientes, itens_venda e produtos
     const sql = `
       SELECT 
         v.venda_id,
         v.data_venda,
-        v.valor_total,
-        c.nome AS cliente_nome
+        v.status_venda,
+        c.nome AS cliente_nome,
+        p.nome AS produto_nome,
+        iv.quantidade, 
+        iv.preco_unitario_momento AS valor_unitario,
+        iv.subtotal AS item_total
       FROM vendas v
       LEFT JOIN clientes c ON v.cliente_id = c.id_cliente
-      ORDER BY v.data_venda DESC
+      LEFT JOIN itens_venda iv ON v.venda_id = iv.venda_id
+      LEFT JOIN produtos p ON iv.produto_id = p.produto_id
+      ORDER BY v.data_venda DESC, v.venda_id DESC
     `;
+    
     const [vendas] = await connection.execute(sql);
     res.json({ vendas: vendas });
   } catch (err) {
