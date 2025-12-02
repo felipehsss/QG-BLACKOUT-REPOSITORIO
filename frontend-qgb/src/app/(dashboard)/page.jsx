@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Table, TableHeader, TableRow, TableHead, TableCell, TableBody } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Download, UserPlus, Package, DollarSign, Wrench, Loader2 } from "lucide-react"
+import { Download, UserPlus, Package, DollarSign, Wrench, Loader2 } from "lucide-react"
 import {
   BarChart, Bar,
   LineChart, Line,
@@ -15,15 +15,14 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from "recharts"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { DateRangePicker } from "@/components/date-range-picker"
-import { parseISO, isWithinInterval, format, subDays, isSameDay, startOfDay, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
+import { parseISO, isWithinInterval, format, subDays, isSameDay, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 import { useAuth } from "@/contexts/AuthContext"
 import { readAll as readVendas } from "@/services/vendaService"
 import { toast } from "sonner"
 
-// --- DADOS ESTÁTICOS (Categorias e Desempenho ainda não tem endpoint específico) ---
+// --- DADOS ESTÁTICOS ---
 const categoriasData = [
   { name: "Peças de Motor",     value: 400 },
   { name: "Suspensão e Direção", value: 300 },
@@ -48,34 +47,33 @@ export default function DashboardPage() {
   const [vendas, setVendas] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Filtro de período (Padrão: Últimos 7 dias)
+  // Filtro de período (Padrão: Últimos 30 dias para garantir que dados apareçam)
   const [dateRange, setDateRange] = useState({
-    from: subDays(new Date(), 6), 
+    from: subDays(new Date(), 30), 
     to:   new Date(),
   })
 
   // Busca na tabela de pedidos
   const [buscaPedido, setBuscaPedido] = useState("")
-
-  // Modais e forms
   const [openModal, setOpenModal] = useState(null)
   
   // --- CARREGAMENTO DE DADOS ---
   useEffect(() => {
     async function fetchData() {
-      if (!token || !user) return
+      if (!token) return // Se não tiver token, nem tenta
       
       try {
         setIsLoading(true)
-        // Busca todas as vendas
         const todasVendas = await readVendas(token)
         
-        // FILTRA AS VENDAS PELA LOJA DO USUÁRIO
-        // Se o usuário tem loja_id, mostramos apenas dados dessa loja.
+        // CORREÇÃO: Fallback seguro para ID da Loja (Usa 1 se o usuário não tiver id definido)
+        const lojaIdUsuario = user?.loja_id ? Number(user.loja_id) : 1;
+
         const minhasVendas = Array.isArray(todasVendas) 
-          ? todasVendas.filter(v => Number(v.loja_id) === Number(user.loja_id))
+          ? todasVendas.filter(v => Number(v.loja_id) === lojaIdUsuario)
           : []
 
+        console.log("Vendas carregadas:", minhasVendas); // Debug no console
         setVendas(minhasVendas)
       } catch (error) {
         console.error("Erro ao carregar dashboard:", error)
@@ -90,25 +88,27 @@ export default function DashboardPage() {
 
   // --- PROCESSAMENTO DE DADOS (MEMO) ---
 
-  // 1. Filtrar vendas pelo período selecionado no DatePicker e pela Busca
+  // 1. Filtrar vendas pelo período
   const vendasFiltradasPorData = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) return vendas;
     
-    // Ajusta o 'to' para o final do dia para incluir registros do último dia selecionado
+    const start = new Date(dateRange.from);
+    start.setHours(0,0,0,0);
+    
     const end = new Date(dateRange.to);
     end.setHours(23, 59, 59, 999);
 
     return vendas.filter(v => {
       if (!v.data_venda) return false;
       const dataVenda = new Date(v.data_venda);
-      return isWithinInterval(dataVenda, { start: dateRange.from, end });
+      return isWithinInterval(dataVenda, { start, end });
     });
   }, [vendas, dateRange]);
 
   const pedidosTabela = useMemo(() => {
     const termo = buscaPedido.trim().toLowerCase()
     
-    // Ordena por data decrescente (mais recente primeiro)
+    // Ordena por data decrescente
     let lista = [...vendasFiltradasPorData].sort((a, b) => new Date(b.data_venda) - new Date(a.data_venda))
 
     if (!termo) return lista;
@@ -116,9 +116,8 @@ export default function DashboardPage() {
     return lista.filter(p =>
       String(p.venda_id).includes(termo) ||
       String(p.status_venda).toLowerCase().includes(termo) ||
-      // Como a tabela de vendas original não tem nome do cliente populado no join padrão (vendaModel),
-      // filtramos pelo que temos. Se tiver cliente_nome no futuro, adicione aqui.
-      ("cliente consumidor").includes(termo) 
+      // Correção da busca (placeholder se tiver nome do cliente no futuro)
+      (p.cliente_nome && p.cliente_nome.toLowerCase().includes(termo))
     )
   }, [vendasFiltradasPorData, buscaPedido])
 
@@ -129,7 +128,6 @@ export default function DashboardPage() {
     const vendasHojeArr = vendas.filter(v => isSameDay(new Date(v.data_venda), hoje));
     const totalVendasHoje = vendasHojeArr.reduce((acc, v) => acc + Number(v.valor_total), 0);
     
-    // Comparativo (Mockado logica simples: meta fixa de 5000 diária)
     const metaDiaria = 5000; 
     const atingimento = totalVendasHoje > 0 ? ((totalVendasHoje / metaDiaria) * 100).toFixed(0) : 0;
 
@@ -143,59 +141,67 @@ export default function DashboardPage() {
     }
   }, [vendas, vendasFiltradasPorData]);
 
-  // 3. Gráfico de Barras (Diário no período selecionado)
+  // 3. Gráfico Diário
   const chartDataDiario = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to) return [];
 
-    const diasIntervalo = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+    // Limita para não quebrar se o intervalo for muito grande, pega os dados filtrados
+    const diasComVendas = {};
     
-    return diasIntervalo.map(dia => {
-      const diaFormatado = format(dia, 'yyyy-MM-dd');
-      const nomeDia = format(dia, 'EEE', { locale: ptBR }); // Seg, Ter...
-      
-      // Soma vendas desse dia
-      const totalDia = vendas
-        .filter(v => format(new Date(v.data_venda), 'yyyy-MM-dd') === diaFormatado)
-        .reduce((acc, v) => acc + Number(v.valor_total), 0);
-
-      return {
-        dia: nomeDia.charAt(0).toUpperCase() + nomeDia.slice(1), // Capitaliza
-        valor: totalDia,
-        fullDate: diaFormatado
-      };
+    // Agrupa valores por dia
+    vendasFiltradasPorData.forEach(v => {
+        const diaKey = format(new Date(v.data_venda), 'yyyy-MM-dd');
+        diasComVendas[diaKey] = (diasComVendas[diaKey] || 0) + Number(v.valor_total);
     });
-  }, [vendas, dateRange]);
 
-  // 4. Gráfico de Linha (Mensal - Pega todo o histórico disponível)
+    // Gera o array para o gráfico preenchendo dias vazios
+    try {
+        const diasIntervalo = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+        return diasIntervalo.map(dia => {
+            const diaFormatado = format(dia, 'yyyy-MM-dd');
+            const nomeDia = format(dia, 'dd/MM', { locale: ptBR });
+            
+            return {
+                dia: nomeDia,
+                valor: diasComVendas[diaFormatado] || 0,
+                fullDate: diaFormatado
+            };
+        });
+    } catch(e) {
+        return [];
+    }
+  }, [vendasFiltradasPorData, dateRange]);
+
+  // 4. Gráfico Mensal
   const chartDataMensal = useMemo(() => {
     if (vendas.length === 0) return [];
     
-    // Descobre data min e max das vendas para criar o intervalo
     const datas = vendas.map(v => new Date(v.data_venda));
     const minDate = new Date(Math.min.apply(null, datas));
     const maxDate = new Date(Math.max.apply(null, datas));
 
-    const meses = eachMonthOfInterval({ start: startOfMonth(minDate), end: endOfMonth(maxDate) });
+    try {
+        const meses = eachMonthOfInterval({ start: startOfMonth(minDate), end: endOfMonth(maxDate) });
+        return meses.map(mes => {
+          const mesFormatado = format(mes, 'yyyy-MM');
+          const nomeMes = format(mes, 'MMM', { locale: ptBR });
 
-    return meses.map(mes => {
-      const mesFormatado = format(mes, 'yyyy-MM');
-      const nomeMes = format(mes, 'MMM', { locale: ptBR });
+          const qtdPedidos = vendas.filter(v => format(new Date(v.data_venda), 'yyyy-MM') === mesFormatado).length;
 
-      const qtdPedidos = vendas.filter(v => format(new Date(v.data_venda), 'yyyy-MM') === mesFormatado).length;
-
-      return {
-        mes: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1),
-        pedidos: qtdPedidos
-      }
-    });
+          return {
+            mes: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1),
+            pedidos: qtdPedidos
+          }
+        });
+    } catch (e) {
+        return [];
+    }
   }, [vendas]);
 
 
-  // Formatadores
   const formatCurrency = (val) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
   const formatDate = (dateStr) => format(new Date(dateStr), "dd/MM/yyyy HH:mm");
 
-  // Exportar CSV
   const exportCSV = () => {
     const header = ["ID Venda", "Status", "Valor Total", "Data"];
     const rows = pedidosTabela.map(p => [
@@ -210,29 +216,28 @@ export default function DashboardPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `vendas_loja_${user?.loja_id}.csv`);
+    link.setAttribute("download", `vendas_loja_${user?.loja_id || 'geral'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
 
-  // Navegação
   const goPdv        = () => router.push("/pdv")
   const goNovoCli    = () => router.push("/cadastros/clientes")
   const goNovoProd   = () => router.push("/cadastros/produtos")
-  const goPagamentos = () => router.push("/financeiro/contas-a-pagar") // Rota corrigida
+  const goPagamentos = () => router.push("/financeiro/contas-a-pagar")
 
-  if (!user) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>
+  // Se não estiver carregando e não tiver usuário, exibe loading ou redireciona
+  if (!user && !isLoading) return null; 
 
   return (
     <main className="p-6 space-y-8">
-      {/* Header com filtro de período */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard - Loja {user.loja_id}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard - Loja {user?.loja_id || 1}</h1>
           <p className="text-muted-foreground">Visão geral das vendas e estoque da QG Brightness.</p>
         </div>
-        
       </div>
 
       {/* Ações rápidas */}
@@ -270,20 +275,20 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Pedidos no Período</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Pedidos (30 dias)</CardTitle></CardHeader>
           <CardContent>
             {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
               <>
                 <p className="text-2xl font-bold">{kpis.qtdPedidos}</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Vendas realizadas entre {format(dateRange.from, 'dd/MM')} e {format(dateRange.to, 'dd/MM')}
+                  Vendas no período visualizado
                 </p>
               </>
             )}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Faturamento do Período</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Faturamento (30 dias)</CardTitle></CardHeader>
           <CardContent>
             {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
               <>
@@ -333,7 +338,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Gráficos linha 2 (Estáticos por enquanto, pois backend não retorna categorias ainda) */}
+      {/* Gráficos linha 2 */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Categorias (Estimativa)</CardTitle></CardHeader>
@@ -428,7 +433,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Modais de Ação Rápida (Apenas Visual por enquanto) */}
+      {/* Modais */}
       <Dialog open={openModal === "aviso"} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Em desenvolvimento</DialogTitle></DialogHeader>
