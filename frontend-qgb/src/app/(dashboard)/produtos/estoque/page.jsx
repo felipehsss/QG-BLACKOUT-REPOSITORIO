@@ -322,7 +322,7 @@ export default function EstoquePage() {
               <Button variant="destructive" onClick={confirmarExclusao}>Sim, Excluir</Button>
            </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>z
     </div>
   )
 }

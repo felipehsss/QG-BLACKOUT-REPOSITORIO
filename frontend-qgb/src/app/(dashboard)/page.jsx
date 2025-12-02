@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Table, TableHeader, TableRow, TableHead, TableCell, TableBody } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Download, UserPlus, Package, DollarSign, Wrench } from "lucide-react" // Importei um novo ícone (Wrench)
+import { Plus, Download, UserPlus, Package, DollarSign, Wrench, Loader2 } from "lucide-react"
 import {
   BarChart, Bar,
   LineChart, Line,
@@ -16,60 +16,42 @@ import {
 } from "recharts"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { DateRangePicker } from "@/components/date-range-picker"
-import { parseISO, isWithinInterval } from "date-fns"
+import { parseISO, isWithinInterval, format, subDays, isSameDay, startOfDay, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
+import { ptBR } from "date-fns/locale"
 
-// --- Dados mockados com datas e valores ajustados para Autopeças ---
-const vendasData = [
-  { dia: "Seg", valor: 6000, data: "2025-11-10" },
-  { dia: "Ter", valor: 4900, data: "2025-11-11" },
-  { dia: "Qua", valor: 7500, data: "2025-11-12" },
-  { dia: "Qui", valor: 4000, data: "2025-11-13" },
-  { dia: "Sex", valor: 8500, data: "2025-11-14" },
-  { dia: "Sáb", valor: 11000, data: "2025-11-15" },
-  { dia: "Dom", valor: 4500, data: "2025-11-16" },
-]
+import { useAuth } from "@/contexts/AuthContext"
+import { readAll as readVendas } from "@/services/vendaService"
+import { toast } from "sonner"
 
-const pedidosMensais = [
-  { mes: "Jan", pedidos: 150 },
-  { mes: "Fev", pedidos: 190 },
-  { mes: "Mar", pedidos: 240 },
-  { mes: "Abr", pedidos: 200 },
-  { mes: "Mai", pedidos: 310 },
-]
-
-// ⚙️ CATEGORIAS DE AUTOPEÇAS
+// --- DADOS ESTÁTICOS (Categorias e Desempenho ainda não tem endpoint específico) ---
 const categoriasData = [
-  { name: "Peças de Motor",     value: 400 },
+  { name: "Peças de Motor",     value: 400 },
   { name: "Suspensão e Direção", value: 300 },
-  { name: "Sistema de Freios",   value: 300 },
-  { name: "Filtros e Fluidos",   value: 200 },
+  { name: "Sistema de Freios",   value: 300 },
+  { name: "Filtros e Fluidos",   value: 200 },
 ]
-
 const cores = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]
 
-// 🎯 DESEMPENHO AJUSTADO
 const desempenhoData = [
   { subject: "Atendimento", A: 120, fullMark: 150 },
-  { subject: "Logística",     A: 98,  fullMark: 150 },
-  { subject: "Qualidade da Peça",   A: 130, fullMark: 150 },
-  { subject: "Preço",       A: 90,  fullMark: 150 },
-  { subject: "Variedade do Estoque",   A: 110, fullMark: 150 },
-]
-
-// 📋 PEDIDOS RECENTES AJUSTADOS (clientes B2B)
-const pedidosRecentesBase = [
-  { id: "#1001", cliente: "Oficina Mecânica A", status: "Pago",       valor: "R$ 780,50", data: "2025-11-15" },
-  { id: "#1002", cliente: "Cliente Final",       status: "Aguardando", valor: "R$ 195,00", data: "2025-11-16" },
-  { id: "#1003", cliente: "Auto Center VIP",     status: "Pago",       valor: "R$ 1.240,90", data: "2025-11-16" },
+  { subject: "Logística",     A: 98,  fullMark: 150 },
+  { subject: "Qualidade da Peça",   A: 130, fullMark: 150 },
+  { subject: "Preço",       A: 90,  fullMark: 150 },
+  { subject: "Variedade do Estoque",   A: 110, fullMark: 150 },
 ]
 
 export default function DashboardPage() {
   const router = useRouter()
+  const { user, token } = useAuth()
 
-  // Filtro de período
+  // Estados de Dados
+  const [vendas, setVendas] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Filtro de período (Padrão: Últimos 7 dias)
   const [dateRange, setDateRange] = useState({
-    from: new Date(2025, 10, 10), // 10 Nov
-    to:   new Date(2025, 10, 16), // 16 Nov
+    from: subDays(new Date(), 6), 
+    to:   new Date(),
   })
 
   // Busca na tabela de pedidos
@@ -77,138 +59,238 @@ export default function DashboardPage() {
 
   // Modais e forms
   const [openModal, setOpenModal] = useState(null)
-  const [formVenda,     setFormVenda]     = useState({ cliente: "", valor: "" })
-  const [formCliente,   setFormCliente]   = useState({ nome: "", email: "" })
-  const [formProduto,   setFormProduto]   = useState({ nome: "", preco: "" })
-  const [formPagamento, setFormPagamento] = useState({ pedidoId: "", valor: "" })
+  
+  // --- CARREGAMENTO DE DADOS ---
+  useEffect(() => {
+    async function fetchData() {
+      if (!token || !user) return
+      
+      try {
+        setIsLoading(true)
+        // Busca todas as vendas
+        const todasVendas = await readVendas(token)
+        
+        // FILTRA AS VENDAS PELA LOJA DO USUÁRIO
+        // Se o usuário tem loja_id, mostramos apenas dados dessa loja.
+        const minhasVendas = Array.isArray(todasVendas) 
+          ? todasVendas.filter(v => Number(v.loja_id) === Number(user.loja_id))
+          : []
 
-  // Filtrar vendas por período
-  const vendasFiltradas = useMemo(() => {
-    return vendasData.filter(v =>
-      isWithinInterval(parseISO(v.data), { start: dateRange.from, end: dateRange.to })
-    )
-  }, [dateRange])
+        setVendas(minhasVendas)
+      } catch (error) {
+        console.error("Erro ao carregar dashboard:", error)
+        toast.error("Não foi possível carregar os dados de vendas.")
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  // Filtrar pedidos por período e busca
-  const pedidosFiltrados = useMemo(() => {
-    const porPeriodo = pedidosRecentesBase.filter(p =>
-      isWithinInterval(parseISO(p.data), { start: dateRange.from, end: dateRange.to })
-    )
+    fetchData()
+  }, [token, user])
+
+  // --- PROCESSAMENTO DE DADOS (MEMO) ---
+
+  // 1. Filtrar vendas pelo período selecionado no DatePicker e pela Busca
+  const vendasFiltradasPorData = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) return vendas;
+    
+    // Ajusta o 'to' para o final do dia para incluir registros do último dia selecionado
+    const end = new Date(dateRange.to);
+    end.setHours(23, 59, 59, 999);
+
+    return vendas.filter(v => {
+      if (!v.data_venda) return false;
+      const dataVenda = new Date(v.data_venda);
+      return isWithinInterval(dataVenda, { start: dateRange.from, end });
+    });
+  }, [vendas, dateRange]);
+
+  const pedidosTabela = useMemo(() => {
     const termo = buscaPedido.trim().toLowerCase()
-    if (!termo) return porPeriodo
-    return porPeriodo.filter(p =>
-      p.id.toLowerCase().includes(termo) ||
-      p.cliente.toLowerCase().includes(termo) ||
-      p.status.toLowerCase().includes(termo)
+    
+    // Ordena por data decrescente (mais recente primeiro)
+    let lista = [...vendasFiltradasPorData].sort((a, b) => new Date(b.data_venda) - new Date(a.data_venda))
+
+    if (!termo) return lista;
+
+    return lista.filter(p =>
+      String(p.venda_id).includes(termo) ||
+      String(p.status_venda).toLowerCase().includes(termo) ||
+      // Como a tabela de vendas original não tem nome do cliente populado no join padrão (vendaModel),
+      // filtramos pelo que temos. Se tiver cliente_nome no futuro, adicione aqui.
+      ("cliente consumidor").includes(termo) 
     )
-  }, [dateRange, buscaPedido])
+  }, [vendasFiltradasPorData, buscaPedido])
 
-  // KPIs dinâmicos a partir dos dados filtrados
-  const vendasHoje = vendasFiltradas.length > 0 ? vendasFiltradas[0].valor : 0
-  const pedidosEmAndamento = pedidosFiltrados.length
-  const caixaAtual = pedidosFiltrados.reduce((acc, p) => {
-    // Tratamento de string para float para o cálculo
-    const num = Number(p.valor.replace("R$ ", "").replace(/\./g, "").replace(",", "."))
-    return acc + (isNaN(num) ? 0 : num)
-  }, 0)
+  // 2. KPIs
+  const kpis = useMemo(() => {
+    const hoje = new Date();
+    
+    const vendasHojeArr = vendas.filter(v => isSameDay(new Date(v.data_venda), hoje));
+    const totalVendasHoje = vendasHojeArr.reduce((acc, v) => acc + Number(v.valor_total), 0);
+    
+    // Comparativo (Mockado logica simples: meta fixa de 5000 diária)
+    const metaDiaria = 5000; 
+    const atingimento = totalVendasHoje > 0 ? ((totalVendasHoje / metaDiaria) * 100).toFixed(0) : 0;
 
-  // Exportar CSV de pedidos filtrados
+    const totalCaixaPeriodo = vendasFiltradasPorData.reduce((acc, v) => acc + Number(v.valor_total), 0);
+
+    return {
+      hoje: totalVendasHoje,
+      atingimento,
+      qtdPedidos: vendasFiltradasPorData.length,
+      caixaTotal: totalCaixaPeriodo
+    }
+  }, [vendas, vendasFiltradasPorData]);
+
+  // 3. Gráfico de Barras (Diário no período selecionado)
+  const chartDataDiario = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) return [];
+
+    const diasIntervalo = eachDayOfInterval({ start: dateRange.from, end: dateRange.to });
+    
+    return diasIntervalo.map(dia => {
+      const diaFormatado = format(dia, 'yyyy-MM-dd');
+      const nomeDia = format(dia, 'EEE', { locale: ptBR }); // Seg, Ter...
+      
+      // Soma vendas desse dia
+      const totalDia = vendas
+        .filter(v => format(new Date(v.data_venda), 'yyyy-MM-dd') === diaFormatado)
+        .reduce((acc, v) => acc + Number(v.valor_total), 0);
+
+      return {
+        dia: nomeDia.charAt(0).toUpperCase() + nomeDia.slice(1), // Capitaliza
+        valor: totalDia,
+        fullDate: diaFormatado
+      };
+    });
+  }, [vendas, dateRange]);
+
+  // 4. Gráfico de Linha (Mensal - Pega todo o histórico disponível)
+  const chartDataMensal = useMemo(() => {
+    if (vendas.length === 0) return [];
+    
+    // Descobre data min e max das vendas para criar o intervalo
+    const datas = vendas.map(v => new Date(v.data_venda));
+    const minDate = new Date(Math.min.apply(null, datas));
+    const maxDate = new Date(Math.max.apply(null, datas));
+
+    const meses = eachMonthOfInterval({ start: startOfMonth(minDate), end: endOfMonth(maxDate) });
+
+    return meses.map(mes => {
+      const mesFormatado = format(mes, 'yyyy-MM');
+      const nomeMes = format(mes, 'MMM', { locale: ptBR });
+
+      const qtdPedidos = vendas.filter(v => format(new Date(v.data_venda), 'yyyy-MM') === mesFormatado).length;
+
+      return {
+        mes: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1),
+        pedidos: qtdPedidos
+      }
+    });
+  }, [vendas]);
+
+
+  // Formatadores
+  const formatCurrency = (val) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
+  const formatDate = (dateStr) => format(new Date(dateStr), "dd/MM/yyyy HH:mm");
+
+  // Exportar CSV
   const exportCSV = () => {
-    const header = ["ID", "Cliente", "Status", "Valor", "Data"]
-    const rows = pedidosFiltrados.map(p => [p.id, p.cliente, p.status, p.valor, p.data])
-    const csvContent = [header, ...rows].map(e => e.join(";")).join("\n")
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.setAttribute("download", "relatorio_pedidos_pecas.csv")
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    const header = ["ID Venda", "Status", "Valor Total", "Data"];
+    const rows = pedidosTabela.map(p => [
+      p.venda_id, 
+      p.status_venda, 
+      Number(p.valor_total).toFixed(2).replace('.', ','), 
+      format(new Date(p.data_venda), 'dd/MM/yyyy HH:mm:ss')
+    ]);
+    
+    const csvContent = [header, ...rows].map(e => e.join(";")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `vendas_loja_${user?.loja_id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
-  // Navegação para fluxos reais
-  const goPdv        = () => router.push("/pdv")
-  const goNovoCli    = () => router.push("/cadastros/clientes") // Rota ajustada
-  const goNovoProd   = () => router.push("/produtos/estoque") // Rota ajustada
-  const goPagamentos = () => router.push("/relatorios/pagamentos") // Rota ajustada
+  // Navegação
+  const goPdv        = () => router.push("/pdv")
+  const goNovoCli    = () => router.push("/cadastros/clientes")
+  const goNovoProd   = () => router.push("/cadastros/produtos")
+  const goPagamentos = () => router.push("/financeiro/contas-a-pagar") // Rota corrigida
 
-  // Handlers dos modais (mock simples)
-  const confirmarVenda = () => {
-    setOpenModal(null)
-    setFormVenda({ cliente: "", valor: "" })
-  }
-  const confirmarCliente = () => {
-    setOpenModal(null)
-    setFormCliente({ nome: "", email: "" })
-  }
-  const confirmarProduto = () => {
-    setOpenModal(null)
-    setFormProduto({ nome: "", preco: "" })
-  }
-  const confirmarPagamento = () => {
-    setOpenModal(null)
-    setFormPagamento({ pedidoId: "", valor: "" })
-  }
+  if (!user) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin" /></div>
 
   return (
     <main className="p-6 space-y-8">
       {/* Header com filtro de período */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard de Autopeças</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard - Loja {user.loja_id}</h1>
           <p className="text-muted-foreground">Visão geral das vendas e estoque da QG Brightness.</p>
         </div>
-        <DateRangePicker
-          initialDateFrom={dateRange.from}
-          initialDateTo={dateRange.to}
-          align="start"
-          locale="pt-BR"
-          showCompare={false}
-          onUpdate={({ range }) => setDateRange(range)}
-        />
+        
       </div>
 
       {/* Ações rápidas */}
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setOpenModal("venda")} className="flex items-center gap-2">
-          <Wrench className="w-4 h-4" /> Nova Venda de Peças
+        <Button onClick={goPdv} className="flex items-center gap-2">
+          <Wrench className="w-4 h-4" /> Nova Venda (PDV)
         </Button>
-        <Button variant="outline" onClick={() => setOpenModal("cliente")} className="flex items-center gap-2">
-          <UserPlus className="w-4 h-4" /> Novo Cliente (Oficina)
+        <Button variant="outline" onClick={goNovoCli} className="flex items-center gap-2">
+          <UserPlus className="w-4 h-4" /> Novo Cliente
         </Button>
-        <Button variant="outline" onClick={() => setOpenModal("produto")} className="flex items-center gap-2">
-          <Package className="w-4 h-4" /> Novo Item de Estoque
+        <Button variant="outline" onClick={goNovoProd} className="flex items-center gap-2">
+          <Package className="w-4 h-4" /> Gerenciar Estoque
         </Button>
-        <Button variant="outline" onClick={() => setOpenModal("pagamento")} className="flex items-center gap-2">
-          <DollarSign className="w-4 h-4" /> Registrar Pagamento
+        <Button variant="outline" onClick={goPagamentos} className="flex items-center gap-2">
+          <DollarSign className="w-4 h-4" /> Financeiro
         </Button>
         <Button variant="secondary" onClick={exportCSV} className="flex items-center gap-2">
-          <Download className="w-4 h-4" /> Exportar Relatórios
+          <Download className="w-4 h-4" /> Exportar CSV
         </Button>
       </div>
 
       {/* KPIs */}
       <div className="grid gap-6 md:grid-cols-3">
         <Card>
-          <CardHeader><CardTitle> Vendas do Dia</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Vendas de Hoje</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">R$ {vendasHoje.toLocaleString("pt-BR")},00</p>
-            <p className="text-sm text-muted-foreground">+15% em relação a ontem (meta R$ 10.000)</p>
+            {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+              <>
+                <p className="text-2xl font-bold">{formatCurrency(kpis.hoje)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Meta diária (est.): {kpis.atingimento}% atingido
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle> Pedidos para Separação</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Pedidos no Período</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{pedidosEmAndamento}</p>
-            <p className="text-sm text-muted-foreground">2 aguardando cotação de frete</p>
+            {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+              <>
+                <p className="text-2xl font-bold">{kpis.qtdPedidos}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vendas realizadas entre {format(dateRange.from, 'dd/MM')} e {format(dateRange.to, 'dd/MM')}
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle> Caixa Atual</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">Faturamento do Período</CardTitle></CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">R$ {caixaAtual.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
-            <p className="text-sm text-muted-foreground">Última atualização: 14h</p>
+            {isLoading ? <Loader2 className="animate-spin h-6 w-6" /> : (
+              <>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(kpis.caixaTotal)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Total bruto apurado</p>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -216,180 +298,144 @@ export default function DashboardPage() {
       {/* Gráficos linha 1 */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle> Vendas Semanais</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Vendas no Período (Diário)</CardTitle></CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={vendasFiltradas}>
-                <XAxis dataKey="dia" />
-                <YAxis tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(value) => [`R$ ${value.toLocaleString("pt-BR")},00`, "Vendas"]} />
-                <Legend />
-                <Bar dataKey="valor" name="Vendas" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <BarChart data={chartDataDiario}>
+                <XAxis dataKey="dia" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis 
+                  tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`} 
+                  fontSize={12} 
+                  tickLine={false} 
+                  axisLine={false}
+                />
+                <Tooltip 
+                  formatter={(value) => [formatCurrency(value), "Vendas"]} 
+                  labelFormatter={(label, payload) => payload[0]?.payload.fullDate ? format(new Date(payload[0].payload.fullDate), "dd 'de' MMMM") : label}
+                />
+                <Bar dataKey="valor" name="Faturamento" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle> Pedidos Mensais</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Evolução de Pedidos (Mensal)</CardTitle></CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={pedidosMensais}>
-                <XAxis dataKey="mes" />
-                <YAxis />
+              <LineChart data={chartDataMensal}>
+                <XAxis dataKey="mes" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis fontSize={12} tickLine={false} axisLine={false} />
                 <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="pedidos" name="Pedidos" stroke="#10b981" strokeWidth={3} dot />
+                <Line type="monotone" dataKey="pedidos" name="Qtd. Vendas" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Gráficos linha 2 */}
+      {/* Gráficos linha 2 (Estáticos por enquanto, pois backend não retorna categorias ainda) */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader><CardTitle> Vendas por Categoria de Peças</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Categorias (Estimativa)</CardTitle></CardHeader>
           <CardContent className="h-72 flex justify-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={categoriasData} cx="50%" cy="50%" outerRadius={100} dataKey="value" label>
+                <Pie data={categoriasData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={5}>
                   {categoriasData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend />
+                <Legend verticalAlign="bottom" height={36}/>
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle> Avaliação de Desempenho (Fornecimento)</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Métricas de Qualidade</CardTitle></CardHeader>
           <CardContent className="h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={desempenhoData}>
+              <RadarChart data={desempenhoData} outerRadius={90}>
                 <PolarGrid />
-                <PolarAngleAxis dataKey="subject" />
-                <PolarRadiusAxis />
-                <Radar name="Loja" dataKey="A" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} />
+                <PolarAngleAxis dataKey="subject" fontSize={12} />
+                <PolarRadiusAxis angle={30} domain={[0, 150]} />
+                <Radar name="Loja Atual" dataKey="A" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.5} />
                 <Tooltip />
-                <Legend />
               </RadarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabela de últimos pedidos com busca */}
+      {/* Tabela de últimos pedidos */}
       <Card>
-        <CardHeader><CardTitle> Últimos Pedidos de Peças</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Últimas Vendas Realizadas</CardTitle></CardHeader>
         <CardContent>
           <div className="flex justify-between mb-3">
             <Input
-              placeholder="Buscar por ID, cliente ou status..."
+              placeholder="Buscar ID ou Status..."
               value={buscaPedido}
               onChange={(e) => setBuscaPedido(e.target.value)}
               className="max-w-xs"
             />
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={goPdv}>Ir para PDV</Button>
-              <Button variant="outline" onClick={goPagamentos}>Contas a Pagar</Button>
-            </div>
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Data</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pedidosFiltrados.map((pedido) => (
-                <TableRow key={pedido.id}>
-                  <TableCell>{pedido.id}</TableCell>
-                  <TableCell>{pedido.cliente}</TableCell>
-                  <TableCell className={pedido.status === "Pago" ? "text-green-600" : "text-yellow-600"}>
-                    {pedido.status}
-                  </TableCell>
-                  <TableCell>{pedido.valor}</TableCell>
-                  <TableCell>{pedido.data}</TableCell>
-                </TableRow>
-              ))}
-              {pedidosFiltrados.length === 0 && (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground">
-                    Nenhum pedido no período ou com esse termo.
-                  </TableCell>
+                  <TableHead>ID Venda</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Valor Total</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : pedidosTabela.length > 0 ? (
+                  pedidosTabela.map((pedido) => (
+                    <TableRow key={pedido.venda_id}>
+                      <TableCell className="font-medium">#{pedido.venda_id}</TableCell>
+                      <TableCell>{formatDate(pedido.data_venda)}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          pedido.status_venda === 'Concluída' ? 'bg-green-100 text-green-800' : 
+                          pedido.status_venda === 'Cancelada' ? 'bg-red-100 text-red-800' : 
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {pedido.status_venda}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right font-bold">
+                        {formatCurrency(pedido.valor_total)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                      Nenhuma venda encontrada no período.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Modais funcionais (mock) */}
-      <Dialog open={openModal === "venda"} onOpenChange={(o) => setOpenModal(o ? "venda" : null)}>
+      {/* Modais de Ação Rápida (Apenas Visual por enquanto) */}
+      <Dialog open={openModal === "aviso"} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nova Venda de Peças</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Input placeholder="Cliente (Oficina ou Final)" value={formVenda.cliente} onChange={(e) => setFormVenda({ ...formVenda, cliente: e.target.value })} />
-            <Input type="number" placeholder="Valor (R$)" value={formVenda.valor} onChange={(e) => setFormVenda({ ...formVenda, valor: e.target.value })} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenModal(null)}>Cancelar</Button>
-            <Button onClick={confirmarVenda}>Confirmar Venda</Button>
-            <Button variant="secondary" onClick={goPdv}>Ir para PDV</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={openModal === "cliente"} onOpenChange={(o) => setOpenModal(o ? "cliente" : null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Novo Cliente (Oficina/Mecânico)</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Input placeholder="Nome/Razão Social" value={formCliente.nome} onChange={(e) => setFormCliente({ ...formCliente, nome: e.target.value })} />
-            <Input type="email" placeholder="Email" value={formCliente.email} onChange={(e) => setFormCliente({ ...formCliente, email: e.target.value })} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenModal(null)}>Cancelar</Button>
-            <Button onClick={confirmarCliente}>Salvar</Button>
-            <Button variant="secondary" onClick={goNovoCli}>Ir para cadastro de Clientes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={openModal === "produto"} onOpenChange={(o) => setOpenModal(o ? "produto" : null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Novo Item de Estoque</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Input placeholder="Nome da Peça (e.g. Filtro de Óleo)" value={formProduto.nome} onChange={(e) => setFormProduto({ ...formProduto, nome: e.target.value })} />
-            <Input type="number" placeholder="Preço de Venda (R$)" value={formProduto.preco} onChange={(e) => setFormProduto({ ...formProduto, preco: e.target.value })} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenModal(null)}>Cancelar</Button>
-            <Button onClick={confirmarProduto}>Salvar</Button>
-            <Button variant="secondary" onClick={goNovoProd}>Ir para cadastro de Produtos</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={openModal === "pagamento"} onOpenChange={(o) => setOpenModal(o ? "pagamento" : null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Registrar Pagamento</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <Input placeholder="ID da Conta (Ex: #CP001)" value={formPagamento.pedidoId} onChange={(e) => setFormPagamento({ ...formPagamento, pedidoId: e.target.value })} />
-            <Input type="number" placeholder="Valor (R$)" value={formPagamento.valor} onChange={(e) => setFormPagamento({ ...formPagamento, valor: e.target.value })} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenModal(null)}>Cancelar</Button>
-            <Button onClick={confirmarPagamento}>Confirmar</Button>
-            <Button variant="secondary" onClick={goPagamentos}>Ir para Contas a Pagar</Button>
-          </DialogFooter>
+          <DialogHeader><DialogTitle>Em desenvolvimento</DialogTitle></DialogHeader>
+          <p>Esta funcionalidade estará disponível em breve.</p>
+          <DialogFooter><Button onClick={() => setOpenModal(null)}>Ok</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </main>
   )
-};
+}
