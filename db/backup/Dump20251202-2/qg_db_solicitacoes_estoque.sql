@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -18,37 +18,32 @@ USE `qg_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `pedidos_compra`
+-- Table structure for table `solicitacoes_estoque`
 --
 
-DROP TABLE IF EXISTS `pedidos_compra`;
+DROP TABLE IF EXISTS `solicitacoes_estoque`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `pedidos_compra` (
-  `pedido_compra_id` int(11) NOT NULL AUTO_INCREMENT,
-  `fornecedor_id` int(11) NOT NULL,
-  `loja_destino_id` int(11) NOT NULL DEFAULT 1,
-  `data_pedido` timestamp NOT NULL DEFAULT current_timestamp(),
-  `data_previsao_entrega` date DEFAULT NULL,
-  `status` enum('Pendente','Entregue','Cancelado') DEFAULT 'Pendente',
-  `valor_total_estimado` decimal(10,2) DEFAULT NULL,
+CREATE TABLE `solicitacoes_estoque` (
+  `solicitacao_id` int(11) NOT NULL AUTO_INCREMENT,
+  `loja_solicitante_id` int(11) NOT NULL,
+  `data_solicitacao` timestamp NOT NULL DEFAULT current_timestamp(),
+  `status` enum('Pendente','Em Trânsito','Concluída','Rejeitada') DEFAULT 'Pendente',
   `observacao` text DEFAULT NULL,
-  PRIMARY KEY (`pedido_compra_id`),
-  KEY `fornecedor_id` (`fornecedor_id`),
-  KEY `loja_destino_id` (`loja_destino_id`),
-  CONSTRAINT `pedidos_compra_ibfk_1` FOREIGN KEY (`fornecedor_id`) REFERENCES `fornecedores` (`fornecedor_id`),
-  CONSTRAINT `pedidos_compra_ibfk_2` FOREIGN KEY (`loja_destino_id`) REFERENCES `lojas` (`loja_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  PRIMARY KEY (`solicitacao_id`),
+  KEY `loja_solicitante_id` (`loja_solicitante_id`),
+  CONSTRAINT `solicitacoes_estoque_ibfk_1` FOREIGN KEY (`loja_solicitante_id`) REFERENCES `lojas` (`loja_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `pedidos_compra`
+-- Dumping data for table `solicitacoes_estoque`
 --
 
-LOCK TABLES `pedidos_compra` WRITE;
-/*!40000 ALTER TABLE `pedidos_compra` DISABLE KEYS */;
-INSERT INTO `pedidos_compra` VALUES (1,1,1,'2025-12-01 05:02:07',NULL,'Entregue',200.00,'urgencia'),(2,1,1,'2025-12-01 05:11:16',NULL,'Entregue',200.00,''),(3,2,1,'2025-12-01 05:30:49',NULL,'Entregue',400.00,''),(4,2,1,'2025-12-01 17:42:48',NULL,'Entregue',20.00,'');
-/*!40000 ALTER TABLE `pedidos_compra` ENABLE KEYS */;
+LOCK TABLES `solicitacoes_estoque` WRITE;
+/*!40000 ALTER TABLE `solicitacoes_estoque` DISABLE KEYS */;
+INSERT INTO `solicitacoes_estoque` VALUES (1,2,'2025-12-01 00:39:52','','Preciso urgente'),(2,2,'2025-12-01 04:12:55','Concluída','Reposição de urgência'),(3,2,'2025-12-01 04:20:49','Pendente','');
+/*!40000 ALTER TABLE `solicitacoes_estoque` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -60,4 +55,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:30
+-- Dump completed on 2025-12-02 12:04:53

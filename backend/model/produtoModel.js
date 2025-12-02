@@ -5,8 +5,10 @@ const table = "produtos";
 export async function getAll() {
   const connection = await db.getConnection();
   try {
-    // ATUALIZAÇÃO: Adicionado LEFT JOIN com 'estoque' e SUM(quantidade)
-    // Usamos GROUP BY para garantir que se houver estoque em múltiplas lojas, ele some tudo.
+    // AQUI ESTÁ A MÁGICA:
+    // 1. LEFT JOIN estoque: Junta com a tabela de estoque
+    // 2. SUM(e.quantidade): Soma o estoque de todas as lojas (ou retorna 0 se não tiver)
+    // 3. GROUP BY: Agrupa para não duplicar o produto na lista
     const sql = `
       SELECT 
         p.*, 
@@ -26,7 +28,6 @@ export async function getAll() {
 }
 
 export async function getById(id) {
-  // O ideal seria atualizar aqui também se você usa essa função para ver detalhes com estoque
   const connection = await db.getConnection();
   try {
     const sql = `

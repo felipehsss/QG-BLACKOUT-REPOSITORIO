@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -18,37 +18,34 @@ USE `qg_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `pedidos_compra`
+-- Table structure for table `itens_pedido_compra`
 --
 
-DROP TABLE IF EXISTS `pedidos_compra`;
+DROP TABLE IF EXISTS `itens_pedido_compra`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `pedidos_compra` (
-  `pedido_compra_id` int(11) NOT NULL AUTO_INCREMENT,
-  `fornecedor_id` int(11) NOT NULL,
-  `loja_destino_id` int(11) NOT NULL DEFAULT 1,
-  `data_pedido` timestamp NOT NULL DEFAULT current_timestamp(),
-  `data_previsao_entrega` date DEFAULT NULL,
-  `status` enum('Pendente','Entregue','Cancelado') DEFAULT 'Pendente',
-  `valor_total_estimado` decimal(10,2) DEFAULT NULL,
-  `observacao` text DEFAULT NULL,
-  PRIMARY KEY (`pedido_compra_id`),
-  KEY `fornecedor_id` (`fornecedor_id`),
-  KEY `loja_destino_id` (`loja_destino_id`),
-  CONSTRAINT `pedidos_compra_ibfk_1` FOREIGN KEY (`fornecedor_id`) REFERENCES `fornecedores` (`fornecedor_id`),
-  CONSTRAINT `pedidos_compra_ibfk_2` FOREIGN KEY (`loja_destino_id`) REFERENCES `lojas` (`loja_id`)
+CREATE TABLE `itens_pedido_compra` (
+  `item_id` int(11) NOT NULL AUTO_INCREMENT,
+  `pedido_compra_id` int(11) NOT NULL,
+  `produto_id` int(11) NOT NULL,
+  `quantidade` int(11) NOT NULL,
+  `custo_unitario` decimal(10,2) NOT NULL,
+  PRIMARY KEY (`item_id`),
+  KEY `pedido_compra_id` (`pedido_compra_id`),
+  KEY `produto_id` (`produto_id`),
+  CONSTRAINT `itens_pedido_compra_ibfk_1` FOREIGN KEY (`pedido_compra_id`) REFERENCES `pedidos_compra` (`pedido_compra_id`) ON DELETE CASCADE,
+  CONSTRAINT `itens_pedido_compra_ibfk_2` FOREIGN KEY (`produto_id`) REFERENCES `produtos` (`produto_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `pedidos_compra`
+-- Dumping data for table `itens_pedido_compra`
 --
 
-LOCK TABLES `pedidos_compra` WRITE;
-/*!40000 ALTER TABLE `pedidos_compra` DISABLE KEYS */;
-INSERT INTO `pedidos_compra` VALUES (1,1,1,'2025-12-01 05:02:07',NULL,'Entregue',200.00,'urgencia'),(2,1,1,'2025-12-01 05:11:16',NULL,'Entregue',200.00,''),(3,2,1,'2025-12-01 05:30:49',NULL,'Entregue',400.00,''),(4,2,1,'2025-12-01 17:42:48',NULL,'Entregue',20.00,'');
-/*!40000 ALTER TABLE `pedidos_compra` ENABLE KEYS */;
+LOCK TABLES `itens_pedido_compra` WRITE;
+/*!40000 ALTER TABLE `itens_pedido_compra` DISABLE KEYS */;
+INSERT INTO `itens_pedido_compra` VALUES (1,1,4,10,20.00),(2,2,20,10,20.00),(3,3,2,20,20.00),(4,4,20,1,20.00);
+/*!40000 ALTER TABLE `itens_pedido_compra` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -60,4 +57,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:30
+-- Dump completed on 2025-12-02 12:04:50
