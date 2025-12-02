@@ -5,10 +5,11 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X, User, ImageIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,10 @@ import {
 import { create as createCliente, update as updateCliente } from "@/services/clienteService";
 import { useAuth } from "@/contexts/AuthContext";
 
+// URL Base para montar o caminho da imagem existente
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3080/api';
+const BASE_URL = API_URL.replace('/api', '');
+
 // Schema de validação
 const formSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
@@ -43,17 +48,18 @@ const formSchema = z.object({
   telefone: z.string().optional(),
   endereco: z.string().optional(),
   tipo_cliente: z.enum(["PF", "PJ"]),
-  // Campos condicionais (validamos no submit ou deixamos opcionais aqui)
   cpf: z.string().optional(),
   cnpj: z.string().optional(),
   razao_social: z.string().optional(),
   nome_fantasia: z.string().optional(),
   inscricao_estadual: z.string().optional(),
+  foto: z.any().optional(), // Aceita arquivo ou null
 });
 
 export function ClienteForm({ open, setOpen, initialData, onSuccess }) {
   const { token } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [preview, setPreview] = useState(null);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -68,65 +74,109 @@ export function ClienteForm({ open, setOpen, initialData, onSuccess }) {
       razao_social: "",
       nome_fantasia: "",
       inscricao_estadual: "",
+      foto: null,
     },
   });
 
-  // Monitora o tipo de cliente para renderização condicional
+  // Monitora campos para lógica condicional
   const tipoCliente = form.watch("tipo_cliente");
+  const fotoValue = form.watch("foto");
 
-  // Reseta o formulário quando abre/fecha ou muda os dados iniciais
+  // Resetar form ao abrir/fechar
   useEffect(() => {
-    if (initialData) {
-      form.reset({
-        nome: initialData.nome || "",
-        email: initialData.email || "",
-        telefone: initialData.telefone || "",
-        endereco: initialData.endereco || "",
-        tipo_cliente: initialData.tipo_cliente || "PF",
-        cpf: initialData.cpf || "",
-        cnpj: initialData.cnpj || "",
-        razao_social: initialData.razao_social || "",
-        nome_fantasia: initialData.nome_fantasia || "",
-        inscricao_estadual: initialData.inscricao_estadual || "",
-      });
-    } else {
-      form.reset({
-        nome: "",
-        email: "",
-        telefone: "",
-        endereco: "",
-        tipo_cliente: "PF",
-        cpf: "",
-        cnpj: "",
-        razao_social: "",
-        nome_fantasia: "",
-        inscricao_estadual: "",
-      });
+    if (open) {
+      if (initialData) {
+        form.reset({
+          nome: initialData.nome || "",
+          email: initialData.email || "",
+          telefone: initialData.telefone || "",
+          endereco: initialData.endereco || "",
+          tipo_cliente: initialData.tipo_cliente || "PF",
+          cpf: initialData.cpf || "",
+          cnpj: initialData.cnpj || "",
+          razao_social: initialData.razao_social || "",
+          nome_fantasia: initialData.nome_fantasia || "",
+          inscricao_estadual: initialData.inscricao_estadual || "",
+          foto: null, // Arquivo novo começa vazio
+        });
+        // Configurar preview se existir foto no banco
+        if (initialData.foto) {
+          setPreview(`${BASE_URL}/uploads/${initialData.foto}`);
+        } else {
+          setPreview(null);
+        }
+      } else {
+        form.reset({
+          nome: "",
+          email: "",
+          telefone: "",
+          endereco: "",
+          tipo_cliente: "PF",
+          cpf: "",
+          cnpj: "",
+          razao_social: "",
+          nome_fantasia: "",
+          inscricao_estadual: "",
+          foto: null,
+        });
+        setPreview(null);
+      }
     }
   }, [initialData, open, form]);
+
+  // Manipulador de arquivo
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      form.setValue("foto", file);
+      const url = URL.createObjectURL(file);
+      setPreview(url);
+    }
+  };
+
+  // Remover imagem selecionada
+  const handleRemoveImage = () => {
+    form.setValue("foto", null);
+    // Se estamos editando e tinha foto original, volta o preview pra ela? 
+    // Ou define null para remover? Aqui vamos definir null (remover).
+    // Obs: Para remover do banco, o backend precisa tratar uma flag específica ou null.
+    setPreview(null); 
+  };
 
   const onSubmit = async (values) => {
     setLoading(true);
     try {
-      // Limpeza de dados baseada no tipo (para não enviar CPF se for PJ e vice-versa)
-      const payload = { ...values };
-      if (payload.tipo_cliente === "PF") {
-        payload.cnpj = null;
-        payload.razao_social = null;
-        payload.nome_fantasia = null;
-        payload.inscricao_estadual = null;
+      // Construir FormData para envio de arquivo
+      const formData = new FormData();
+      
+      formData.append("nome", values.nome);
+      if (values.email) formData.append("email", values.email);
+      if (values.telefone) formData.append("telefone", values.telefone);
+      if (values.endereco) formData.append("endereco", values.endereco);
+      formData.append("tipo_cliente", values.tipo_cliente);
+
+      if (values.tipo_cliente === "PF") {
+        if (values.cpf) formData.append("cpf", values.cpf);
       } else {
-        payload.cpf = null;
+        if (values.cnpj) formData.append("cnpj", values.cnpj);
+        if (values.razao_social) formData.append("razao_social", values.razao_social);
+        if (values.nome_fantasia) formData.append("nome_fantasia", values.nome_fantasia);
+        if (values.inscricao_estadual) formData.append("inscricao_estadual", values.inscricao_estadual);
+      }
+
+      // Se houver um arquivo novo selecionado
+      if (values.foto instanceof File) {
+        formData.append("foto", values.foto);
       }
 
       if (initialData) {
         // Editar
         const id = initialData.id ?? initialData.id_cliente;
-        await updateCliente(id, payload, token);
+        await updateCliente(id, formData, token);
         toast.success("Cliente atualizado com sucesso!");
       } else {
         // Criar
-        await createCliente(payload, token);
+        await createCliente(formData, token);
         toast.success("Cliente cadastrado com sucesso!");
       }
       
@@ -155,6 +205,46 @@ export function ClienteForm({ open, setOpen, initialData, onSuccess }) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             
+            {/* Área de Upload de Foto */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <Avatar className="w-24 h-24 border-2 border-dashed border-muted-foreground/50">
+                  <AvatarImage src={preview} className="object-cover" />
+                  <AvatarFallback className="bg-muted">
+                    <ImageIcon className="w-8 h-8 text-muted-foreground opacity-50" />
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="absolute -bottom-2 -right-2 flex gap-1">
+                  <label 
+                    htmlFor="foto-upload" 
+                    className="bg-primary text-primary-foreground rounded-full p-1.5 cursor-pointer hover:bg-primary/90 shadow-sm"
+                    title="Alterar foto"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <input 
+                      id="foto-upload" 
+                      type="file" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={handleFileChange} 
+                    />
+                  </label>
+                  
+                  {(preview || fotoValue) && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="bg-destructive text-destructive-foreground rounded-full p-1.5 cursor-pointer hover:bg-destructive/90 shadow-sm"
+                      title="Remover foto"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Tipo de Cliente */}
             <FormField
               control={form.control}
