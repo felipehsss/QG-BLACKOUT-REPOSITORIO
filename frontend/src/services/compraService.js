@@ -1,7 +1,10 @@
-// frontend-qgb/src/services/compraService.js
 import { apiService } from './apiService';
 
 const ENDPOINT = '/compras';
+
+export const readAll = async (token) => {
+  return await apiService.get(ENDPOINT, token);
+};
 
 export const getCompras = async (token) => {
   return await apiService.get(ENDPOINT, token);
