@@ -25,32 +25,29 @@ import {
 } from "@/components/ui/chart";
 import { Loader2, TrendingUp, TrendingDown, Wallet, Calendar as CalendarIcon, CreditCard, PieChart as PieChartIcon } from "lucide-react";
 
+// Paleta de cores vibrantes
+const COLOR_PALETTE = [
+  "#ef4444", "#f97316", "#eab308", "#10b981", "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899"
+];
+
 export default function FinanceiroDashboard() {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   
-  // Data padrão: últimos 30 dias
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date()
   });
 
   const [kpis, setKpis] = useState({ total_entradas: 0, total_saidas: 0, saldo_periodo: 0 });
-  const [pieData, setPieData] = useState([]); // Categorias (Saídas)
-  const [paymentData, setPaymentData] = useState([]); // Formas de Pagamento (Entradas)
-  const [areaData, setAreaData] = useState([]); // Evolução Anual
+  const [pieData, setPieData] = useState([]); 
+  const [paymentData, setPaymentData] = useState([]); 
+  const [areaData, setAreaData] = useState([]); 
 
-  // Cores do Tema Shadcn (Mapeamento CSS)
   const chartConfig = {
-    entradas: { label: "Receitas", color: "hsl(var(--chart-2))" }, // Verde/Teal
-    saidas: { label: "Despesas", color: "hsl(var(--chart-5))" },   // Vermelho/Laranja
-    saldo: { label: "Saldo", color: "hsl(var(--primary))" },
-    // Cores genéricas para categorias
-    cat1: { color: "hsl(var(--chart-1))" },
-    cat2: { color: "hsl(var(--chart-2))" },
-    cat3: { color: "hsl(var(--chart-3))" },
-    cat4: { color: "hsl(var(--chart-4))" },
-    cat5: { color: "hsl(var(--chart-5))" },
+    entradas: { label: "Receitas", color: "#10b981" }, // Verde
+    saidas: { label: "Despesas", color: "#ef4444" },   // Vermelho
+    saldo: { label: "Saldo", color: "#3b82f6" },       // Azul
   };
 
   const loadDashboard = async () => {
@@ -71,21 +68,48 @@ export default function FinanceiroDashboard() {
 
       setKpis(kpiRes || { total_entradas: 0, total_saidas: 0, saldo_periodo: 0 });
       
-      // Formata dados Pie Chart com cores cíclicas
       const formattedPie = (catRes || []).map((item, index) => ({
         ...item,
-        fill: `hsl(var(--chart-${(index % 5) + 1}))`
+        fill: COLOR_PALETTE[index % COLOR_PALETTE.length]
       }));
       setPieData(formattedPie);
 
-      // Formata dados Bar Chart (Pagamentos)
       const formattedPay = (payRes || []).map((item, index) => ({
         ...item,
-        fill: `hsl(var(--chart-${(index % 5) + 1}))`
+        fill: COLOR_PALETTE[(index + 3) % COLOR_PALETTE.length]
       }));
       setPaymentData(formattedPay);
 
-      setAreaData(anualRes || []);
+      // CORREÇÃO: Normaliza os dados anuais para garantir 12 meses
+  // LOG: inspecionar resposta anual da API e dados normalizados (temporário)
+  console.log("DEBUG: anualRes raw:", anualRes);
+      const dadosNormalizados = Array.from({ length: 12 }, (_, i) => {
+        const mesIndex = i + 1; // 1 = Jan, 12 = Dez
+        // Encontra o dado do mês no resultado da API (se existir)
+        const dadoEncontrado = (anualRes || []).find(d => d.mes === mesIndex);
+        
+        return {
+          mes: mesIndex,
+          // Garante que é número e usa 0 se não houver registro
+          entradas: Number(dadoEncontrado?.entradas || 0),
+          saidas: Number(dadoEncontrado?.saidas || 0)
+        };
+      });
+
+      // LOG: dados normalizados prontos para o chart (mantemos para debug)
+      console.log("DEBUG: dadosNormalizados:", dadosNormalizados);
+
+      // Para visualização do fluxo de caixa, é comum mostrar despesas como valores
+      // negativos para que apareçam abaixo do eixo zero no gráfico.
+      const chartData = (dadosNormalizados || []).map(d => ({
+        mes: d.mes,
+        entradas: Number(d.entradas || 0),
+        // forçar negativo apenas para exibição (mantemos original nos logs)
+        saidas: -(Math.abs(Number(d.saidas || 0)))
+      }));
+
+      console.log("DEBUG: chartData (saidas invertidas):", chartData);
+      setAreaData(chartData);
 
     } catch (error) {
       console.error("Erro ao carregar dashboard:", error);
@@ -96,32 +120,29 @@ export default function FinanceiroDashboard() {
 
   useEffect(() => {
     loadDashboard();
-  }, [token]); 
+  }, [token, dateRange]); 
 
   const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
 
   return (
     <div className="flex flex-col gap-6 p-6 animate-in fade-in duration-500">
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard Financeiro</h1>
           <p className="text-muted-foreground">Análise em tempo real do seu negócio.</p>
         </div>
         <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
-          <DateRangePicker date={dateRange} setDate={setDateRange} />
-          <Button onClick={loadDashboard} disabled={loading} size="icon" variant="ghost">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarIcon className="h-4 w-4" />}
-          </Button>
+          
         </div>
       </div>
 
       <Separator />
 
-      {/* --- CARDS DE KPI (Indicadores) --- */}
+      {/* KPIS */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-l-4 border-l-emerald-500 shadow-md transition-all hover:shadow-lg">
+        <Card className="border-l-4 border-l-emerald-500 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Receita Total</CardTitle>
             <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-full">
@@ -134,20 +155,20 @@ export default function FinanceiroDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-rose-500 shadow-md transition-all hover:shadow-lg">
+        <Card className="border-l-4 border-l-red-500 shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Despesas</CardTitle>
-            <div className="p-2 bg-rose-100 dark:bg-rose-900/30 rounded-full">
-              <TrendingDown className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+              <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">{formatMoney(kpis.total_saidas)}</div>
+            <div className="text-2xl font-bold text-red-600 dark:text-red-400">{formatMoney(kpis.total_saidas)}</div>
             <p className="text-xs text-muted-foreground mt-1">No período selecionado</p>
           </CardContent>
         </Card>
 
-        <Card className={`border-l-4 shadow-md transition-all hover:shadow-lg ${kpis.saldo_periodo < 0 ? 'border-l-orange-500' : 'border-l-blue-500'}`}>
+        <Card className={`border-l-4 shadow-md ${kpis.saldo_periodo < 0 ? 'border-l-orange-500' : 'border-l-blue-500'}`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Lucro Líquido</CardTitle>
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
@@ -163,10 +184,9 @@ export default function FinanceiroDashboard() {
         </Card>
       </div>
 
-      {/* --- GRÁFICOS PRINCIPAIS --- */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         
-        {/* 1. GRÁFICO DE ÁREA (Evolução Financeira) */}
+        {/* GRÁFICO DE FLUXO DE CAIXA */}
         <Card className="col-span-4 lg:col-span-4 shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -180,24 +200,29 @@ export default function FinanceiroDashboard() {
               <AreaChart data={areaData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="fillEntradas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-entradas)" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="var(--color-entradas)" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor={chartConfig.entradas.color} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={chartConfig.entradas.color} stopOpacity={0.1}/>
                   </linearGradient>
                   <linearGradient id="fillSaidas" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--color-saidas)" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="var(--color-saidas)" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor={chartConfig.saidas.color} stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor={chartConfig.saidas.color} stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                
+                <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="var(--border)" />
+                
                 <XAxis 
                   dataKey="mes" 
                   tickLine={false} 
                   axisLine={false} 
                   tickMargin={8}
+                  tick={{ fill: 'var(--muted-foreground)' }} 
                   tickFormatter={(val) => ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"][val-1]}
                 />
                 <YAxis 
-                  tickFormatter={(val) => `R$ ${(val/1000).toFixed(0)}k`} 
+                  tick={{ fill: 'var(--muted-foreground)' }}
+                  // CORREÇÃO: Formatação de valores grandes
+                  tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: "compact", compactDisplay: "short", style: "currency", currency: "BRL" }).format(val)} 
                   axisLine={false}
                   tickLine={false}
                   width={60}
@@ -209,7 +234,7 @@ export default function FinanceiroDashboard() {
                   type="monotone" 
                   dataKey="entradas" 
                   name="Receitas"
-                  stroke="var(--color-entradas)" 
+                  stroke={chartConfig.entradas.color}
                   fill="url(#fillEntradas)" 
                   strokeWidth={3}
                 />
@@ -217,16 +242,21 @@ export default function FinanceiroDashboard() {
                   type="monotone" 
                   dataKey="saidas" 
                   name="Despesas"
-                  stroke="var(--color-saidas)" 
+                  stroke={chartConfig.saidas.color}
                   fill="url(#fillSaidas)" 
                   strokeWidth={3}
                 />
               </AreaChart>
             </ChartContainer>
+            {/* DEBUG TEMP: mostrar dados normalizados abaixo do gráfico */}
+            <div className="mt-4 p-2 bg-muted/10 rounded text-xs">
+              <strong>DEBUG: areaData</strong>
+              <pre className="whitespace-pre-wrap max-h-40 overflow-auto text-[11px]">{JSON.stringify(areaData, null, 2)}</pre>
+            </div>
           </CardContent>
         </Card>
 
-        {/* 2. GRÁFICO DE ROSCA (Despesas por Categoria) */}
+        {/* PIE CHART */}
         <Card className="col-span-4 lg:col-span-3 shadow-md flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -244,10 +274,11 @@ export default function FinanceiroDashboard() {
                     data={pieData}
                     dataKey="total"
                     nameKey="nome"
-                    innerRadius={70}
+                    innerRadius={65}
                     outerRadius={100}
                     strokeWidth={2}
                     paddingAngle={2}
+                    stroke="var(--card)"
                   >
                     <Label
                       content={({ viewBox }) => {
@@ -270,14 +301,14 @@ export default function FinanceiroDashboard() {
                 </PieChart>
               </ChartContainer>
             ) : (
-                <div className="flex h-[250px] items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg">
+                <div className="flex h-[250px] items-center justify-center text-muted-foreground border-2 border-dashed border-muted rounded-lg m-4">
                     Sem dados de despesas
                 </div>
             )}
           </CardContent>
         </Card>
 
-        {/* 3. GRÁFICO DE BARRAS (Formas de Pagamento) */}
+        {/* BAR CHART */}
         <Card className="col-span-4 lg:col-span-7 shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -288,21 +319,26 @@ export default function FinanceiroDashboard() {
           </CardHeader>
           <CardContent>
             {paymentData.length > 0 ? (
-              <ChartContainer config={chartConfig} className="w-full max-h-[250px]">
-                <BarChart layout="vertical" data={paymentData} margin={{ left: 0, right: 20 }}>
-                  <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+              <ChartContainer config={chartConfig} className="w-full max-h-[300px]">
+                <BarChart layout="vertical" data={paymentData} margin={{ left: 0, right: 40, top: 10, bottom: 10 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="var(--border)" />
                   <YAxis 
                     dataKey="forma_pagamento" 
                     type="category" 
                     tickLine={false} 
                     axisLine={false}
-                    width={100}
-                    className="text-xs font-medium"
+                    width={120}
+                    tick={{ fill: 'var(--foreground)', fontSize: 12, fontWeight: 500 }}
                   />
                   <XAxis type="number" hide />
                   <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                  <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={30}>
-                    <LabelList dataKey="total" position="right" formatter={(val) => formatMoney(val)} className="fill-foreground text-xs" />
+                  <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={32}>
+                    <LabelList 
+                      dataKey="total" 
+                      position="right" 
+                      formatter={(val) => formatMoney(val)} 
+                      className="fill-foreground text-xs font-bold" 
+                    />
                     {paymentData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
@@ -310,7 +346,7 @@ export default function FinanceiroDashboard() {
                 </BarChart>
               </ChartContainer>
             ) : (
-              <div className="flex h-[150px] items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg">
+              <div className="flex h-[150px] items-center justify-center text-muted-foreground border-2 border-dashed border-muted rounded-lg m-4">
                   Sem dados de pagamentos
               </div>
             )}

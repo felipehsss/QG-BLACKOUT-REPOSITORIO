@@ -94,7 +94,14 @@ export const relatorioFormasPagamento = async (req, res, next) => {
 export const relatorioAnual = async (req, res, next) => {
   try {
     const { ano } = req.query;
-    const dados = await financeiroModel.getReportMensal(ano || new Date().getFullYear());
+    const raw = await financeiroModel.getReportMensal(ano || new Date().getFullYear());
+    // Garantir que os valores numéricos sejam números (o driver MySQL pode retornar DECIMAL como string)
+    const dados = (raw || []).map(r => ({
+      mes: Number(r.mes),
+      entradas: Number(r.entradas || 0),
+      saidas: Number(r.saidas || 0)
+    }));
+
     res.json(dados);
   } catch (err) { next(err); }
 };
