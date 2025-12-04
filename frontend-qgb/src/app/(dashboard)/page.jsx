@@ -15,29 +15,17 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from "recharts"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import NewClientModal from "@/components/clientes/new-client-modal"
 import { parseISO, isWithinInterval, format, subDays, isSameDay, eachDayOfInterval, eachMonthOfInterval, startOfMonth, endOfMonth } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 import { useAuth } from "@/contexts/AuthContext"
-import { readAll as readVendas } from "@/services/vendaService"
+import { readAll as readVendas, getRelatorioVendas } from "@/services/vendaService"
 import { toast } from "sonner"
 
-// --- DADOS ESTÁTICOS ---
-const categoriasData = [
-  { name: "Peças de Motor",     value: 400 },
-  { name: "Suspensão e Direção", value: 300 },
-  { name: "Sistema de Freios",   value: 300 },
-  { name: "Filtros e Fluidos",   value: 200 },
-]
-const cores = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]
+// Cores para charts
+const cores = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"]
 
-const desempenhoData = [
-  { subject: "Atendimento", A: 120, fullMark: 150 },
-  { subject: "Logística",     A: 98,  fullMark: 150 },
-  { subject: "Qualidade da Peça",   A: 130, fullMark: 150 },
-  { subject: "Preço",       A: 90,  fullMark: 150 },
-  { subject: "Variedade do Estoque",   A: 110, fullMark: 150 },
-]
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -56,6 +44,9 @@ export default function DashboardPage() {
   // Busca na tabela de pedidos
   const [buscaPedido, setBuscaPedido] = useState("")
   const [openModal, setOpenModal] = useState(null)
+  // Paginação da tabela de pedidos
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
   
   // --- CARREGAMENTO DE DADOS ---
   useEffect(() => {
@@ -85,6 +76,30 @@ export default function DashboardPage() {
 
     fetchData()
   }, [token, user])
+
+  // Buscar relatório com itens para compor categorias/itens por receita
+  const [relatorioItens, setRelatorioItens] = useState([])
+  const [relatorioLoading, setRelatorioLoading] = useState(true)
+  const [relatorioError, setRelatorioError] = useState(null)
+  useEffect(() => {
+    async function fetchRelatorio() {
+      if (!token) return
+      setRelatorioLoading(true)
+      setRelatorioError(null)
+      try {
+        const res = await getRelatorioVendas(token)
+        // API pode retornar { vendas: [...] } ou array direto
+        const arr = Array.isArray(res) ? res : (res?.vendas ?? res?.data ?? [])
+        setRelatorioItens(arr)
+      } catch (e) {
+        console.error("Erro ao carregar relatório de vendas:", e)
+        setRelatorioError(e)
+      } finally {
+        setRelatorioLoading(false)
+      }
+    }
+    fetchRelatorio()
+  }, [token])
 
   // --- PROCESSAMENTO DE DADOS (MEMO) ---
 
@@ -120,6 +135,17 @@ export default function DashboardPage() {
       (p.cliente_nome && p.cliente_nome.toLowerCase().includes(termo))
     )
   }, [vendasFiltradasPorData, buscaPedido])
+
+  // Resetar página quando os resultados mudam
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [pedidosTabela, rowsPerPage])
+
+  const totalPages = Math.max(1, Math.ceil(pedidosTabela.length / rowsPerPage))
+  const paginatedPedidos = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage
+    return pedidosTabela.slice(start, start + rowsPerPage)
+  }, [pedidosTabela, currentPage, rowsPerPage])
 
   // 2. KPIs
   const kpis = useMemo(() => {
@@ -174,29 +200,106 @@ export default function DashboardPage() {
 
   // 4. Gráfico Mensal
   const chartDataMensal = useMemo(() => {
-    if (vendas.length === 0) return [];
-    
-    const datas = vendas.map(v => new Date(v.data_venda));
-    const minDate = new Date(Math.min.apply(null, datas));
-    const maxDate = new Date(Math.max.apply(null, datas));
+    if (!dateRange?.from || !dateRange?.to) return []
 
     try {
-        const meses = eachMonthOfInterval({ start: startOfMonth(minDate), end: endOfMonth(maxDate) });
-        return meses.map(mes => {
-          const mesFormatado = format(mes, 'yyyy-MM');
-          const nomeMes = format(mes, 'MMM', { locale: ptBR });
+      const meses = eachMonthOfInterval({ start: startOfMonth(dateRange.from), end: endOfMonth(dateRange.to) })
 
-          const qtdPedidos = vendas.filter(v => format(new Date(v.data_venda), 'yyyy-MM') === mesFormatado).length;
+      return meses.map(mes => {
+        const mesKey = format(mes, 'yyyy-MM')
+        const vendasNoMes = vendas.filter(v => format(new Date(v.data_venda), 'yyyy-MM') === mesKey)
+        const pedidos = vendasNoMes.length
+        const faturamento = vendasNoMes.reduce((acc, v) => acc + Number(v.valor_total || 0), 0)
 
-          return {
-            mes: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1),
-            pedidos: qtdPedidos
-          }
-        });
+        const nomeMes = format(mes, 'MMM', { locale: ptBR })
+        return {
+          mes: nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1),
+          pedidos,
+          faturamento
+        }
+      })
     } catch (e) {
-        return [];
+      return []
     }
-  }, [vendas]);
+  }, [vendas, dateRange])
+
+  // Categorias / Top produtos por receita (usando relatório de itens)
+  const categoriasData = useMemo(() => {
+    if (!relatorioItens || relatorioItens.length === 0) return []
+    if (!dateRange?.from || !dateRange?.to) return []
+
+    const start = new Date(dateRange.from); start.setHours(0,0,0,0)
+    const end = new Date(dateRange.to); end.setHours(23,59,59,999)
+
+    const grouped = {}
+    relatorioItens.forEach(item => {
+      if (!item.data_venda) return
+      const d = new Date(item.data_venda)
+      if (d < start || d > end) return
+      const key = item.produto_nome || 'Outros'
+      const valor = Number(item.item_total ?? item.subtotal ?? 0)
+      grouped[key] = (grouped[key] || 0) + (isNaN(valor) ? 0 : valor)
+    })
+
+    const arr = Object.keys(grouped).map(k => ({ name: k, value: grouped[k] }))
+    arr.sort((a,b) => b.value - a.value)
+    return arr.slice(0, 6)
+  }, [relatorioItens, dateRange])
+
+  // --- Desempenho: métricas derivadas dos dados de vendas (Radar) ---
+  const desempenhoData = useMemo(() => {
+    try {
+      const faturamento = vendasFiltradasPorData.reduce((acc, v) => acc + Number(v.valor_total || 0), 0)
+      const pedidos = vendasFiltradasPorData.length
+      const ticketMedio = pedidos > 0 ? faturamento / pedidos : 0
+
+      // clientes únicos
+      const clientesSet = new Set()
+      vendasFiltradasPorData.forEach(v => {
+        const cid = v.cliente_id ?? v.cliente?.id ?? v.cliente?.cliente_id ?? v.cliente_id
+        if (cid) clientesSet.add(String(cid))
+      })
+      const clientesUnicos = clientesSet.size
+
+      // produtos vendidos (soma de quantidades no relatório de itens)
+      let produtosVendidos = 0
+      if (Array.isArray(relatorioItens)) {
+        const start = new Date(dateRange.from); start.setHours(0,0,0,0)
+        const end = new Date(dateRange.to); end.setHours(23,59,59,999)
+        relatorioItens.forEach(it => {
+          try {
+            const d = new Date(it.data_venda)
+            if (d >= start && d <= end) {
+              produtosVendidos += Number(it.quantidade ?? it.qtd ?? 0)
+            }
+          } catch (e) { /* ignore */ }
+        })
+      }
+
+      // Normaliza para escala do Radar (0-150) usando metas razoáveis
+      const scale = (value, target) => {
+        if (!target || target <= 0) return 0
+        return Math.min(150, Math.round((value / target) * 150))
+      }
+
+      // Metas (ajustáveis conforme necessidade)
+      const metas = { ticket: 800, pedidos: 120, clientes: 80, produtos: 300 }
+
+      return [
+        { subject: "Ticket Médio", A: scale(ticketMedio, metas.ticket), fullMark: 150 },
+        { subject: "Pedidos", A: scale(pedidos, metas.pedidos), fullMark: 150 },
+        { subject: "Clientes Únicos", A: scale(clientesUnicos, metas.clientes), fullMark: 150 },
+        { subject: "Produtos Vendidos", A: scale(produtosVendidos, metas.produtos), fullMark: 150 },
+      ]
+    } catch (e) {
+      return [
+        { subject: "Ticket Médio", A: 50, fullMark: 150 },
+        { subject: "Pedidos", A: 50, fullMark: 150 },
+        { subject: "Clientes Únicos", A: 50, fullMark: 150 },
+        { subject: "Produtos Vendidos", A: 50, fullMark: 150 },
+      ]
+    }
+  }, [vendasFiltradasPorData, relatorioItens, dateRange])
 
 
   const formatCurrency = (val) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val);
@@ -223,7 +326,7 @@ export default function DashboardPage() {
   }
 
   const goPdv        = () => router.push("/pdv")
-  const goNovoCli    = () => router.push("/cadastros/clientes")
+  const goNovoCli    = () => setOpenModal("novoCliente")
   const goNovoProd   = () => router.push("/cadastros/produtos")
   const goPagamentos = () => router.push("/financeiro/contas-a-pagar")
 
@@ -305,35 +408,52 @@ export default function DashboardPage() {
         <Card>
           <CardHeader><CardTitle>Vendas no Período (Diário)</CardTitle></CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartDataDiario}>
-                <XAxis dataKey="dia" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis 
-                  tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`} 
-                  fontSize={12} 
-                  tickLine={false} 
-                  axisLine={false}
-                />
-                <Tooltip 
-                  formatter={(value) => [formatCurrency(value), "Vendas"]} 
-                  labelFormatter={(label, payload) => payload[0]?.payload.fullDate ? format(new Date(payload[0].payload.fullDate), "dd 'de' MMMM") : label}
-                />
-                <Bar dataKey="valor" name="Faturamento" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            { (isLoading || relatorioLoading) ? (
+              <div className="h-72 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartDataDiario}>
+                  <XAxis dataKey="dia" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis 
+                    tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`} 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <Tooltip 
+                    formatter={(value) => [formatCurrency(value), "Vendas"]} 
+                    labelFormatter={(label, payload) => payload[0]?.payload.fullDate ? format(new Date(payload[0].payload.fullDate), "dd 'de' MMMM") : label}
+                  />
+                  <Bar dataKey="valor" name="Faturamento" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Evolução de Pedidos (Mensal)</CardTitle></CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartDataMensal}>
-                <XAxis dataKey="mes" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip />
-                <Line type="monotone" dataKey="pedidos" name="Qtd. Vendas" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            {(isLoading || relatorioLoading) ? (
+              <div className="h-72 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartDataMensal}>
+                  <XAxis dataKey="mes" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis 
+                    tickFormatter={(value) => `R$${(value).toLocaleString('pt-BR')}`} 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false}
+                  />
+                  <Tooltip formatter={(value) => [formatCurrency(value), 'Faturamento']} />
+                  <Line type="monotone" dataKey="faturamento" name="Faturamento" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -343,31 +463,47 @@ export default function DashboardPage() {
         <Card>
           <CardHeader><CardTitle>Categorias (Estimativa)</CardTitle></CardHeader>
           <CardContent className="h-72 flex justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={categoriasData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={5}>
-                  {categoriasData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
+            {(isLoading || relatorioLoading) ? (
+              <div className="h-72 flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : relatorioError ? (
+              <div className="h-72 flex items-center justify-center text-sm text-red-600">Erro ao carregar dados do relatório.</div>
+            ) : categoriasData.length === 0 ? (
+              <div className="h-72 flex items-center justify-center text-sm text-muted-foreground">Nenhum dado disponível para o período selecionado.</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={categoriasData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" paddingAngle={5}>
+                    {categoriasData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [formatCurrency(value), 'Receita']} />
+                  <Legend verticalAlign="bottom" height={36}/>
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Métricas de Qualidade</CardTitle></CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={desempenhoData} outerRadius={90}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="subject" fontSize={12} />
-                <PolarRadiusAxis angle={30} domain={[0, 150]} />
-                <Radar name="Loja Atual" dataKey="A" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.5} />
-                <Tooltip />
-              </RadarChart>
-            </ResponsiveContainer>
+              {(isLoading || relatorioLoading) ? (
+                <div className="h-72 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={desempenhoData} outerRadius={90}>
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="subject" fontSize={12} />
+                    <PolarRadiusAxis angle={30} domain={[0, 150]} />
+                    <Radar name="Loja Atual" dataKey="A" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.5} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              )}
           </CardContent>
         </Card>
       </div>
@@ -402,7 +538,7 @@ export default function DashboardPage() {
                     </TableCell>
                   </TableRow>
                 ) : pedidosTabela.length > 0 ? (
-                  pedidosTabela.map((pedido) => (
+                  paginatedPedidos.map((pedido) => (
                     <TableRow key={pedido.venda_id}>
                       <TableCell className="font-medium">#{pedido.venda_id}</TableCell>
                       <TableCell>{formatDate(pedido.data_venda)}</TableCell>
@@ -429,11 +565,43 @@ export default function DashboardPage() {
                 )}
               </TableBody>
             </Table>
+            {/* Paginação */}
+            <div className="flex items-center justify-between p-3">
+              <div className="text-sm text-muted-foreground">
+                {pedidosTabela.length === 0 ? (
+                  <span>Nenhum registro</span>
+                ) : (
+                  <span>
+                    Mostrando {(pedidosTabela.length === 0) ? 0 : ( (currentPage - 1) * rowsPerPage + 1 )} - {Math.min(currentPage * rowsPerPage, pedidosTabela.length)} de {pedidosTabela.length}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-muted-foreground">Linhas:</label>
+                <select value={rowsPerPage} onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }} className="border rounded px-2 py-1 text-sm">
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                  Anterior
+                </Button>
+                <div className="text-sm">{currentPage} / {totalPages}</div>
+                <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                  Próximo
+                </Button>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
-
+''
       {/* Modais */}
+      <NewClientModal open={openModal === "novoCliente"} onOpenChange={(v) => setOpenModal(v ? "novoCliente" : null)} />
+
       <Dialog open={openModal === "aviso"} onOpenChange={() => setOpenModal(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Em desenvolvimento</DialogTitle></DialogHeader>
