@@ -208,7 +208,7 @@ export default function EstoquePage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-2" /> CSV</Button>
-            <Button onClick={() => setEditProduto({ id: null, sku: "", nome: "", categoria: "", preco: 0, descricao: "", _novo: true })}><Plus className="w-4 h-4 mr-2" /> Novo</Button>
+            
           </div>
         </CardContent>
       </Card>
