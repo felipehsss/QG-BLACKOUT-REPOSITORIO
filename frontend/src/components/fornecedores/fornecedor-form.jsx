@@ -31,24 +31,25 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { cpfCnpjMask, phoneMask } from "../funcionarios/masks";
 
+// 1. Removido 'endereco' do schema de validação
 const formSchema = z.object({
   nome: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
   email: z.string().email("Email inválido.").optional().or(z.literal("")),
   telefone: z.string().optional().or(z.literal("")),
   cnpj: z.string().optional().or(z.literal("")),
-  endereco: z.string().optional().or(z.literal("")),
 });
 
 export function FornecedorForm({ open, setOpen, onSuccess, initialData = null }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { token } = useAuth();
 
+  // 2. Removido 'endereco' dos valores padrão
   const form = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: { nome: "", email: "", telefone: "", cnpj: "", endereco: "" },
+    defaultValues: { nome: "", email: "", telefone: "", cnpj: "" },
   });
 
-  // Reseta o formulário quando abre/fecha ou quando muda os dados de edição
+  // 3. Removido 'endereco' do reset (edição e criação)
   useEffect(() => {
     if (open) {
       if (initialData) {
@@ -57,7 +58,6 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
           email: initialData.email ?? "",
           telefone: initialData.telefone ?? "",
           cnpj: initialData.cnpj ?? "",
-          endereco: initialData.endereco ?? "",
         });
       } else {
         form.reset({
@@ -65,7 +65,6 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
           email: "",
           telefone: "",
           cnpj: "",
-          endereco: "",
         });
       }
     }
@@ -74,12 +73,12 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
+      // 4. Removido 'endereco' do payload enviado para a API
       const payload = {
         razao_social: data.nome,
         email: data.email?.trim() || null,
         telefone: data.telefone?.trim() || null,
         cnpj: data.cnpj?.trim() || null,
-        endereco: data.endereco?.trim() || null,
       };
 
       if (initialData && (initialData.id ?? initialData.fornecedor_id)) {
@@ -181,19 +180,7 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="endereco"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Endereço</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Rua, nº, bairro" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* 5. Campo de endereço removido do JSX */}
 
             <DialogFooter>
               <Button 

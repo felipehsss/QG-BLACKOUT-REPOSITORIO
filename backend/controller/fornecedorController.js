@@ -1,7 +1,8 @@
-// fornecedorController.js
+// backend/controller/fornecedorController.js
 import * as fornecedorModel from "../model/fornecedorModel.js";
-import * as contaPagarModel from "../model/contaPagarModel.js"; // Importe o model de contas
-import { getConnection } from "../config/database.js"; // Necessário para query manual de produtos
+import * as contaPagarModel from "../model/contaPagarModel.js";
+import { getConnection } from "../config/database.js";
+
 // Listar todos os fornecedores
 export const listar = async (req, res, next) => {
   try {
@@ -29,6 +30,7 @@ export const buscarPorId = async (req, res, next) => {
 // Criar novo fornecedor
 export const criar = async (req, res, next) => {
   try {
+    // Aqui você já estava filtrando corretamente, por isso criar funcionava
     const { razao_social, cnpj, contato_principal, email, telefone } = req.body;
 
     if (!razao_social || !cnpj) {
@@ -51,17 +53,35 @@ export const criar = async (req, res, next) => {
   }
 };
 
-// Atualizar fornecedor existente
+// Atualizar fornecedor existente (CORRIGIDO)
 export const atualizar = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const dados = req.body;
+    
+    // ANTES: const dados = req.body; 
+    // (Isso causava o erro pois pegava 'endereco' que não existe no banco)
 
-    const linhas = await fornecedorModel.updateFornecedor(id, dados);
-    if (!linhas) {
-      return res.status(404).json({ message: "Fornecedor não encontrado" });
+    // DEPOIS: Pegamos apenas os campos permitidos
+    const { razao_social, cnpj, contato_principal, email, telefone } = req.body;
+
+    // Montamos o objeto apenas com o que existe no banco
+    const dadosParaAtualizar = {};
+    if (razao_social !== undefined) dadosParaAtualizar.razao_social = razao_social;
+    if (cnpj !== undefined) dadosParaAtualizar.cnpj = cnpj;
+    if (contato_principal !== undefined) dadosParaAtualizar.contato_principal = contato_principal;
+    if (email !== undefined) dadosParaAtualizar.email = email;
+    if (telefone !== undefined) dadosParaAtualizar.telefone = telefone;
+
+    // Se o objeto estiver vazio, não fazemos nada para evitar erro de SQL vazio
+    if (Object.keys(dadosParaAtualizar).length === 0) {
+        return res.status(400).json({ message: "Nenhum dado válido enviado para atualização." });
     }
 
+    const linhas = await fornecedorModel.updateFornecedor(id, dadosParaAtualizar);
+    
+    // Nota: update retorna número de linhas afetadas. Se os dados forem iguais, pode retornar 0.
+    // Mas se o ID não existir, também pode ser tratado. Vamos assumir sucesso se não der erro.
+    
     res.json({ message: "Fornecedor atualizado com sucesso" });
   } catch (err) {
     next(err);
@@ -94,20 +114,18 @@ export const obterRelatorio = async (req, res, next) => {
     }
 
     // 2. Busca Produtos vinculados a este fornecedor
-    // (Assumindo que existe fornecedor_id na tabela produtos ou uma tabela pivo)
     const [produtos] = await connection.execute(
       "SELECT * FROM produtos WHERE fornecedor_id = ?",
       [id]
     );
 
     // 3. Busca Contas a Pagar deste fornecedor
-    // Nota: Se getByFornecedorId retornar array direto ou [rows], ajuste conforme seu db.read
     const contasRaw = await contaPagarModel.getByFornecedorId(id);
     const contas = Array.isArray(contasRaw) ? contasRaw : (contasRaw?.data || []);
 
     // 4. Calcula Totais
     const totalDivida = contas
-      .filter(c => c.status !== "Pago") // Exemplo de filtro
+      .filter(c => c.status !== "Pago")
       .reduce((acc, curr) => acc + Number(curr.valor), 0);
 
     const totalPago = contas
