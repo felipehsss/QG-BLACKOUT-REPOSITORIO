@@ -18,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import * as produtoService from "@/services/produtoService"
 import * as estoqueService from "@/services/estoqueService"
 import * as fornecedorService from "@/services/fornecedorService"
+import * as funcionarioService from "@/services/funcionarioService"
+import * as solicitacaoService from "@/services/solicitacaoService"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3080/api';
 const BASE_URL = API_URL.replace('/api', '');
@@ -33,6 +35,10 @@ export default function EstoquePage() {
   const [filtroFornecedor, setFiltroFornecedor] = useState("todos")
   
   const [detalhesProduto, setDetalhesProduto] = useState(null)
+  const [solicitarProduto, setSolicitarProduto] = useState(null)
+  const [solicitarQuantidade, setSolicitarQuantidade] = useState(1)
+  const [solicitarObs, setSolicitarObs] = useState("")
+  const [solicitarLoading, setSolicitarLoading] = useState(false)
   const [editProduto, setEditProduto] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
   const [loadingAction, setLoadingAction] = useState(false)
@@ -46,6 +52,21 @@ export default function EstoquePage() {
   const carregarDados = async () => {
     setLoading(true)
     try {
+      // Determina a loja do contexto: prioriza user.loja_id, senão tenta buscar o funcionário
+      let lojaId = user?.loja_id
+      if (!lojaId && user?.id && token) {
+        try {
+          const func = await funcionarioService.readById(user.id, token)
+          if (func) lojaId = func.loja_id || func.lojaId || func.loja_id_fk
+        } catch (e) {
+          // se falhar, seguimos com fallback abaixo
+          console.warn('Não foi possível obter funcionário para determinar loja:', e?.message || e)
+        }
+      }
+
+      // fallback seguro
+      lojaId = lojaId || 1
+
       // Passando o TOKEN corretamente aqui
       const [resProdutos, resEstoque, resFornecedores] = await Promise.all([
         produtoService.readAll(token),
@@ -55,12 +76,11 @@ export default function EstoquePage() {
 
       const listaProdutos = Array.isArray(resProdutos) ? resProdutos : (resProdutos.data || [])
       const listaEstoque = Array.isArray(resEstoque) ? resEstoque : []
-      
+
       if (Array.isArray(resFornecedores) && resFornecedores.length > 0) {
          setFornecedores(resFornecedores)
       }
 
-      const lojaId = user?.loja_id || 1
       const dadosMesclados = listaProdutos.map(p => {
         const pId = p.id || p.produto_id || p._id
         const est = listaEstoque.find(e => e.produto_id === pId && e.loja_id === lojaId)
@@ -208,7 +228,7 @@ export default function EstoquePage() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={exportCSV}><Download className="w-4 h-4 mr-2" /> CSV</Button>
-            <Button onClick={() => setEditProduto({ id: null, sku: "", nome: "", categoria: "", preco: 0, descricao: "", _novo: true })}><Plus className="w-4 h-4 mr-2" /> Novo</Button>
+            
           </div>
         </CardContent>
       </Card>
@@ -252,8 +272,8 @@ export default function EstoquePage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setDetalhesProduto(p)}><Eye className="w-4 h-4" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => ajustarEstoque(p, 1)}><PlusCircle className="w-4 h-4" /></Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-600" onClick={() => ajustarEstoque(p, -1)}><Minus className="w-4 h-4" /></Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-green-600" onClick={() => { setSolicitarProduto(p); setSolicitarQuantidade(Math.max(1, (p.minimo || 5) - (p.quantidade || 0))); setSolicitarObs("") }}><PlusCircle className="w-4 h-4" /></Button>
+ 
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditProduto({...p, sku: p.codigo, preco: p.preco})}><Pencil className="w-4 h-4" /></Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}><Trash2 className="w-4 h-4" /></Button>
                       </div>
@@ -323,6 +343,62 @@ export default function EstoquePage() {
            </DialogFooter>
         </DialogContent>
       </Dialog>z
+      {/* Modal para solicitar reposição de produto */}
+      <Dialog open={!!solicitarProduto} onOpenChange={() => setSolicitarProduto(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Solicitar Reposição</DialogTitle>
+          </DialogHeader>
+          {solicitarProduto && (
+            <div className="grid gap-3 py-2">
+              <div className="space-y-1">
+                <Label>Produto</Label>
+                <div className="font-medium">{solicitarProduto.nome} <span className="text-xs text-muted-foreground">({solicitarProduto.codigo})</span></div>
+              </div>
+              <div className="space-y-1">
+                <Label>Quantidade</Label>
+                <Input type="number" min={1} value={solicitarQuantidade} onChange={(e) => setSolicitarQuantidade(Number(e.target.value || 0))} />
+              </div>
+              <div className="space-y-1">
+                <Label>Observação (opcional)</Label>
+                <Input value={solicitarObs} onChange={(e) => setSolicitarObs(e.target.value)} />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSolicitarProduto(null)}>Cancelar</Button>
+            <Button onClick={async () => {
+              if (!solicitarProduto) return
+              if (!solicitarQuantidade || solicitarQuantidade <= 0) { toast.error('Informe quantidade válida'); return }
+              setSolicitarLoading(true)
+              try {
+                // determina loja
+                let lojaId = user?.loja_id
+                if (!lojaId && user?.id && token) {
+                  try { const func = await funcionarioService.readById(user.id, token); if (func) lojaId = func.loja_id || func.lojaId || func.loja_id_fk } catch(e){/* ignore */}
+                }
+                lojaId = lojaId || 1
+
+                const payload = {
+                  loja_id: lojaId,
+                  observacao: solicitarObs || `Solicitação via Estoque: produto ${solicitarProduto.nome}`,
+                  itens: [{ produto_id: solicitarProduto.id, quantidade: Number(solicitarQuantidade) }]
+                }
+
+                await solicitacaoService.createSolicitacao(payload, token)
+                toast.success('Solicitação enviada com sucesso!')
+                setSolicitarProduto(null)
+                carregarDados()
+              } catch (e) {
+                console.error('Erro ao criar solicitação:', e)
+                toast.error('Erro ao enviar solicitação.')
+              } finally {
+                setSolicitarLoading(false)
+              }
+            }} disabled={solicitarLoading}>{solicitarLoading ? 'Enviando...' : 'Enviar Solicitação'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

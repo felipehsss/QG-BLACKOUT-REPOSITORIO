@@ -13,7 +13,7 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 
-import { TeamSwitcher } from "@/components/team-switcher"
+// TeamSwitcher removed per request: logo will be shown instead
 import {
   Sidebar,
   SidebarContent,
@@ -32,7 +32,7 @@ const data = {
   teams: [
     {
       name: "QG Brightness",
-      logo: GalleryVerticalEnd,
+      logo: "/logo/2.svg",
       plan: "Loja Física",
     },
   ],
@@ -107,8 +107,10 @@ export function AppSidebar({ ...props }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        {/* Adicionado o TeamSwitcher para manter o padrão visual do topo */}
-        <TeamSwitcher teams={data.teams} />
+        {/* Exibe logo estática (centralizada e maior) conforme solicitado */}
+        <div className="flex items-center justify-center px-2 py-4">
+          <img src="/logo/2.svg" alt="QG Brightness" className="h-14 w-auto" />
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
