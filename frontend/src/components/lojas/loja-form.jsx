@@ -1,10 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -12,164 +24,244 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { create as createLoja, update as updateLoja } from "@/services/lojaService";
 import { useAuth } from "@/contexts/AuthContext";
-import { create, update } from "@/services/lojaService";
-import { toast } from "sonner";
-import { MaskedInput } from "@/components/ui/masked-input";
 
-// Formatações manuais simples se precisar
-const formatCNPJ = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5").slice(0, 18);
-const formatPhone = (v) => v.replace(/\D/g, "").replace(/^(\d{2})(\d{5})(\d{4})/, "($1) $2-$3").slice(0, 15);
+const formSchema = z.object({
+  nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  cnpj: z.string().optional(),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
+  telefone: z.string().optional(),
+  endereco: z.string().optional(),
+  cidade: z.string().optional(),
+  estado: z.string().max(2, "UF deve ter 2 letras").optional().or(z.literal("")),
+  tipo: z.string().min(1, "Selecione o tipo"),
+  is_ativo: z.string().optional(),
+});
 
-export function LojaForm({ loja, onSuccess, onCancel }) {
-  const { token } = useAuth();
+export function LojaForm({ initialData, onSuccess, onCancel }) {
   const [loading, setLoading] = useState(false);
-  
-  const [formData, setFormData] = useState({
-    nome: "",
-    cnpj: "",
-    endereco: "",
-    telefone: "",
-    email: "",
-    is_matriz: false,
-    is_ativo: true
+  const { token } = useAuth();
+
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: "",
+      cnpj: "",
+      email: "",
+      telefone: "",
+      endereco: "",
+      cidade: "",
+      estado: "",
+      tipo: "Filial",
+      is_ativo: "true",
+    },
   });
 
+  // Preencher formulário ao editar
   useEffect(() => {
-    if (loja) {
-      setFormData({
-        nome: loja.nome || "",
-        cnpj: loja.cnpj || "",
-        endereco: loja.endereco || "",
-        telefone: loja.telefone || "",
-        email: loja.email || "",
-        is_matriz: !!loja.is_matriz,
-        is_ativo: loja.is_ativo !== undefined ? !!loja.is_ativo : true,
+    if (initialData) {
+      form.reset({
+        nome: initialData.nome || "",
+        cnpj: initialData.cnpj || "",
+        email: initialData.email || "",
+        telefone: initialData.telefone || "",
+        endereco: initialData.endereco || "",
+        cidade: initialData.cidade || "",
+        estado: initialData.estado || "",
+        tipo: initialData.tipo || initialData.plan || "Filial",
+        is_ativo: initialData.is_ativo ? "true" : "false",
       });
+    } else {
+        form.reset(); // Limpa se for criação
     }
-  }, [loja]);
+  }, [initialData, form]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleMaskChange = (field, formatter) => (e) => {
-    const val = formatter(e.target.value);
-    setFormData(prev => ({ ...prev, [field]: val }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!token) return;
+  const onSubmit = async (values) => {
     setLoading(true);
-
     try {
-      // Limpa máscaras antes de enviar
-      const payload = {
-        ...formData,
-        cnpj: formData.cnpj.replace(/\D/g, ""),
-        telefone: formData.telefone.replace(/\D/g, "")
-      };
+      // Converte status para booleano real se necessário, mas o backend que fiz acima trata string também
+      const payload = { ...values };
 
-      if (loja) {
-        await update(loja.id || loja.loja_id, payload, token);
+      if (initialData) {
+        // --- EDIÇÃO ---
+        const id = initialData.id ?? initialData.loja_id;
+        await updateLoja(id, payload, token);
         toast.success("Loja atualizada com sucesso!");
       } else {
-        await create(payload, token);
+        // --- CRIAÇÃO ---
+        await createLoja(payload, token);
         toast.success("Loja criada com sucesso!");
       }
-      onSuccess?.();
+
+      if (onSuccess) onSuccess();
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao salvar loja.");
+      toast.error("Erro ao salvar loja. Verifique os dados.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 py-2">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2 col-span-2 md:col-span-1">
-          <Label htmlFor="nome">Nome da Loja *</Label>
-          <Input 
-            id="nome" name="nome" 
-            value={formData.nome} onChange={handleChange} 
-            required placeholder="Ex: QG Blackout - Centro" 
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="nome"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nome da Loja</FormLabel>
+                <FormControl>
+                  <Input placeholder="Ex: Matriz Centro" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="tipo"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Tipo</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Matriz">Matriz</SelectItem>
+                    <SelectItem value="Filial">Filial</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
 
-        <div className="space-y-2 col-span-2 md:col-span-1">
-          <Label htmlFor="cnpj">CNPJ</Label>
-          <Input 
-            id="cnpj" name="cnpj" 
-            value={formData.cnpj} onChange={handleMaskChange("cnpj", formatCNPJ)} 
-            placeholder="00.000.000/0001-00" 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <FormField
+            control={form.control}
+            name="cnpj"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>CNPJ</FormLabel>
+                <FormControl>
+                  <Input placeholder="00.000.000/0000-00" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="telefone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Telefone</FormLabel>
+                <FormControl>
+                  <Input placeholder="(00) 0000-0000" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="loja@empresa.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
 
-        <div className="space-y-2 col-span-2">
-          <Label htmlFor="endereco">Endereço</Label>
-          <Input 
-            id="endereco" name="endereco" 
-            value={formData.endereco} onChange={handleChange} 
-            placeholder="Rua, Número, Bairro, Cidade - UF" 
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <FormField
+            control={form.control}
+            name="endereco"
+            render={({ field }) => (
+              <FormItem className="md:col-span-2">
+                <FormLabel>Endereço</FormLabel>
+                <FormControl>
+                  <Input placeholder="Rua, Número, Bairro" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="cidade"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cidade</FormLabel>
+                <FormControl>
+                  <Input placeholder="Cidade" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="estado"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>UF</FormLabel>
+                <FormControl>
+                  <Input placeholder="SP" maxLength={2} {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="telefone">Telefone</Label>
-          <Input 
-            id="telefone" name="telefone" 
-            value={formData.telefone} onChange={handleMaskChange("telefone", formatPhone)} 
-            placeholder="(00) 00000-0000" 
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input 
-            id="email" name="email" type="email"
-            value={formData.email} onChange={handleChange} 
-            placeholder="loja@qgblackout.com.br" 
-          />
-        </div>
-
-        <div className="flex items-center space-x-2 pt-4">
-            <Checkbox 
-                id="is_matriz" 
-                checked={formData.is_matriz}
-                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_matriz: checked }))}
-            />
-            <Label htmlFor="is_matriz" className="cursor-pointer">É a Loja Matriz?</Label>
-        </div>
-
-        <div className="flex items-center space-x-2 pt-4">
-            <Label>Status:</Label>
-            <Select 
-                value={formData.is_ativo ? "true" : "false"}
-                onValueChange={(val) => setFormData(prev => ({ ...prev, is_ativo: val === "true" }))}
-            >
-                <SelectTrigger className="w-[120px]">
-                    <SelectValue />
-                </SelectTrigger>
+        <FormField
+          control={form.control}
+          name="is_ativo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status Operacional</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                </FormControl>
                 <SelectContent>
-                    <SelectItem value="true">Ativa</SelectItem>
-                    <SelectItem value="false">Inativa</SelectItem>
+                  <SelectItem value="true">Ativa</SelectItem>
+                  <SelectItem value="false">Inativa</SelectItem>
                 </SelectContent>
-            </Select>
-        </div>
-      </div>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
-      <div className="flex justify-end gap-2 mt-6">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
-          Cancelar
-        </Button>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Salvando..." : (loja ? "Salvar Alterações" : "Cadastrar Loja")}
-        </Button>
-      </div>
-    </form>
+        <div className="flex justify-end gap-2 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {initialData ? "Salvar Alterações" : "Cadastrar Loja"}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }

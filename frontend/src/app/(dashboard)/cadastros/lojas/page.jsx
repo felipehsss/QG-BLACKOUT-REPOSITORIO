@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, RefreshCw, Store } from "lucide-react";
+import { Plus, RotateCcw, LayoutGrid, LayoutList } from "lucide-react"; // Novos ícones importados
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,45 +12,52 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Opcional, mas usaremos botões simples para o toggle
+
+// Componentes
 import { LojasTable } from "@/components/lojas/lojas-table";
 import { LojaForm } from "@/components/lojas/loja-form";
-import { useAuth } from "@/contexts/AuthContext";
+
+// Serviços
 import { readAll, deleteRecord } from "@/services/lojaService";
-import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function LojasPage() {
-  const { token } = useAuth();
-  const [data, setData] = useState([]);
+  const [lojas, setLojas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLoja, setEditingLoja] = useState(null);
+  const [viewMode, setViewMode] = useState("table"); // 'table' | 'grid'
 
-  const loadData = async () => {
+  const { token } = useAuth();
+
+  const loadLojas = async () => {
     if (!token) return;
     setLoading(true);
     try {
-      const result = await readAll(token);
-      setData(result || []);
+      const data = await readAll(token);
+      setLojas(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Erro ao carregar lojas:", error);
-      toast.error("Erro ao carregar lista de lojas.");
+      console.error(error);
+      toast.error("Erro ao carregar lojas");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
+    loadLojas();
   }, [token]);
 
   const handleCreate = () => {
-    setEditingItem(null);
-    setIsDialogOpen(true);
+    setEditingLoja(null);
+    setIsModalOpen(true);
   };
 
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setIsDialogOpen(true);
+  const handleEdit = (loja) => {
+    setEditingLoja(loja);
+    setIsModalOpen(true);
   };
 
   const handleDelete = async (id) => {
@@ -56,33 +65,56 @@ export default function LojasPage() {
       try {
         await deleteRecord(id, token);
         toast.success("Loja excluída com sucesso!");
-        loadData();
+        loadLojas();
       } catch (error) {
+        console.error(error);
         toast.error("Erro ao excluir loja.");
       }
     }
   };
 
-  const handleSuccess = () => {
-    setIsDialogOpen(false);
-    loadData();
+  const handleFormSuccess = () => {
+    setIsModalOpen(false);
+    loadLojas();
+    toast.success(editingLoja ? "Loja atualizada!" : "Loja cadastrada!");
   };
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* CABEÇALHO */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Store className="h-8 w-8 text-primary" /> Lojas & Filiais
-          </h1>
+          <h1 className="text-3xl font-bold tracking-tight">Gerenciamento de Lojas</h1>
           <p className="text-muted-foreground">
-            Gerencie as unidades da sua rede.
+            Administre as filiais e unidades da sua rede.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={loadData} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Atualizar
+        
+        <div className="flex items-center gap-2">
+          {/* Toggle de Visualização */}
+          <div className="flex items-center border rounded-md bg-background mr-2">
+            <Button
+              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9 rounded-r-none"
+              onClick={() => setViewMode('table')}
+              title="Modo Tabela"
+            >
+              <LayoutList className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+              size="icon"
+              className="h-9 w-9 rounded-l-none"
+              onClick={() => setViewMode('grid')}
+              title="Modo Card"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <Button variant="outline" size="icon" onClick={loadLojas} title="Recarregar">
+            <RotateCcw className="h-4 w-4" />
           </Button>
           <Button onClick={handleCreate}>
             <Plus className="mr-2 h-4 w-4" /> Nova Loja
@@ -90,28 +122,38 @@ export default function LojasPage() {
         </div>
       </div>
 
-      <LojasTable 
-        data={data} 
-        onEdit={handleEdit} 
-        onDelete={handleDelete} 
-      />
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>
-              {editingItem ? "Editar Loja" : "Cadastrar Nova Loja"}
-            </DialogTitle>
-            <DialogDescription>
-              Preencha as informações da unidade abaixo.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <LojaForm
-            loja={editingItem}
-            onSuccess={handleSuccess}
-            onCancel={() => setIsDialogOpen(false)}
+      {/* CONTEÚDO PRINCIPAL */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Unidades Cadastradas</CardTitle>
+          <CardDescription>
+            {lojas.length} lojas encontradas no sistema.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LojasTable 
+            data={lojas} 
+            onEdit={handleEdit} 
+            onDelete={handleDelete} 
+            viewMode={viewMode} // Passando o modo de visualização
           />
+        </CardContent>
+      </Card>
+
+      {/* MODAL */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingLoja ? "Editar Loja" : "Nova Loja"}</DialogTitle>
+            <DialogDescription>Preencha os dados da unidade.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <LojaForm 
+              initialData={editingLoja} 
+              onSuccess={handleFormSuccess} 
+              onCancel={() => setIsModalOpen(false)}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

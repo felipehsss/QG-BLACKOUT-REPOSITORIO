@@ -1,6 +1,4 @@
-// lojaModel.js
 import * as db from "../config/database.js";
-
 
 const table = "lojas";
 
