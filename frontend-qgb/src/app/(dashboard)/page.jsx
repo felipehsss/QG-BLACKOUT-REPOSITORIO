@@ -325,9 +325,15 @@ export default function DashboardPage() {
     document.body.removeChild(link);
   }
 
+  // Hub routes / quick actions
   const goPdv        = () => router.push("/pdv")
-  const goNovoCli    = () => setOpenModal("novoCliente")
-  const goNovoProd   = () => router.push("/cadastros/produtos")
+  const goNovoCli    = () => setOpenModal("novoCliente") // abre modal de novo cliente
+  const goClientes   = () => router.push("/cadastros/clientes") // lista de clientes (placeholder)
+  const goEstoque    = () => router.push("/produtos/estoque")
+  const goReqProd    = () => router.push("/produtos/requerimento")
+  const goRelVendas  = () => router.push("/relatorios/vendas")
+  const goRelPagto   = () => router.push("/relatorios/pagamentos")
+  const goRelCaixas  = () => router.push("/relatorios/caixas")
   const goPagamentos = () => router.push("/financeiro/contas-a-pagar")
 
   // Se não estiver carregando e não tiver usuário, exibe loading ou redireciona
@@ -351,8 +357,21 @@ export default function DashboardPage() {
         <Button variant="outline" onClick={goNovoCli} className="flex items-center gap-2">
           <UserPlus className="w-4 h-4" /> Novo Cliente
         </Button>
-        <Button variant="outline" onClick={goNovoProd} className="flex items-center gap-2">
-          <Package className="w-4 h-4" /> Gerenciar Estoque
+        <Button variant="outline" onClick={goEstoque} className="flex items-center gap-2">
+          <Package className="w-4 h-4" /> Estoque
+        </Button>
+        <Button variant="outline" onClick={goReqProd} className="flex items-center gap-2">
+          <Package className="w-4 h-4" /> Requerimento
+        </Button>
+      
+        <Button variant="outline" onClick={goRelVendas} className="flex items-center gap-2">
+          <Download className="w-4 h-4" /> Relatórios Vendas
+        </Button>
+        <Button variant="outline" onClick={goRelPagto} className="flex items-center gap-2">
+          <DollarSign className="w-4 h-4" /> Relatórios Pagamentos
+        </Button>
+        <Button variant="outline" onClick={goRelCaixas} className="flex items-center gap-2">
+          <Download className="w-4 h-4" /> Relatórios Caixas
         </Button>
         <Button variant="outline" onClick={goPagamentos} className="flex items-center gap-2">
           <DollarSign className="w-4 h-4" /> Financeiro
