@@ -85,21 +85,7 @@ const data = {
         },
       ],
     },
-    {
-      title: "Sistema",
-      url: "#",
-      icon: Settings,
-      items: [
-        {
-          title: "Configurações",
-          url: "/configuracoes",
-        },
-        {
-          title: "Ajuda",
-          url: "/ajuda",
-        },
-      ],
-    },
+    
   ],
 }
 
@@ -108,8 +94,8 @@ export function AppSidebar({ ...props }) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         {/* Exibe logo estática (centralizada e maior) conforme solicitado */}
-        <div className="flex items-center justify-center px-2 py-4">
-          <img src="/logo/2.svg" alt="QG Brightness" className="h-14 w-auto" />
+        <div className="flex items-center justify-center  p-2">
+          <img src="/logo/2.svg" alt="QG Brightness" className=" w-auto" />
         </div>
       </SidebarHeader>
       <SidebarContent>
