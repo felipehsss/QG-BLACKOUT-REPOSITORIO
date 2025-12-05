@@ -8,7 +8,7 @@ import {
   Settings,
   HelpCircle,
   ChartNoAxesColumn,
-  GalleryVerticalEnd,Package
+  GalleryVerticalEnd, Package
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -85,7 +85,7 @@ const data = {
         },
       ],
     },
-    
+
   ],
 }
 
@@ -101,7 +101,7 @@ export function AppSidebar({ ...props }) {
       <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
-    
+
       <SidebarRail />
     </Sidebar>
   )

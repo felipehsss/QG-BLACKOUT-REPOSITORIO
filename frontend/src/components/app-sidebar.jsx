@@ -4,12 +4,12 @@ import * as React from "react"
 import Image from "next/image"
 import {
   GalleryVerticalEnd,
-  PiggyBank, 
+  PiggyBank,
   ChartLine,
   LayoutDashboard,
   Package,
   SquareTerminal,
-  Settings2,ShoppingCart
+  Settings2, ShoppingCart
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -84,11 +84,11 @@ const data = {
       items: [
         {
           title: "Estoque",
-          url: "/produtos/estoque", 
+          url: "/produtos/estoque",
         },
         {
           title: "Requerimentos & Envios",
-          url: "/produtos/requerimento", 
+          url: "/produtos/requerimento",
         },
       ],
     },
@@ -140,30 +140,19 @@ export function AppSidebar({ ...props }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        {/* 1. LOGO DA EMPRESA - AJUSTADA PARA PREENCHER */}
-        <div className="flex justify-center  group-data-[collapsible=icon]:hidden">
-           {/* Aumentei a altura para h-24 (96px) e coloquei w-full.
-              A imagem vai tentar preencher esse espaço mantendo a proporção.
-           */}
-           <div className="relative h-16 w-full"> 
-             <Image 
-                src="/logo/1.svg" 
-                alt="QG Blackout"
-                fill
-                className="object-contain" // Garante que a logo apareça inteira
-                priority
-             />
-           </div>
+         {/* Exibe logo estática (centralizada e maior) conforme solicitado */}
+        <div className="flex items-center justify-center  p-2">
+          <img src="/logo/1.svg" alt="QG Brightness" className=" w-auto" />
         </div>
 
         {/* 2. SELETOR DE FILIAL/TIME */}
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
-      
+
       <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
-      
+
       <SidebarFooter>
         {/* <NavUser user={data.user} /> */}
       </SidebarFooter>
