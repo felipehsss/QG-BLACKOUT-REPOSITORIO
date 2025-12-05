@@ -46,25 +46,111 @@ function formatDate(dateString) {
   return format(parseISO(dateString), "dd/MM/yyyy", { locale: ptBR });
 }
 
+// Componente de formulário embutido para evitar problemas de import
+function TransacaoForm({ onSave }) {
+  const hoje = new Date().toISOString().split('T')[0];
+  const [form, setForm] = useState({ data_movimento: hoje, descricao: '', tipo: 'Entrada', origem: '', valor: '' });
+
+  const handleChange = (k) => (e) => setForm(prev => ({ ...prev, [k]: e.target.value }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const valorNum = Number(String(form.valor).replace(',', '.')) || 0;
+    if (!form.descricao) return;
+    onSave({
+      data_movimento: form.data_movimento,
+      descricao: form.descricao,
+      tipo: form.tipo,
+      origem: form.origem || 'Manual',
+      valor: valorNum,
+    });
+    setForm({ data_movimento: hoje, descricao: '', tipo: 'Entrada', origem: '', valor: '' });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="grid gap-2 md:grid-cols-5">
+      <div>
+        <label className="text-sm">Data</label>
+        <input className="w-full rounded-md border p-2" type="date" value={form.data_movimento} onChange={handleChange('data_movimento')} />
+      </div>
+      <div>
+        <label className="text-sm">Descrição</label>
+        <input className="w-full rounded-md border p-2" value={form.descricao} onChange={handleChange('descricao')} placeholder="Ex: Compra de estoque" />
+      </div>
+      <div>
+        <label className="text-sm">Tipo</label>
+        <select className="w-full rounded-md border p-2" value={form.tipo} onChange={handleChange('tipo')}>
+          <option>Entrada</option>
+          <option>Saída</option>
+        </select>
+      </div>
+      <div>
+        <label className="text-sm">Origem</label>
+        <input className="w-full rounded-md border p-2" value={form.origem} onChange={handleChange('origem')} placeholder="Caixa, Fornecedor..." />
+      </div>
+      <div className="flex items-end">
+        <div className="w-full">
+          <label className="text-sm">Valor</label>
+          <input className="w-full rounded-md border p-2" value={form.valor} onChange={handleChange('valor')} placeholder="0.00" />
+        </div>
+        <div className="ml-2 mt-2">
+          <button className="inline-flex items-center rounded bg-primary px-3 py-1 text-white" type="submit">Salvar</button>
+        </div>
+      </div>
+    </form>
+  );
+}
+
 export default function FluxoCaixaPage() {
   const { token } = useAuth();
-  const [data, setData] = useState({ transacoes: [], saldoInicial: 0, totalEntradas: 0, totalSaidas: 0, saldoFinal: 0 });
+  const [data, setData] = useState({ transacoes: [], saldoInicial: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [localTransacoes, setLocalTransacoes] = useState([]);
   const [dateRange, setDateRange] = useState({ from: trintaDiasAtras, to: hoje });
 
-  const { transacoes, saldoInicial, totalEntradas, totalSaidas, saldoFinal } = data;
+  const { transacoes, saldoInicial } = data;
+
+  // Calcular totals localmente a partir das transações para garantir que sempre tenhamos valores
+  const totalEntradasCalculado = transacoes.reduce((sum, t) => {
+    const valor = Number(t.valor ?? 0);
+    return t.tipo === 'Entrada' ? sum + valor : sum;
+  }, 0);
+
+  const totalSaidasCalculado = transacoes.reduce((sum, t) => {
+    const valor = Number(t.valor ?? 0);
+    return t.tipo === 'Saída' || t.tipo === 'Saida' ? sum + valor : sum;
+  }, 0);
+
+  // Saldo final calculado: pode usar saldoInicial + entradas - saídas
+  const saldoFinalCalculado = saldoInicial + totalEntradasCalculado - totalSaidasCalculado;
 
   const fetchFluxoCaixa = async () => {
     if (!token || !dateRange.from || !dateRange.to) return;
     setIsLoading(true);
+    setErrorMessage('');
     try {
       const from = dateRange.from.toISOString().split('T')[0];
       const to = dateRange.to.toISOString().split('T')[0];
       const result = await getFluxoCaixa(from, to, token);
+      // Se a API responder com sucesso, usamos os dados e limpamos fallback local
       setData(result);
+      setLocalTransacoes([]);
     } catch (error) {
       console.error("Erro ao buscar fluxo de caixa:", error);
-      setData({ transacoes: [], saldoInicial: 0, totalEntradas: 0, totalSaidas: 0, saldoFinal: 0 });
+      // Mensagem amigável (se for erro SQL exibido pelo backend, mostramos mensagem curta)
+      setErrorMessage(error.message || 'Erro ao buscar fluxo de caixa. Usando registros locais.');
+
+      // Tentar carregar transações salvas localmente como fallback
+      try {
+        const raw = localStorage.getItem('fluxoCaixa:transacoes');
+        const saved = raw ? JSON.parse(raw) : [];
+        setLocalTransacoes(saved);
+        // saldoInicial local pode ser 0 — mantemos o data.transacoes vindo do backend vazio
+        setData({ transacoes: saved || [], saldoInicial: 0 });
+      } catch (e) {
+        setData({ transacoes: [], saldoInicial: 0 });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -79,16 +165,22 @@ export default function FluxoCaixaPage() {
   const transacoesComSaldo = transacoes
     .sort((a, b) => new Date(a.data) - new Date(b.data)) // Garante a ordem cronológica
     .map(t => {
+      const valor = Number(t.valor ?? 0);
       if (t.tipo === 'Entrada') {
-        saldoAcumulado += t.valor;
+        saldoAcumulado += valor;
       } else {
-        saldoAcumulado -= t.valor;
+        saldoAcumulado -= valor;
       }
       return { ...t, saldo: saldoAcumulado };
     });
 
   return (
     <div className="flex flex-col gap-4">
+      {errorMessage && (
+        <div className="rounded-md border border-yellow-400 bg-yellow-50 p-3 text-sm text-yellow-800">
+          {errorMessage}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Fluxo de Caixa</h1>
@@ -105,9 +197,29 @@ export default function FluxoCaixaPage() {
         </div>
       </div>
       
+      {/* Formulário rápido para registrar Entradas / Saídas localmente */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Registrar Movimentação (Local)</CardTitle>
+          <CardDescription>Registre aqui despesas e receitas localmente (salvo no navegador).</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TransacaoForm
+            onSave={(nova) => {
+              // atribuir um id temporário se não houver
+              const registro = { financeiro_id: `local-${Date.now()}`, ...nova };
+              const atual = [registro, ...localTransacoes];
+              try { localStorage.setItem('fluxoCaixa:transacoes', JSON.stringify(atual)); } catch (e) { console.warn('localStorage indisponível'); }
+              setLocalTransacoes(atual);
+              setData(prev => ({ ...prev, transacoes: atual }));
+            }}
+          />
+        </CardContent>
+      </Card>
+      
       {/* --- CARDS DE RESUMO (KPIs) --- */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+            <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Saldo Inicial</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -123,7 +235,7 @@ export default function FluxoCaixaPage() {
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">{formatCurrency(totalEntradas)}</div>
+            <div className="text-2xl font-bold text-green-500">{formatCurrency(totalEntradasCalculado)}</div>
             <p className="text-xs text-muted-foreground">Soma de todas as receitas.</p>
           </CardContent>
         </Card>
@@ -133,7 +245,7 @@ export default function FluxoCaixaPage() {
             <TrendingDown className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{formatCurrency(totalSaidas)}</div>
+            <div className="text-2xl font-bold text-destructive">{formatCurrency(totalSaidasCalculado)}</div>
             <p className="text-xs text-muted-foreground">Soma de todas as despesas.</p>
           </CardContent>
         </Card>
@@ -143,8 +255,8 @@ export default function FluxoCaixaPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${saldoFinal >= 0 ? 'text-blue-500' : 'text-destructive'}`}>
-              {formatCurrency(saldoFinal)}
+            <div className={`text-2xl font-bold ${saldoFinalCalculado >= 0 ? 'text-blue-500' : 'text-destructive'}`}>
+              {formatCurrency(saldoFinalCalculado)}
             </div>
             <p className="text-xs text-muted-foreground">Balanço do período.</p>
           </CardContent>
