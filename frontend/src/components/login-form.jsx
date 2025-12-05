@@ -64,7 +64,7 @@ export function LoginForm({ className, ...props }) {
       <Card className="border-none bg-transparent shadow-none">
         <CardHeader className="text-center">
           <CardTitle className="text-xl text-white">Bem-vindo de volta</CardTitle>
-          <CardDescription className="text-gray-300">
+          <CardDescription className="text-black">
             Faça login com sua conta
           </CardDescription>
         </CardHeader>
@@ -77,7 +77,7 @@ export function LoginForm({ className, ...props }) {
               </Field>
               <Field>
 
-                <FieldLabel htmlFor="email" className="text-white">Email</FieldLabel>
+                <FieldLabel htmlFor="email" className="text-black">Email:</FieldLabel>
 
                 <Input
                   id="email"
@@ -90,12 +90,12 @@ export function LoginForm({ className, ...props }) {
               </Field>
               <Field>
                 <div className="flex items-center">
-                  <FieldLabel htmlFor="password" className="text-white">Senha</FieldLabel>
+                  <FieldLabel htmlFor="password" className="text-black">Senha:</FieldLabel>
                   <a
                     href="#"
                     className="ml-auto text-sm text-gray-300 underline-offset-4 hover:text-white hover:underline"
                   >
-                    Esqueceu sua senha?
+                    
                   </a>
                 </div>
                 <Input
