@@ -23,7 +23,7 @@ import {
   ChartLegend,
   ChartLegendContent
 } from "@/components/ui/chart";
-import { Loader2, TrendingUp, TrendingDown, Wallet, Calendar as CalendarIcon, CreditCard, PieChart as PieChartIcon } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, CreditCard, PieChart as PieChartIcon } from "lucide-react";
 
 // Paleta de cores vibrantes
 const COLOR_PALETTE = [
@@ -44,11 +44,12 @@ export default function FinanceiroDashboard() {
   const [paymentData, setPaymentData] = useState([]); 
   const [areaData, setAreaData] = useState([]); 
 
-  const chartConfig = {
-    entradas: { label: "Receitas", color: "#10b981" }, // Verde
-    saidas: { label: "Despesas", color: "#ef4444" },   // Vermelho
-    saldo: { label: "Saldo", color: "#3b82f6" },       // Azul
-  };
+  // Transforma chartConfig em state para aceitar categorias dinâmicas
+  const [chartConfig, setChartConfig] = useState({
+    entradas: { label: "Receitas", color: "#10b981" },
+    saidas: { label: "Despesas", color: "#ef4444" },
+    saldo: { label: "Saldo", color: "#3b82f6" },
+  });
 
   const loadDashboard = async () => {
     if (!token || !dateRange?.from || !dateRange?.to) return;
@@ -68,48 +69,58 @@ export default function FinanceiroDashboard() {
 
       setKpis(kpiRes || { total_entradas: 0, total_saidas: 0, saldo_periodo: 0 });
       
-      const formattedPie = (catRes || []).map((item, index) => ({
-        ...item,
-        fill: COLOR_PALETTE[index % COLOR_PALETTE.length]
-      }));
+      // --- CORREÇÃO DO GRÁFICO DE PIZZA (Despesas) ---
+      const newConfig = { ...chartConfig };
+      
+      const formattedPie = (catRes || []).map((item, index) => {
+        const color = COLOR_PALETTE[index % COLOR_PALETTE.length];
+        const nomeCategoria = item.nome || "Sem Categoria";
+
+        // Adiciona a categoria dinamicamente na configuração para a legenda funcionar
+        newConfig[nomeCategoria] = {
+            label: nomeCategoria,
+            color: color
+        };
+
+        return {
+            ...item,
+            nome: nomeCategoria,
+            // CORREÇÃO CRÍTICA: Converte string "3200.00" para número 3200.00
+            total: Number(item.total || 0),
+            fill: color
+        };
+      });
+      
+      setChartConfig(newConfig); // Atualiza config com as novas categorias
       setPieData(formattedPie);
 
+      // --- Formatação Pagamentos ---
       const formattedPay = (payRes || []).map((item, index) => ({
         ...item,
+        total: Number(item.total || 0), // Garante número aqui também
         fill: COLOR_PALETTE[(index + 3) % COLOR_PALETTE.length]
       }));
       setPaymentData(formattedPay);
 
-      // CORREÇÃO: Normaliza os dados anuais para garantir 12 meses
-  // LOG: inspecionar resposta anual da API e dados normalizados (temporário)
-  console.log("DEBUG: anualRes raw:", anualRes);
+      // --- Dados Anuais ---
       const dadosNormalizados = Array.from({ length: 12 }, (_, i) => {
-        const mesIndex = i + 1; // 1 = Jan, 12 = Dez
-        // Encontra o dado do mês no resultado da API (se existir)
-        const dadoEncontrado = (anualRes || []).find(d => d.mes === mesIndex);
+        const mesIndex = i + 1;
+        const dadoEncontrado = (anualRes || []).find(d => Number(d.mes) === mesIndex);
         
         return {
           mes: mesIndex,
-          // Garante que é número e usa 0 se não houver registro
           entradas: Number(dadoEncontrado?.entradas || 0),
           saidas: Number(dadoEncontrado?.saidas || 0)
         };
       });
 
-      // LOG: dados normalizados prontos para o chart (mantemos para debug)
-      console.log("DEBUG: dadosNormalizados:", dadosNormalizados);
-
-      // Para visualização do fluxo de caixa, é comum mostrar despesas como valores
-      // negativos para que apareçam abaixo do eixo zero no gráfico.
-      const chartData = (dadosNormalizados || []).map(d => ({
+      const chartAreaData = dadosNormalizados.map(d => ({
         mes: d.mes,
-        entradas: Number(d.entradas || 0),
-        // forçar negativo apenas para exibição (mantemos original nos logs)
-        saidas: -(Math.abs(Number(d.saidas || 0)))
+        entradas: d.entradas,
+        saidas: -(Math.abs(d.saidas)) // Exibe despesas negativas no gráfico de área
       }));
 
-      console.log("DEBUG: chartData (saidas invertidas):", chartData);
-      setAreaData(chartData);
+      setAreaData(chartAreaData);
 
     } catch (error) {
       console.error("Erro ao carregar dashboard:", error);
@@ -134,7 +145,10 @@ export default function FinanceiroDashboard() {
           <p className="text-muted-foreground">Análise em tempo real do seu negócio.</p>
         </div>
         <div className="flex items-center gap-2 bg-card p-1 rounded-lg border shadow-sm">
-          
+           <DateRangePicker 
+             date={dateRange} 
+             setDate={(newDate) => setDateRange(newDate)} 
+           />
         </div>
       </div>
 
@@ -221,8 +235,7 @@ export default function FinanceiroDashboard() {
                 />
                 <YAxis 
                   tick={{ fill: 'var(--muted-foreground)' }}
-                  // CORREÇÃO: Formatação de valores grandes
-                  tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: "compact", compactDisplay: "short", style: "currency", currency: "BRL" }).format(val)} 
+                  tickFormatter={(val) => new Intl.NumberFormat('pt-BR', { notation: "compact", compactDisplay: "short", style: "currency", currency: "BRL" }).format(Math.abs(val))} 
                   axisLine={false}
                   tickLine={false}
                   width={60}
@@ -248,11 +261,6 @@ export default function FinanceiroDashboard() {
                 />
               </AreaChart>
             </ChartContainer>
-            {/* DEBUG TEMP: mostrar dados normalizados abaixo do gráfico */}
-            <div className="mt-4 p-2 bg-muted/10 rounded text-xs">
-              <strong>DEBUG: areaData</strong>
-              <pre className="whitespace-pre-wrap max-h-40 overflow-auto text-[11px]">{JSON.stringify(areaData, null, 2)}</pre>
-            </div>
           </CardContent>
         </Card>
 
@@ -301,8 +309,9 @@ export default function FinanceiroDashboard() {
                 </PieChart>
               </ChartContainer>
             ) : (
-                <div className="flex h-[250px] items-center justify-center text-muted-foreground border-2 border-dashed border-muted rounded-lg m-4">
-                    Sem dados de despesas
+                <div className="flex h-[250px] items-center justify-center text-muted-foreground border-2 border-dashed border-muted rounded-lg m-4 flex-col text-center p-4">
+                    <p>Sem dados de despesas</p>
+                    <p className="text-xs mt-2">Verifique se a data selecionada (Nov 2025?) contém registros.</p>
                 </div>
             )}
           </CardContent>

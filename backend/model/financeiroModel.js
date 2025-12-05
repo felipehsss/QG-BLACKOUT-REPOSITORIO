@@ -62,12 +62,17 @@ export async function getKPIs(dataInicio, dataFim) {
 export async function getReportPorCategoria(tipo, dataInicio, dataFim) {
   const connection = await db.getConnection();
   try {
+    // CORREÇÃO: Uso de COALESCE para tratar categorias nulas como 'Sem Categoria'
+    // Isso evita que o gráfico quebre quando a despesa não tem categoria definida
     const sql = `
-      SELECT c.nome, SUM(f.valor) as total
+      SELECT 
+        COALESCE(c.nome, 'Sem Categoria') as nome, 
+        SUM(f.valor) as total
       FROM ${table} f
       LEFT JOIN categorias_financeiras c ON f.categoria_id = c.categoria_id
       WHERE f.tipo = ? AND f.data_movimento BETWEEN ? AND ?
-      GROUP BY c.nome
+      GROUP BY COALESCE(c.nome, 'Sem Categoria')
+      ORDER BY total DESC
     `;
     const [rows] = await connection.execute(sql, [tipo, dataInicio, dataFim]);
     return rows;

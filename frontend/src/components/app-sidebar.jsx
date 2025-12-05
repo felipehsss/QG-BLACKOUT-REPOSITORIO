@@ -93,6 +93,17 @@ const data = {
       ],
     },
     {
+      title: "Compras",
+      url: "#",
+      icon: ShoppingCart,
+      items: [
+        {
+          title: "Pedidos de Compra",
+          url: "/compras",
+        },
+      ],
+    },
+    {
       title: "Financeiro",
       url: "#",
       icon: PiggyBank,
@@ -111,6 +122,7 @@ const data = {
         },
       ],
     },
+    
     {
       title: "Relatórios",
       url: "#",
@@ -122,17 +134,7 @@ const data = {
         },
       ],
     },
-    {
-      title: "Compras",
-      url: "#",
-      icon: ShoppingCart,
-      items: [
-        {
-          title: "Pedidos de Compra",
-          url: "/compras",
-        },
-      ],
-    },
+    
   ],
 }
 
