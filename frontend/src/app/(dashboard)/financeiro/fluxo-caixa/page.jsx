@@ -108,6 +108,8 @@ export default function FluxoCaixaPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [localTransacoes, setLocalTransacoes] = useState([]);
   const [dateRange, setDateRange] = useState({ from: trintaDiasAtras, to: hoje });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { transacoes, saldoInicial } = data;
 
@@ -173,6 +175,18 @@ export default function FluxoCaixaPage() {
       }
       return { ...t, saldo: saldoAcumulado };
     });
+
+  // Paginação
+  const totalCount = transacoesComSaldo.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
+  const visibleTransacoes = transacoesComSaldo.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    // Ajustar página caso o tamanho total mude
+    if (currentPage > totalPages) setCurrentPage(1);
+  }, [totalPages]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -289,7 +303,7 @@ export default function FluxoCaixaPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transacoesComSaldo.map((t) => (
+                {visibleTransacoes.map((t) => (
                   <TableRow key={t.financeiro_id}>
                     <TableCell>{formatDate(t.data_movimento)}</TableCell>
                     <TableCell className="font-medium">{t.descricao}</TableCell>
@@ -322,6 +336,24 @@ export default function FluxoCaixaPage() {
             </div>
           )}
         </CardContent>
+        {/* Controles de paginação */}
+        <div className="flex items-center justify-between border-t p-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm">Linhas por página:</label>
+            <select className="rounded border p-1" value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-muted-foreground">{startIndex + 1} - {endIndex} de {totalCount}</div>
+            <button className="rounded border px-2 py-1" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Anterior</button>
+            <button className="rounded border px-2 py-1" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Próxima</button>
+          </div>
+        </div>
       </Card>
     </div>
   )

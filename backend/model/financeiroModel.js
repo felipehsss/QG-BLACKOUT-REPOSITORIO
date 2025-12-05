@@ -112,3 +112,50 @@ export async function getReportMensal(ano) {
     connection.release();
   }
 }
+
+export async function getFluxoCaixa(inicio, fim) {
+  const connection = await db.getConnection();
+  try {
+    // 1. Calcular Saldo Inicial (tudo antes da data 'inicio')
+    const sqlSaldo = `
+      SELECT SUM(CASE WHEN tipo = 'Entrada' THEN valor ELSE -valor END) as saldo_inicial
+      FROM ${table}
+      WHERE data_movimento < ?
+    `;
+    const [rowsSaldo] = await connection.execute(sqlSaldo, [inicio]);
+    const saldoInicial = Number(rowsSaldo[0]?.saldo_inicial || 0);
+
+    // 2. Buscar Transações do Período
+    const sqlTransacoes = `
+      SELECT f.*, c.nome as nome_categoria 
+      FROM ${table} f
+      LEFT JOIN categorias_financeiras c ON f.categoria_id = c.categoria_id
+      WHERE f.data_movimento BETWEEN ? AND ?
+      ORDER BY f.data_movimento ASC
+    `;
+    const [transacoes] = await connection.execute(sqlTransacoes, [inicio, fim]);
+
+    // 3. Calcular Totais do Período (para os Cards)
+    let totalEntradas = 0;
+    let totalSaidas = 0;
+
+    const transacoesFormatadas = transacoes.map(t => {
+      const valor = Number(t.valor);
+      if (t.tipo === "Entrada") totalEntradas += valor;
+      else totalSaidas += valor;
+      return { ...t, valor };
+    });
+
+    const saldoFinal = saldoInicial + totalEntradas - totalSaidas;
+
+    return {
+      transacoes: transacoesFormatadas,
+      saldoInicial,
+      totalEntradas,
+      totalSaidas,
+      saldoFinal
+    };
+  } finally {
+    connection.release();
+  }
+}

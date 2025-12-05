@@ -105,3 +105,18 @@ export const relatorioAnual = async (req, res, next) => {
     res.json(dados);
   } catch (err) { next(err); }
 };
+
+export const getFluxoCaixa = async (req, res, next) => {
+  try {
+    const { inicio, fim } = req.query;
+    
+    if (!inicio || !fim) {
+      return res.status(400).json({ message: "As datas de início e fim são obrigatórias." });
+    }
+
+    const dados = await financeiroModel.getFluxoCaixa(inicio, fim);
+    res.json(dados);
+  } catch (err) { 
+    next(err); 
+  }
+};
