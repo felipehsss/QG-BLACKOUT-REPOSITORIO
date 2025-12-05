@@ -44,6 +44,8 @@ export default function ComprasPage() {
   const [loadingData, setLoadingData] = useState(true)
   const [loadingPreco, setLoadingPreco] = useState(false)
   const [activeTab, setActiveTab] = useState("novo")
+  // Se marcado, o pedido será recebido automaticamente após criação (entra no estoque)
+  const [autoReceive, setAutoReceive] = useState(true)
 
   // 1. Carregar Dados
   useEffect(() => {
@@ -110,48 +112,53 @@ export default function ComprasPage() {
 
   // --- LÓGICA DE SUGESTÕES CORRIGIDA ---
   const sugestoesCompra = useMemo(() => {
-    const demandaMap = {} 
+    // Normaliza IDs como string para chavear corretamente
+    const safeId = (val) => val === undefined || val === null ? '' : String(val)
+
+    const demandaMap = {}
     solicitacoesPendentes.forEach(req => {
       req.itens?.forEach(item => {
-        demandaMap[item.produto_id] = (demandaMap[item.produto_id] || 0) + Number(item.quantidade_solicitada)
+        const id = safeId(item.produto_id || item.id)
+        if (!id) return
+        demandaMap[id] = (demandaMap[id] || 0) + Number(item.quantidade_solicitada || 0)
       })
     })
 
     // Mapeia o que JÁ FOI COMPRADO mas ainda não chegou (Status 'Pendente')
     const comprasPendentesMap = {}
     compras.forEach(compra => {
-        if (compra.status === 'Pendente') {
-            compra.itens?.forEach(item => {
-                // Verifica se item.produto_id existe, caso contrário tenta mapear
-                const pId = item.produto_id || item.id
-                if (pId) {
-                    comprasPendentesMap[pId] = (comprasPendentesMap[pId] || 0) + Number(item.quantidade)
-                }
-            })
-        }
+      if (compra.status === 'Pendente') {
+        compra.itens?.forEach(item => {
+          const pId = safeId(item.produto_id || item.id)
+          if (!pId) return
+          comprasPendentesMap[pId] = (comprasPendentesMap[pId] || 0) + Number(item.quantidade || 0)
+        })
+      }
     })
 
     const sugestoes = produtos.map(prod => {
-      const id = prod.produto_id || prod.id
-      const estoqueItem = estoqueMatriz.find(e => e.produto_id === id || e.produto?.produto_id === id)
-      
-      const qtdFisica = estoqueItem ? Number(estoqueItem.quantidade) : 0
+      const id = safeId(prod.produto_id || prod.id || prod._id)
+
+      // Busca item de estoque por múltiplas formas e normaliza quantidade
+      const estoqueItem = estoqueMatriz.find(e => {
+        const ePid = safeId(e.produto_id || e.produto?.produto_id || e.produto?.id)
+        return ePid && ePid === id
+      })
+
+      const qtdFisica = estoqueItem ? Number(estoqueItem.quantidade || estoqueItem.qtd || 0) : 0
       const qtdDemanda = demandaMap[id] || 0
       const qtdComprada = comprasPendentesMap[id] || 0
 
-      // Saldo Projetado = (O que tenho + O que vai chegar) - O que preciso entregar
       const saldoProjetado = (qtdFisica + qtdComprada) - qtdDemanda
-      
-      // CORREÇÃO AQUI: Se o saldo projetado for menor que o mínimo (5), sugere compra.
-      // Isso evita sugerir compra se você já comprou o suficiente (qtdComprada alta).
-      const estoqueMinimo = 5;
 
+      const estoqueMinimo = 5
       if (saldoProjetado < estoqueMinimo) {
-        // O quanto falta para atingir o mínimo + cobrir a demanda
-        const deficit = estoqueMinimo - saldoProjetado;
-        
+        const deficit = estoqueMinimo - saldoProjetado
         return {
-          ...prod,
+          // Campos unificados para renderização
+          produto_id: id,
+          nome: prod.nome || prod.nome_produto || prod.product_name || prod.descricao || 'Sem nome',
+          sku: prod.sku || prod.codigo || prod.sku_prod || '',
           qtdFisica,
           qtdDemanda,
           qtdComprada,
@@ -226,14 +233,30 @@ export default function ComprasPage() {
         total: carrinho.reduce((acc, item) => acc + item.total, 0),
         itens: carrinho
       }
-      
-      await compraService.createCompra(payload, token)
+
+      // Cria pedido
+      const res = await compraService.createCompra(payload, token)
       toast.success("Pedido criado!", { description: "As sugestões foram atualizadas." })
       
+      // Se o backend retornou o id do pedido, e o usuário permitiu recepção automática,
+      // tentamos marcar como recebido imediatamente para atualizar o estoque.
+      if (autoReceive) {
+        try {
+          const pedidoId = res?.id || res?.insertId || res?.pedido_compra_id
+          if (pedidoId) {
+            await compraService.receberCompra(pedidoId, token)
+            toast.success("Pedido recebido e estoque atualizado.")
+          }
+        } catch (recvErr) {
+          // Não bloquear o fluxo se a recepção falhar — usuário pode receber manualmente.
+          console.error('Erro ao tentar receber pedido automaticamente:', recvErr)
+        }
+      }
+
       setCarrinho([])
       setFornecedorSel("")
       setObs("")
-      
+
       // Recarrega tudo para atualizar a lista de sugestões imediatamente
       await carregarDadosCompletos()
     } catch (error) {
@@ -266,7 +289,7 @@ export default function ComprasPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto font-sans">
+  <div className="p-6 space-y-6 max-w-[1600px] mx-auto font-sans bg-background text-foreground">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Compras & Abastecimento</h1>
@@ -284,7 +307,7 @@ export default function ComprasPage() {
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="novo" className="mt-4 space-y-6">
+  <TabsContent value="novo" className="mt-4 space-y-6 min-h-[520px]">
           
           {/* SUGESTÕES INTELIGENTES */}
           {sugestoesCompra.length > 0 && (
@@ -300,7 +323,8 @@ export default function ComprasPage() {
               </CardHeader>
               <CardContent>
                 <div className="rounded-md border bg-card">
-                  <Table>
+                  <div className="h-[320px] overflow-y-auto">
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Produto</TableHead>
@@ -338,7 +362,8 @@ export default function ComprasPage() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                    </Table>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -382,6 +407,12 @@ export default function ComprasPage() {
                     <Label className="flex justify-between">Custo {loadingPreco && <Loader2 className="w-3 h-3 animate-spin"/>}</Label>
                     <Input type="number" placeholder="0.00" value={custo} onChange={e => setCusto(e.target.value)} />
                   </div>
+                </div>
+
+                {/* Opção para receber automaticamente e atualizar estoque */}
+                <div className="flex items-center gap-3">
+                  <input id="autoReceive" type="checkbox" checked={autoReceive} onChange={e => setAutoReceive(e.target.checked)} className="w-4 h-4" />
+                  <label htmlFor="autoReceive" className="text-sm">Receber automaticamente (atualiza estoque ao confirmar)</label>
                 </div>
 
                 <Button className="w-full" onClick={adicionarAoCarrinho} disabled={!produtoSel}>
@@ -439,11 +470,12 @@ export default function ComprasPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="historico" className="mt-4">
+  <TabsContent value="historico" className="mt-4 min-h-[520px]">
           <Card>
             <CardHeader><CardTitle>Pedidos Realizados</CardTitle></CardHeader>
             <CardContent>
-              <Table>
+              <div className="h-[320px] overflow-y-auto">
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>ID</TableHead>
@@ -473,7 +505,8 @@ export default function ComprasPage() {
                   ))}
                   {compras.length === 0 && <TableRow><TableCell colSpan={6} className="text-center h-24 text-muted-foreground">Sem histórico.</TableCell></TableRow>}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

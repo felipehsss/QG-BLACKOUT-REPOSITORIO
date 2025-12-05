@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
+import { useMemo, useState, useEffect, useRef } from "react"
 import { toast } from "sonner"
 import {
   Card, CardHeader, CardTitle, CardContent
@@ -22,6 +22,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import * as clienteService from "@/services/clienteService"
 import * as produtoService from "@/services/produtoService"
 import * as vendaService from "@/services/vendaService"
+import * as estoqueService from "@/services/estoqueService"
 
 // --- CONFIGURAÇÃO DA URL ---
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3080/api';
@@ -48,6 +49,14 @@ export default function PDVPage() {
   
   const [metodoPagamento, setMetodoPagamento] = useState("")
   const [valorRecebido, setValorRecebido] = useState("")
+
+  // Payment status UI / auto-confirm for card payments
+  // 'idle' | 'waiting' | 'confirmed' | 'failed'
+  const [paymentStatus, setPaymentStatus] = useState('idle')
+  const paymentTimerRef = useRef(null)
+  const paymentIntervalRef = useRef(null)
+  const [paymentProgress, setPaymentProgress] = useState(0) // 0..100
+  const FAILURE_PROBABILITY = 0.06 // 6% chance to fail (simulates declined)
 
   const [showRecibo, setShowRecibo] = useState(false)
   const [recibo, setRecibo] = useState(null)
@@ -216,8 +225,26 @@ export default function PDVPage() {
     setLoadingPagamento(true)
 
     try {
-      // 1. Garante que Loja ID seja um número válido
+      // 0. Verifica se cada produto do carrinho está cadastrado no estoque da loja
       const lojaIdAtual = user?.loja_id ? Number(user.loja_id) : 1;
+      const missing = []
+      for (const item of carrinho) {
+        try {
+          const estoqueItem = await estoqueService.getEstoquePorItemELoja(item.id, lojaIdAtual, token)
+          // backend retorna { produto_id, loja_id, quantidade: 0 } quando não existe
+          if (!estoqueItem || Number(estoqueItem.quantidade) === 0) missing.push(item)
+        } catch (err) {
+          console.error('Erro ao checar estoque:', err)
+          missing.push(item)
+        }
+      }
+      if (missing.length > 0) {
+        const nomes = missing.map(i => i.nome || i.id).slice(0,5).join(', ')
+        toast.error(`Não é possível finalizar: produto(s) não cadastrado(s) no estoque da loja: ${nomes}`)
+        setLoadingPagamento(false)
+        return
+      }
+  // 1. Loja ID já definido acima (lojaIdAtual)
 
       const vendaPayload = {
         // IDs obrigatórios
@@ -286,7 +313,96 @@ export default function PDVPage() {
       toast.error(error.response?.data?.message || error.message || "Falha ao registrar venda.")
     } finally {
       setLoadingPagamento(false)
+      // reset any payment status after attempt
+      setPaymentStatus('idle')
     }
+  }
+
+  // When the payment method changes, if it's a card (or PIX) simulate a waiting state
+  useEffect(() => {
+    // clear any previous timer
+    if (paymentTimerRef.current) {
+      clearTimeout(paymentTimerRef.current)
+      paymentTimerRef.current = null
+    }
+
+    const isCard = metodoPagamento && (metodoPagamento.includes('Cartão') || metodoPagamento === 'PIX')
+    if (isCard) {
+      // start a more realistic payment simulation
+      startPaymentSimulation()
+    } else {
+      // ensure any running simulation is cancelled
+      cancelPaymentSimulation()
+      setPaymentStatus('idle')
+    }
+
+    return () => cancelPaymentSimulation()
+  }, [metodoPagamento, totalComDesconto])
+
+  function cancelPaymentSimulation() {
+    if (paymentTimerRef.current) {
+      clearTimeout(paymentTimerRef.current)
+      paymentTimerRef.current = null
+    }
+    if (paymentIntervalRef.current) {
+      clearInterval(paymentIntervalRef.current)
+      paymentIntervalRef.current = null
+    }
+    setPaymentProgress(0)
+    // only reset to idle if we were waiting
+    setPaymentStatus(prev => prev === 'waiting' ? 'idle' : prev)
+  }
+
+  function startPaymentSimulation() {
+    // cancel previous if any
+    cancelPaymentSimulation()
+    setPaymentStatus('waiting')
+    setPaymentProgress(0)
+    setValorRecebido(String(totalComDesconto))
+    toast('Aguardando pagamento...')
+
+    // Random duration between 3 and 8 seconds to feel realistic
+    const duration = 3000 + Math.floor(Math.random() * 5000)
+    const start = Date.now()
+
+    paymentIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - start
+      const pct = Math.min(100, Math.floor((elapsed / duration) * 100))
+      setPaymentProgress(pct)
+    }, 120)
+
+    paymentTimerRef.current = setTimeout(async () => {
+      // finished waiting
+      if (paymentIntervalRef.current) {
+        clearInterval(paymentIntervalRef.current)
+        paymentIntervalRef.current = null
+      }
+      setPaymentProgress(100)
+
+      // small random failure to simulate card declined
+      const failed = Math.random() < FAILURE_PROBABILITY
+      if (failed) {
+        setPaymentStatus('failed')
+        toast.error('Pagamento recusado pelo terminal')
+        paymentTimerRef.current = null
+        return
+      }
+
+      setPaymentStatus('confirmed')
+      toast.success('Pagamento confirmado')
+
+      // Attempt to auto-confirm the sale if not already processing
+      if (!loadingPagamento) {
+        try {
+          await confirmarPagamento()
+        } catch (err) {
+          console.error('Auto-confirm failed:', err)
+          setPaymentStatus('failed')
+        }
+      }
+
+      paymentTimerRef.current = null
+    }, duration)
   }
 
   const produtosFiltrados = useMemo(() => {
@@ -486,11 +602,46 @@ export default function PDVPage() {
                 <div className={`text-right text-sm font-medium ${troco < 0 ? 'text-destructive' : 'text-green-600'}`}>{troco < 0 ? "Faltam R$ " + Math.abs(troco).toFixed(2) : "Troco: R$ " + troco.toFixed(2)}</div>
               </div>
             )}
+
+              {/* Payment status indicator for non-cash methods */}
+              {metodoPagamento && metodoPagamento !== 'Dinheiro' && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm font-medium">Status do Pagamento:</div>
+                    <div className="text-sm">
+                      {paymentStatus === 'idle' && <span className="text-muted-foreground">Pronto</span>}
+                      {paymentStatus === 'waiting' && <span className="text-yellow-600">Aguardando pagamento<span className="opacity-60">{'.'.repeat((Math.floor(paymentProgress / 20) % 4) + 1)}</span></span>}
+                      {paymentStatus === 'confirmed' && <span className="text-green-600">Pago</span>}
+                      {paymentStatus === 'failed' && <span className="text-destructive">Falha</span>}
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  {paymentStatus === 'waiting' && (
+                    <div className="w-full bg-muted rounded h-2 overflow-hidden">
+                      <div className="h-2 bg-primary transition-all" style={{ width: `${paymentProgress}%` }} />
+                    </div>
+                  )}
+
+                  {/* Actions while waiting or on failure */}
+                  <div className="flex gap-2">
+                    {paymentStatus === 'waiting' && (
+                      <Button variant="outline" onClick={() => cancelPaymentSimulation()} size="sm">Cancelar</Button>
+                    )}
+                    {paymentStatus === 'failed' && (
+                      <>
+                        <Button variant="destructive" onClick={() => { setPaymentStatus('idle'); setPaymentProgress(0); toast('Tentando novamente...'); startPaymentSimulation(); }}>Tentar Novamente</Button>
+                        <Button variant="outline" onClick={() => setPaymentStatus('idle')}>Confirmar Manualmente</Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPagamento(false)} disabled={loadingPagamento}>Voltar</Button>
-            <Button onClick={confirmarPagamento} disabled={loadingPagamento || !metodoPagamento || (metodoPagamento === "Dinheiro" && troco < 0)}>
-              {loadingPagamento && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Confirmar Venda
+              <Button onClick={confirmarPagamento} disabled={loadingPagamento || !metodoPagamento || (metodoPagamento === "Dinheiro" && troco < 0) || paymentStatus === 'waiting'}>
+                {(loadingPagamento || paymentStatus === 'waiting') && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Confirmar Venda
             </Button>
           </DialogFooter>
         </DialogContent>

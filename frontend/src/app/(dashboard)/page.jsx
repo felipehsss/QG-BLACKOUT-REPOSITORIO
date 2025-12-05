@@ -272,6 +272,9 @@ export default function DashboardPage() {
     loadData(); 
   };
 
+  // Texto formatado da receita (preserva tamanho fixo e evita overflow ao alternar visibilidade)
+  const revenueText = revenueVisible ? formatCurrency(dashboardData.metrics.totalVendasValor) : 'R$ •••';
+
   if (authLoading) return <div className="flex h-screen items-center justify-center">Carregando dashboard...</div>;
 
   // Verificando quais formulários são "Modais" e quais são "Forms Simples"
@@ -339,7 +342,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between mt-2">
-              <div className="text-2xl font-bold">{revenueVisible ? formatCurrency(dashboardData.metrics.totalVendasValor) : 'R$ •••'}</div>
+              <div className="text-2xl font-bold min-w-[120px] max-w-[160px] truncate text-right" title={revenueText}>{revenueText}</div>
               <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setRevenueVisible(v => !v)}>
                 {revenueVisible ? <EyeOff className="h-3 w-3"/> : <Eye className="h-3 w-3"/>}
               </Button>
