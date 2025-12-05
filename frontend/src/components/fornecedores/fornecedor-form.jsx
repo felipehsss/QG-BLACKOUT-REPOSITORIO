@@ -29,9 +29,10 @@ import { MaskedInput } from "@/components/ui/masked-input";
 import { create as createFornecedor, update as updateFornecedor } from "@/services/fornecedorService";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+// Certifique-se que o caminho para masks está correto. 
+// Se masks.js estiver em src/components/funcionarios/masks.js, o caminho abaixo está certo.
 import { cpfCnpjMask, phoneMask } from "../funcionarios/masks";
 
-// 1. Removido 'endereco' do schema de validação
 const formSchema = z.object({
   nome: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
   email: z.string().email("Email inválido.").optional().or(z.literal("")),
@@ -43,13 +44,11 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { token } = useAuth();
 
-  // 2. Removido 'endereco' dos valores padrão
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { nome: "", email: "", telefone: "", cnpj: "" },
   });
 
-  // 3. Removido 'endereco' do reset (edição e criação)
   useEffect(() => {
     if (open) {
       if (initialData) {
@@ -73,7 +72,6 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // 4. Removido 'endereco' do payload enviado para a API
       const payload = {
         razao_social: data.nome,
         email: data.email?.trim() || null,
@@ -90,7 +88,6 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
         toast.success("Fornecedor criado!");
       }
       
-      // Fecha o modal e chama o callback de sucesso
       setOpen(false);
       onSuccess?.();
     } catch (err) {
@@ -179,8 +176,6 @@ export function FornecedorForm({ open, setOpen, onSuccess, initialData = null })
                 </FormItem>
               )}
             />
-
-            {/* 5. Campo de endereço removido do JSX */}
 
             <DialogFooter>
               <Button 
