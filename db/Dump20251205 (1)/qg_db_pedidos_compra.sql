@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -38,7 +38,7 @@ CREATE TABLE `pedidos_compra` (
   KEY `loja_destino_id` (`loja_destino_id`),
   CONSTRAINT `pedidos_compra_ibfk_1` FOREIGN KEY (`fornecedor_id`) REFERENCES `fornecedores` (`fornecedor_id`),
   CONSTRAINT `pedidos_compra_ibfk_2` FOREIGN KEY (`loja_destino_id`) REFERENCES `lojas` (`loja_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -47,7 +47,7 @@ CREATE TABLE `pedidos_compra` (
 
 LOCK TABLES `pedidos_compra` WRITE;
 /*!40000 ALTER TABLE `pedidos_compra` DISABLE KEYS */;
-INSERT INTO `pedidos_compra` VALUES (1,1,1,'2025-12-01 05:02:07',NULL,'Entregue',200.00,'urgencia'),(2,1,1,'2025-12-01 05:11:16',NULL,'Entregue',200.00,''),(3,2,1,'2025-12-01 05:30:49',NULL,'Entregue',400.00,''),(4,2,1,'2025-12-01 17:42:48',NULL,'Entregue',20.00,'');
+INSERT INTO `pedidos_compra` VALUES (1,1,1,'2025-12-01 05:02:07',NULL,'Entregue',200.00,'urgencia'),(2,1,1,'2025-12-01 05:11:16',NULL,'Entregue',200.00,''),(3,2,1,'2025-12-01 05:30:49',NULL,'Entregue',400.00,''),(4,2,1,'2025-12-01 17:42:48',NULL,'Entregue',20.00,''),(5,1,1,'2025-12-04 05:25:40',NULL,'Entregue',195.00,''),(6,1,1,'2025-12-04 05:26:08',NULL,'Entregue',300.00,''),(7,1,1,'2025-12-04 05:31:53',NULL,'Entregue',400.00,''),(8,3,1,'2025-12-04 05:36:58',NULL,'Entregue',500.00,''),(9,1,1,'2025-12-05 01:17:05',NULL,'Entregue',1000.00,''),(10,2,1,'2025-12-05 02:02:34',NULL,'Entregue',200.00,'');
 /*!40000 ALTER TABLE `pedidos_compra` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -60,4 +60,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:30
+-- Dump completed on 2025-12-05 12:31:00

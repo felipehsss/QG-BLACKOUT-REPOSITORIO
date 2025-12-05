@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -18,28 +18,32 @@ USE `qg_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `categorias_financeiras`
+-- Table structure for table `solicitacoes_estoque`
 --
 
-DROP TABLE IF EXISTS `categorias_financeiras`;
+DROP TABLE IF EXISTS `solicitacoes_estoque`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `categorias_financeiras` (
-  `categoria_id` int(11) NOT NULL AUTO_INCREMENT,
-  `nome` varchar(50) NOT NULL,
-  `tipo` enum('Entrada','Saída') NOT NULL,
-  PRIMARY KEY (`categoria_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+CREATE TABLE `solicitacoes_estoque` (
+  `solicitacao_id` int(11) NOT NULL AUTO_INCREMENT,
+  `loja_solicitante_id` int(11) NOT NULL,
+  `data_solicitacao` timestamp NOT NULL DEFAULT current_timestamp(),
+  `status` enum('Pendente','Em Trânsito','Concluída','Rejeitada') DEFAULT 'Pendente',
+  `observacao` text DEFAULT NULL,
+  PRIMARY KEY (`solicitacao_id`),
+  KEY `loja_solicitante_id` (`loja_solicitante_id`),
+  CONSTRAINT `solicitacoes_estoque_ibfk_1` FOREIGN KEY (`loja_solicitante_id`) REFERENCES `lojas` (`loja_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `categorias_financeiras`
+-- Dumping data for table `solicitacoes_estoque`
 --
 
-LOCK TABLES `categorias_financeiras` WRITE;
-/*!40000 ALTER TABLE `categorias_financeiras` DISABLE KEYS */;
-INSERT INTO `categorias_financeiras` VALUES (1,'Vendas de Produtos','Entrada'),(2,'Serviços','Entrada'),(3,'Custos com Fornecedores','Saída'),(4,'Salários e Comissões','Saída'),(5,'Despesas Operacionais (Água/Luz)','Saída'),(6,'Impostos','Saída'),(7,'Vendas','Entrada'),(8,'Aluguel','Saída'),(9,'Fornecedores','Saída'),(10,'Salários','Saída'),(11,'Impostos','Saída'),(12,'Serviços','Saída'),(13,'Outros','Saída');
-/*!40000 ALTER TABLE `categorias_financeiras` ENABLE KEYS */;
+LOCK TABLES `solicitacoes_estoque` WRITE;
+/*!40000 ALTER TABLE `solicitacoes_estoque` DISABLE KEYS */;
+INSERT INTO `solicitacoes_estoque` VALUES (1,2,'2025-12-01 00:39:52','','Preciso urgente'),(2,2,'2025-12-01 04:12:55','Concluída','Reposição de urgência'),(3,2,'2025-12-01 04:20:49','Rejeitada',''),(4,2,'2025-12-03 02:25:02','Concluída','');
+/*!40000 ALTER TABLE `solicitacoes_estoque` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -51,4 +55,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:28
+-- Dump completed on 2025-12-05 12:31:03

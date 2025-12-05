@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -18,29 +18,33 @@ USE `qg_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `perfis`
+-- Table structure for table `estoque`
 --
 
-DROP TABLE IF EXISTS `perfis`;
+DROP TABLE IF EXISTS `estoque`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `perfis` (
-  `perfil_id` int(11) NOT NULL AUTO_INCREMENT,
-  `nome` varchar(50) NOT NULL,
-  `descricao` text DEFAULT NULL,
-  PRIMARY KEY (`perfil_id`),
-  UNIQUE KEY `nome` (`nome`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+CREATE TABLE `estoque` (
+  `estoque_id` int(11) NOT NULL AUTO_INCREMENT,
+  `produto_id` int(11) NOT NULL,
+  `loja_id` int(11) NOT NULL,
+  `quantidade` int(11) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`estoque_id`),
+  UNIQUE KEY `uk_produto_loja` (`produto_id`,`loja_id`),
+  KEY `loja_id` (`loja_id`),
+  CONSTRAINT `estoque_ibfk_1` FOREIGN KEY (`produto_id`) REFERENCES `produtos` (`produto_id`),
+  CONSTRAINT `estoque_ibfk_2` FOREIGN KEY (`loja_id`) REFERENCES `lojas` (`loja_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `perfis`
+-- Dumping data for table `estoque`
 --
 
-LOCK TABLES `perfis` WRITE;
-/*!40000 ALTER TABLE `perfis` DISABLE KEYS */;
-INSERT INTO `perfis` VALUES (1,'Administrador','Acesso total ao sistema.'),(2,'Gerente de Loja','Acesso administrativo restrito à sua própria loja.'),(3,'Vendedor/Caixa','Acesso apenas ao módulo PDV.');
-/*!40000 ALTER TABLE `perfis` ENABLE KEYS */;
+LOCK TABLES `estoque` WRITE;
+/*!40000 ALTER TABLE `estoque` DISABLE KEYS */;
+INSERT INTO `estoque` VALUES (1,1,1,38),(2,2,1,69),(3,3,1,49),(4,4,2,30),(5,5,2,30),(6,1,2,10),(11,4,1,8),(12,20,1,9),(15,19,1,13),(18,6,1,9),(19,7,1,4),(20,13,1,5),(21,12,1,10),(22,19,2,15);
+/*!40000 ALTER TABLE `estoque` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -52,4 +56,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:26
+-- Dump completed on 2025-12-05 12:30:59

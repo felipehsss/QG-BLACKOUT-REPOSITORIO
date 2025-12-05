@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -18,34 +18,34 @@ USE `qg_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 --
--- Table structure for table `itens_pedido_compra`
+-- Table structure for table `itens_solicitacao`
 --
 
-DROP TABLE IF EXISTS `itens_pedido_compra`;
+DROP TABLE IF EXISTS `itens_solicitacao`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `itens_pedido_compra` (
-  `item_id` int(11) NOT NULL AUTO_INCREMENT,
-  `pedido_compra_id` int(11) NOT NULL,
+CREATE TABLE `itens_solicitacao` (
+  `item_solicitacao_id` int(11) NOT NULL AUTO_INCREMENT,
+  `solicitacao_id` int(11) NOT NULL,
   `produto_id` int(11) NOT NULL,
-  `quantidade` int(11) NOT NULL,
-  `custo_unitario` decimal(10,2) NOT NULL,
-  PRIMARY KEY (`item_id`),
-  KEY `pedido_compra_id` (`pedido_compra_id`),
+  `quantidade_solicitada` int(11) NOT NULL,
+  `quantidade_aprovada` int(11) DEFAULT 0,
+  PRIMARY KEY (`item_solicitacao_id`),
+  KEY `solicitacao_id` (`solicitacao_id`),
   KEY `produto_id` (`produto_id`),
-  CONSTRAINT `itens_pedido_compra_ibfk_1` FOREIGN KEY (`pedido_compra_id`) REFERENCES `pedidos_compra` (`pedido_compra_id`) ON DELETE CASCADE,
-  CONSTRAINT `itens_pedido_compra_ibfk_2` FOREIGN KEY (`produto_id`) REFERENCES `produtos` (`produto_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CONSTRAINT `itens_solicitacao_ibfk_1` FOREIGN KEY (`solicitacao_id`) REFERENCES `solicitacoes_estoque` (`solicitacao_id`),
+  CONSTRAINT `itens_solicitacao_ibfk_2` FOREIGN KEY (`produto_id`) REFERENCES `produtos` (`produto_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `itens_pedido_compra`
+-- Dumping data for table `itens_solicitacao`
 --
 
-LOCK TABLES `itens_pedido_compra` WRITE;
-/*!40000 ALTER TABLE `itens_pedido_compra` DISABLE KEYS */;
-INSERT INTO `itens_pedido_compra` VALUES (1,1,4,10,20.00),(2,2,20,10,20.00),(3,3,2,20,20.00),(4,4,20,1,20.00);
-/*!40000 ALTER TABLE `itens_pedido_compra` ENABLE KEYS */;
+LOCK TABLES `itens_solicitacao` WRITE;
+/*!40000 ALTER TABLE `itens_solicitacao` DISABLE KEYS */;
+INSERT INTO `itens_solicitacao` VALUES (1,1,1,5,0),(2,2,1,5,0),(3,3,19,15,0),(4,3,6,15,0),(5,3,7,15,0),(6,3,13,15,0),(7,3,12,15,0),(8,3,9,15,0),(9,3,16,15,0),(10,3,5,15,0),(11,3,23,15,0),(12,3,20,15,0),(13,3,11,15,0),(14,3,10,15,0),(15,3,15,15,0),(16,3,14,15,0),(17,3,4,15,0),(18,3,18,15,0),(19,3,17,15,0),(20,3,8,15,0),(21,4,19,15,0);
+/*!40000 ALTER TABLE `itens_solicitacao` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -57,4 +57,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:30
+-- Dump completed on 2025-12-05 12:31:01

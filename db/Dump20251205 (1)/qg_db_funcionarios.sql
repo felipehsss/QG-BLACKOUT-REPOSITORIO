@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -53,7 +53,7 @@ CREATE TABLE `funcionarios` (
 
 LOCK TABLES `funcionarios` WRITE;
 /*!40000 ALTER TABLE `funcionarios` DISABLE KEYS */;
-INSERT INTO `funcionarios` VALUES (1,1,1,'Administrador do Sistema','000.000.000-00','admin@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 98888-7777',1,'2025-01-01',NULL,4000.00),(2,1,2,'Gerente Loja Matriz','111.111.111-44','gerente.matriz@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 97777-1111',1,'2025-01-02',NULL,3000.00),(3,1,3,'Vendedor Loja Matriz','222.222.222-42','vendedor.matriz@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 97777-2222',1,'2025-01-03',NULL,1200.00),(4,2,2,'Gerente Loja Filial','333.333.333-14','gerente.filial@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 97777-3333',1,'2025-01-04',NULL,4000.00),(5,2,3,'Vendedor Loja Filial','444.444.444-67','vendedor.filial@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 97777-4444',1,'2025-01-05',NULL,1800.00),(6,4,3,'joao da silva','560.123.987-62','joaosilva@gmail.com','$2b$10$Xd9HQ7ZW8bS4Ady0ibQ/2.QGSIfwQNghu92IqTDFuo7xTayrQjpF2','11967426739',1,'2025-11-30',NULL,1800.00),(7,4,2,'funcionario teste','56080785862','functeste@gmail.com','$2b$10$WZ0qZnoRqy6FLgHIvLcPtef4KAEIc1ENYMtyrB7yyS2xumhEkp6Ye',NULL,1,NULL,NULL,0.00);
+INSERT INTO `funcionarios` VALUES (1,1,1,'Administrador do Sistema','000.000.000-00','admin@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 98888-7777',1,'2025-01-01',NULL,4000.00),(2,1,2,'Gerente Loja Matriz','111.111.111-44','gerente.matriz@qg.com','$2b$10$k6HTJmMyvHs.TJRVQR5s6OBOSXKRBm1cVREWKD7ABjKh2lsb7k902','(11) 97777-1111',1,'2025-01-02',NULL,3000.00),(3,2,2,'Vendedor Loja Matriz','222.222.222-42','vendedor.matriz@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 97777-2222',1,'2025-01-03',NULL,1200.00),(4,2,2,'Gerente Loja Filial','333.333.333-14','gerente.filial@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 97777-3333',1,'2025-01-04',NULL,4000.00),(5,2,3,'Vendedor Loja Filial','444.444.444-67','vendedor.filial@qg.com','$2b$10$JUybh8FuYY4Y1W2DE4Uvb.2snJgcHCKYZcR5i9lZX0QpKQeMfzInO','(11) 97777-4444',1,'2025-01-05',NULL,1800.00),(6,4,3,'joao da silva','560.123.987-62','joaosilva@gmail.com','$2b$10$Xd9HQ7ZW8bS4Ady0ibQ/2.QGSIfwQNghu92IqTDFuo7xTayrQjpF2','11967426739',1,'2025-11-30',NULL,1800.00),(7,4,2,'funcionario teste','56080785862','functeste@gmail.com','$2b$10$WZ0qZnoRqy6FLgHIvLcPtef4KAEIc1ENYMtyrB7yyS2xumhEkp6Ye',NULL,1,NULL,NULL,0.00);
 /*!40000 ALTER TABLE `funcionarios` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -66,4 +66,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:27
+-- Dump completed on 2025-12-05 12:31:02

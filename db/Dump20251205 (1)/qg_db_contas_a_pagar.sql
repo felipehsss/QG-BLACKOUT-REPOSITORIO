@@ -1,6 +1,6 @@
 CREATE DATABASE  IF NOT EXISTS `qg_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 USE `qg_db`;
--- MySQL dump 10.13  Distrib 8.0.44, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 8.0.43, for Win64 (x86_64)
 --
 -- Host: 127.0.0.1    Database: qg_db
 -- ------------------------------------------------------
@@ -39,7 +39,7 @@ CREATE TABLE `contas_a_pagar` (
   KEY `fornecedor_id` (`fornecedor_id`),
   CONSTRAINT `contas_a_pagar_ibfk_1` FOREIGN KEY (`loja_id`) REFERENCES `lojas` (`loja_id`),
   CONSTRAINT `contas_a_pagar_ibfk_2` FOREIGN KEY (`fornecedor_id`) REFERENCES `fornecedores` (`fornecedor_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -48,7 +48,7 @@ CREATE TABLE `contas_a_pagar` (
 
 LOCK TABLES `contas_a_pagar` WRITE;
 /*!40000 ALTER TABLE `contas_a_pagar` DISABLE KEYS */;
-INSERT INTO `contas_a_pagar` VALUES (1,1,1,'Compra de Pastilhas de Freio (NF 1001)',3200.00,'2025-11-01','2025-11-01','Fornecedores','Paga'),(2,1,2,'Compra de Velas e Cabos (NF 1002)',1500.00,'2025-11-06',NULL,'Fornecedores','Atrasada'),(3,1,NULL,'Aluguel Loja Matriz',5000.00,'2025-11-11','2025-12-01','Aluguel',''),(4,1,3,'Compra de Amortecedores (NF 1003)',4800.00,'2025-11-16','2025-12-01','Fornecedores',''),(5,2,4,'Compra de Filtros (NF 2001)',2750.00,'2025-11-08','2025-11-08','Fornecedores','Paga'),(6,2,NULL,'Salários Loja Filial',6000.00,'2025-11-11','2025-12-01','Salários',''),(7,2,1,'Compra de Discos de Freio (NF 2002)',1900.00,'2025-11-26',NULL,'Fornecedores','Pendente'),(8,1,1,'Pedido Compra #1',200.00,'2025-12-31',NULL,'Fornecedores','Pendente'),(9,1,1,'Pedido Compra #2',200.00,'2025-12-31',NULL,'Fornecedores','Pendente'),(10,1,2,'Pedido Compra #3',400.00,'2025-12-31',NULL,'Fornecedores','Pendente'),(11,1,2,'Pedido Compra #4',20.00,'2025-12-31',NULL,'Fornecedores','Pendente');
+INSERT INTO `contas_a_pagar` VALUES (1,1,1,'Compra de Pastilhas de Freio (NF 1001)',3200.00,'2025-11-01','2025-11-01','Fornecedores','Paga'),(2,1,2,'Compra de Velas e Cabos (NF 1002)',1500.00,'2025-11-06',NULL,'Fornecedores','Atrasada'),(3,1,NULL,'Aluguel Loja Matriz',5000.00,'2025-11-11','2025-12-01','Aluguel',''),(4,1,3,'Compra de Amortecedores (NF 1003)',4800.00,'2025-11-16','2025-12-01','Fornecedores',''),(5,2,4,'Compra de Filtros (NF 2001)',2750.00,'2025-11-08','2025-11-08','Fornecedores','Paga'),(6,2,NULL,'Salários Loja Filial',6000.00,'2025-11-11','2025-12-01','Salários',''),(7,2,1,'Compra de Discos de Freio (NF 2002)',1900.00,'2025-11-26','2025-12-05','Fornecedores',''),(8,1,1,'Pedido Compra #1',200.00,'2025-12-31',NULL,'Fornecedores','Pendente'),(9,1,1,'Pedido Compra #2',200.00,'2025-12-31',NULL,'Fornecedores','Pendente'),(10,1,2,'Pedido Compra #3',400.00,'2025-12-31',NULL,'Fornecedores','Pendente'),(11,1,2,'Pedido Compra #4',20.00,'2025-12-31',NULL,'Fornecedores','Pendente'),(12,1,1,'Pedido Compra #5',195.00,'2026-01-03',NULL,'Fornecedores','Pendente'),(13,1,1,'Pedido Compra #6',300.00,'2026-01-03',NULL,'Fornecedores','Pendente'),(14,1,1,'Pedido Compra #7',400.00,'2026-01-03',NULL,'Fornecedores','Pendente'),(15,1,3,'Pedido Compra #8',500.00,'2026-01-03',NULL,'Fornecedores','Pendente'),(16,1,1,'Pedido Compra #9',1000.00,'2026-01-03',NULL,'Fornecedores','Pendente'),(17,1,2,'Pedido Compra #10',200.00,'2026-01-03',NULL,'Fornecedores','Pendente');
 /*!40000 ALTER TABLE `contas_a_pagar` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -61,4 +61,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-12-02 16:53:31
+-- Dump completed on 2025-12-05 12:31:00
